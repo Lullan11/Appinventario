@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bienvenido</title>
+  <link rel="stylesheet" href="../../dist/output.css" />
+</head>
+<body class="h-screen flex text-[#0F172A] font-sans">
+
+  <!-- Mitad izquierda: Logo e identidad -->
+  <div class="w-1/2 bg-[#0F172A] text-white flex flex-col items-center justify-center p-8">
+    <div class="flex items-center gap-4 mb-6">
+      <img src="../assets/Logo_ips.png" alt="Logo IPS" class="w-40 object-contain" />
+      <img src="../assets/Logo_coop.png" alt="Logo Cooperativa" class="w-40 object-contain" />
+    </div>
+    <h1 class="text-4xl font-bold">
+      <span class="text-[#639A33]">Progre</span><span class="text-[#FFFFFF]">sando</span>
+      <!-- <span class="text-[#FFD527]">I</span>
+      <span class="text-[#48C4EF]">P</span>
+      <span class="text-[#ED1C24]">S</span> -->
+    </h1>
+  </div>
+
+  <!-- Mitad derecha: Bienvenida y selección -->
+  <div class="w-1/2 bg-white flex flex-col items-center justify-center p-8">
+    <h2 class="text-3xl font-bold mb-4">¡Bienvenido/a!</h2>
+    <p class="mb-6 text-gray-600 text-lg">¿Quién eres?</p>
+
+    <div class="space-x-4">
+      <button onclick="selectUser('Gerente')" class="px-6 py-2 bg-[#0FBFBF] text-white rounded hover:bg-blue-700">
+        Gerente
+      </button>
+      <button onclick="selectUser('Administrador')" class="px-6 py-2 bg-[#01983B] text-white rounded hover:bg-green-900">
+        Administrador
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function selectUser(role) {
+      localStorage.setItem('currentUser', role);
+      window.location.href = './dashboard.html';
+    }
+  </script>
+</body>
+</html>

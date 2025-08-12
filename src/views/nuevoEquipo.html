@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nuevo Equipo - Inventario</title>
+  <link rel="stylesheet" href="../../dist/output.css" />
+</head>
+
+<body class="flex h-screen bg-white">
+  <div class="flex flex-1 h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
+        <nav class="space-y-3">
+          <a href="#" data-view="dashboard.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Inicio</a>
+          <a href="#" data-view="sedes.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Sedes</a>
+          <a href="#" data-view="areas.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Áreas</a>
+          <a href="#" data-view="puestos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Puestos de trabajo</a>
+          <a href="#" data-view="equipos.html" class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Equipos</a>
+          <a href="#" data-view="historial.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Historial</a>
+          <a href="#" data-view="excel.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Excel</a>
+        </nav>
+      </div>
+      <div class="text-sm mt-6">
+        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">...</span></p>
+        <button onclick="logout()" class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">Salir</button>
+      </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
+      <div>
+        <header class="mb-6 flex items-center justify-between">
+          <h1 class="text-4xl font-semibold text-[#0F172A]">Registrar Nuevo Equipo</h1>
+          <div class="flex items-center gap-4">
+            <img src="../assets/Logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
+            <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
+          </div>
+        </header>
+
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold text-[#0F172A]">Información del Equipo</h2>
+          <p class="text-sm text-gray-600">Rellena los campos para registrar un nuevo equipo vinculado a un puesto o área.</p>
+        </div>
+
+        <div class="bg-white w-full max-w-4xl px-6 mx-auto rounded-xl border-2 border-[#0F172A] shadow-md p-8">
+          <form id="form-equipo" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="nombre" class="block text-[#0F172A] font-medium mb-1">Nombre del Equipo</label>
+                <input type="text" id="nombre" name="nombre" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition" required />
+              </div>
+              <div>
+                <label for="tipoEquipo" class="block text-[#0F172A] font-medium mb-1">Tipo de Equipo</label>
+                <select id="tipoEquipo" name="tipoEquipo" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition" required onchange="mostrarCamposTipo()">
+                  <option value="">Selecciona un tipo...</option>
+                  <option value="computador">Computador</option>
+                  <option value="impresora">Impresora</option>
+                  <option value="scanner">Scanner</option>
+                  <option value="aire">Aire Acondicionado</option>
+                  <option value="ventilador">Ventilador</option>
+                  <option value="ventilador-torre">Ventilador de Torre</option>
+                  <option value="elevador">Elevador</option>
+                  <option value="tablet">Tablet</option>
+                  <option value="celular">Celular</option>
+                  <option value="cortina-aire">Cortina de Aire</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="campos-especificos" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="ubicacion" class="block text-[#0F172A] font-medium mb-1">Ubicación (Área o Puesto)</label>
+                <select id="ubicacion" name="ubicacion" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition" onchange="actualizarCodigo()" required>
+                  <option value="">Selecciona una ubicación...</option>
+                  <option value="A01">Área 1</option>
+                  <option value="P01">Puesto 1</option>
+                </select>
+              </div>
+              <div>
+                <label for="responsable" class="block text-[#0F172A] font-medium mb-1">Responsable</label>
+                <input type="text" id="responsable" name="responsable" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition" required />
+              </div>
+            </div>
+
+            <div>
+              <label for="codigo" class="block text-[#0F172A] font-medium mb-1">Código del Equipo</label>
+              <input type="text" id="codigo" name="codigo" readonly class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition" />
+            </div>
+
+            <div>
+              <label for="descripcion" class="block text-[#0F172A] font-medium mb-1">Descripción General del Equipo</label>
+              <textarea id="descripcion" name="descripcion" rows="3" placeholder="Describe las características generales del equipo..." class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition"></textarea>
+            </div>
+
+            <div>
+              <label for="frecuencia" class="block text-[#0F172A] font-medium mb-1">Frecuencia de Mantenimiento Preventivo</label>
+              <input type="text" id="frecuencia" name="frecuencia" placeholder="Ej: Cada 6 meses" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition" required />
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="estado" class="block text-[#0F172A] font-medium mb-1">Estado del Equipo</label>
+                <select id="estado" name="estado" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition" onchange="mostrarMotivo()" required>
+                  <option value="activo">Activo</option>
+                  <option value="inactivo">Inactivo</option>
+                </select>
+              </div>
+              <div id="motivo-container" style="display: none;">
+                <label for="motivo" class="block text-[#0F172A] font-medium mb-1">Motivo de Inactividad</label>
+                <input type="text" id="motivo" name="motivo" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition" />
+              </div>
+            </div>
+
+            <div class="flex justify-between flex-wrap gap-4 pt-4">
+              <button type="button" onclick="window.location.href='equipos.html'" class="bg-white border-2 border-[#0F172A] text-[#0F172A] font-semibold px-4 py-2 rounded hover:bg-gray-300 transition">Cancelar y volver</button>
+              <button type="button" onclick="window.location.href='nuevoTipoEquipo.html'" class="bg-[#0F172A] text-white px-4 py-2 rounded hover:bg-[#1e293b] transition">Nuevo Tipo de Equipo</button>
+              <button type="submit" class="px-6 py-2 rounded-lg bg-[#FFD527] text-black font-semibold border-2 border-[#0F172A] hover:bg-yellow-600 transition">Guardar Equipo</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <footer class="text-center mt-6 py-4 border-t border-gray-200">
+        <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos - Crear nuevo</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const camposPorTipo = {
+      computador: ['Tipo de computador', 'Referencia', 'Marca', 'Serial', 'Sistema operativo', 'Versión SO'],
+      impresora: ['Marca', 'Número de serie'],
+      scanner: ['Marca', 'Modelo', 'Número de serie'],
+      aire: ['Capacidad en BTU', 'Marca', 'Modelo', 'Número de serie'],
+      ventilador: ['Marca'],
+      'ventilador-torre': ['Marca', 'Modelo', 'Número de serie', 'Número de inventario'],
+      elevador: ['Capacidad', 'Número de inventario'],
+      tablet: ['Marca', 'Número de inventario', 'Número de serie'],
+      celular: ['Marca', 'Modelo', 'Número de inventario'],
+      'cortina-aire': ['Marca', 'Número de serie']
+    };
+
+    function mostrarCamposTipo() {
+      const tipo = document.getElementById("tipoEquipo").value;
+      const container = document.getElementById("campos-especificos");
+      container.innerHTML = '';
+      if (camposPorTipo[tipo]) {
+        camposPorTipo[tipo].forEach(campo => {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.name = campo.toLowerCase().replace(/ /g, '_');
+          input.placeholder = campo;
+          input.className = "w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705] transition";
+
+          const label = document.createElement('label');
+          label.textContent = campo;
+          label.className = "block text-[#0F172A] font-medium mb-1";
+
+          const wrapper = document.createElement('div');
+          wrapper.appendChild(label);
+          wrapper.appendChild(input);
+
+          container.appendChild(wrapper);
+        });
+      }
+    }
+
+    function mostrarMotivo() {
+      const estado = document.getElementById("estado").value;
+      const motivoContainer = document.getElementById("motivo-container");
+      motivoContainer.style.display = estado === "inactivo" ? "block" : "none";
+    }
+
+    function actualizarCodigo() {
+      const ubicacion = document.getElementById("ubicacion").value;
+      document.getElementById("codigo").value = ubicacion;
+    }
+  </script>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/navegacion.js"></script>
+</body>
+</html>

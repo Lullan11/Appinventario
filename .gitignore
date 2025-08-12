@@ -1,0 +1,28 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Builds y distribuciones
+dist/
+build/
+out/
+
+# Archivos temporales
+*.log
+*.tmp
+*.temp
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración personal
+.env
+.env.local
+.env.*.local
+
+# Archivos de cache
+.cache/
+.parcel-cache/

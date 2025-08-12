@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Áreas - Inventario</title>
+  <link href="../../dist/output.css" rel="stylesheet" />
+</head>
+
+<body class="bg-white text-[#0F172A] font-sans min-h-screen flex">
+  <div class="flex flex-1 h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
+        <nav class="space-y-3">
+          <a href="#" data-view="dashboard.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Inicio</a>
+          <a href="#" data-view="sedes.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Sedes</a>
+          <a href="#" data-view="areas.html" class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Áreas</a>
+          <a href="#" data-view="puestos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Puestos de trabajo</a>
+          <a href="#" data-view="equipos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Equipos</a>
+          <a href="#" data-view="historial.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Historial</a>
+          <a href="#" data-view="excel.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Excel</a>
+        </nav>
+      </div>
+      <div class="text-sm mt-6">
+        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">...</span></p>
+        <button onclick="logout()" class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+          Salir
+        </button>
+      </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
+      <div>
+        <header class="mb-6 flex items-center justify-between">
+          <h1 class="text-4xl font-semibold text-[#0F172A]">Gestión de Áreas</h1>
+          <div class="flex items-center gap-4">
+            <img src="../assets/Logo_ips.png" class="h-25 w-24 object-contain" />
+            <img src="../assets/logo_coop.png" class="h-25 w-24 object-contain" />
+          </div>
+        </header>
+
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold text-[#0F172A] mb-2">Áreas</h2>
+          <p class="text-gray-600">Aquí puedes registrar y administrar las áreas internas de cada sede.</p>
+        </div>
+
+        <section class="max-w-7xl mx-auto bg-white p-6 border-2 border-[#0F172A] rounded-xl shadow-md">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-semibold text-[#0F172A]">Listado de Áreas</h3>
+            <button onclick="window.location.href='nuevaArea.html'"
+              class="bg-[#639A33] text-[#FFFFFF] font-semibold px-4 py-2 rounded hover:bg-green-600 transition">
+              + Nueva Área
+            </button>
+          </div>
+
+          <!-- Barra de búsqueda -->
+          <div class="mb-4 flex items-center gap-2">
+            <div class="relative w-full max-w-md">
+              <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd"
+                    d="M12.9 14.32a8 8 0 111.414-1.414l4.387 4.386a1 1 0 01-1.414 1.415l-4.387-4.387zM10 16a6 6 0 100-12 6 6 0 000 12z"
+                    clip-rule="evenodd" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                id="busqueda"
+                placeholder="Buscar por cualquier campo..."
+                class="block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#639A33] focus:border-[#639A33] placeholder-gray-500 text-sm"
+                oninput="filtrarAreas()"
+              />
+            </div>
+          </div>
+
+          <!-- Tabla -->
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-left border border-[#0F172A]">
+              <thead class="bg-[#0F172A] text-white">
+                <tr>
+                  <th class="px-4 py-2 border">Código</th>
+                  <th class="px-4 py-2 border">Nombre</th>
+                  <th class="px-4 py-2 border">Sede</th>
+                  <th class="px-4 py-2 border text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaAreas">
+                <tr class="hover:bg-gray-100 transition">
+                  <td class="px-4 py-2 border">AR-001</td>
+                  <td class="px-4 py-2 border">Consultorio General</td>
+                  <td class="px-4 py-2 border">Sede Norte</td>
+                  <td class="px-4 py-2 border text-center">
+                    <div class="flex justify-center gap-2">
+                      <a href="verArea.html" class="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600">Ver</a>
+                      <a href="editarArea.html" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Editar</a>
+                      <button class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Eliminar</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <footer class="text-center mt-6 py-4 border-t border-gray-200">
+        <p class="text-sm text-[#0F172A] font-medium">Módulo de Áreas</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/navegacion.js"></script>
+  <script>
+    function filtrarAreas() {
+      const texto = document.getElementById('busqueda').value.toLowerCase();
+      const filas = document.querySelectorAll('#tablaAreas tr');
+      filas.forEach(fila => {
+        const contenido = fila.textContent.toLowerCase();
+        fila.style.display = contenido.includes(texto) ? '' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

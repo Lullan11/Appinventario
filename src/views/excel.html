@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exportar Excel - Inventario</title>
+  <link href="../../dist/output.css" rel="stylesheet" />
+</head>
+
+<body class="bg-white text-[#0F172A] font-sans min-h-screen flex">
+  <div class="flex flex-1 h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
+        <nav class="space-y-3">
+          <a href="#" data-view="dashboard.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Inicio</a>
+          <a href="#" data-view="sedes.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Sedes</a>
+          <a href="#" data-view="areas.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Áreas</a>
+          <a href="#" data-view="puestos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Puestos de trabajo</a>
+          <a href="#" data-view="equipos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Equipos</a>
+          <a href="#" data-view="historial.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Historial</a>
+          <a href="#" data-view="excel.html" class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Excel</a>
+        </nav>
+      </div>
+      <div class="text-sm mt-6">
+        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">...</span></p>
+        <button onclick="logout()" class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+          Salir
+        </button>
+      </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
+      <div>
+        <!-- Título y Logo -->
+        <header class="mb-6 flex items-center justify-between">
+          <h1 class="text-4xl font-semibold text-[#0F172A]">Exportación a Excel</h1>
+          <div class="flex items-center gap-4">
+            <img src="../assets/Logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
+            <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
+          </div>
+        </header>
+
+        <!-- Descripción -->
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold text-[#0F172A] mb-2">Generar reportes</h2>
+          <p class="text-gray-600">Selecciona filtros específicos o exporta toda la información disponible en el sistema en formato Excel.</p>
+        </div>
+
+        <!-- Filtros y botón -->
+        <section class="bg-gray-50 border border-[#01983B] p-6 rounded-xl shadow space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1" for="filtro-sede">Sede</label>
+              <select id="filtro-sede" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+                <option value="">Todas</option>
+                <option>Sede Norte</option>
+                <option>Sede Centro</option>
+                <option>Sede Sur</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1" for="filtro-area">Área</label>
+              <select id="filtro-area" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+                <option value="">Todas</option>
+                <option>Administrativa</option>
+                <option>Consultorio</option>
+                <option>Urgencias</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1" for="filtro-tipo">Tipo de equipo</label>
+              <select id="filtro-tipo" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+                <option value="">Todos</option>
+                <option>Computador</option>
+                <option>Impresora</option>
+                <option>Aire acondicionado</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-1" for="filtro-estado">Estado</label>
+              <select id="filtro-estado" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+                <option value="">Todos</option>
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="text-center">
+            <button id="btn-exportar" class="bg-[#01983B] text-white font-semibold px-6 py-2 rounded-lg hover:bg-green-600 transition-all">
+              Generar Excel
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <footer class="text-center mt-6 py-4 border-t border-gray-200">
+        <p class="text-sm text-[#0F172A] font-medium">Módulo de Exportación</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/navegacion.js"></script>
+  <!-- <script src="../js/exportar.js"></script> -->
+</body>
+</html>

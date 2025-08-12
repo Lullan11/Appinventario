@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nueva Sede - Inventario</title>
+  <link rel="stylesheet" href="../../dist/output.css" />
+</head>
+
+<body class="flex h-screen bg-white">
+  <div class="flex flex-1 h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
+        <nav class="space-y-3">
+          <a href="#" data-view="dashboard.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition">Inicio</a>
+          <a href="#" data-view="sedes.html"
+            class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Sedes</a>
+          <a href="#" data-view="areas.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition">Áreas</a>
+          <a href="#" data-view="puestos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition">Puestos de
+            trabajo</a>
+          <a href="#" data-view="equipos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition">Equipos</a>
+          <a href="#" data-view="historial.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition">Historial</a>
+          <a href="#" data-view="excel.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition">Excel</a>
+        </nav>
+      </div>
+      <div class="text-sm mt-6">
+        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">gerente</span>
+        </p>
+        <button onclick="logout()"
+          class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+          Salir
+        </button>
+      </div>
+    </aside>
+
+
+    <!-- Main Content -->
+    <main class="flex-1 p-10 overflow-y-auto flex flex-col justify-between bg-white">
+      <div>
+        <header class="mb-6 flex items-center justify-between">
+          <h1 class="text-4xl font-bold text-[#0F172A]">Crear Nueva Sede</h1>
+          <div class="flex items-center gap-4">
+            <img src="../assets/Logo_ips.png" alt="Logo IPS Progresando" class="h-24 w-24 object-contain" />
+            <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-24 w-24 object-contain" />
+          </div>
+        </header>
+
+        <section class="bg-white border-2 border-[#0F172A] p-8 rounded-xl shadow-md max-w-4xl mx-auto">
+          <h2 class="text-xl font-semibold text-[#0F172A] mb-4">Información de la nueva sede</h2>
+          <p class="text-sm text-gray-600 mb-6">Rellena los campos para registrar una nueva sede.</p>
+
+          <form class="space-y-6">
+            <!-- Código de Sede y Nombre -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="codigo" class="block font-medium text-[#0F172A] mb-1">Código de Sede</label>
+                <input type="text" id="codigo" name="codigo"
+                  class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#48C4EF] transition"
+                  required />
+              </div>
+              <div>
+                <label for="nombre" class="block font-medium text-[#0F172A] mb-1">Nombre de la Sede</label>
+                <input type="text" id="nombre" name="nombre"
+                  class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#48C4EF] transition"
+                  required />
+              </div>
+            </div>
+
+            <!-- Dirección -->
+            <div>
+              <label for="direccion" class="block font-medium text-[#0F172A] mb-1">Dirección</label>
+              <input type="text" id="direccion" name="direccion"
+                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#48C4EF] transition"
+                required />
+            </div>
+
+            <p id="mensaje" style="margin-top: 10px; color: green;"></p>
+
+            <!-- Botones -->
+            <div class="flex justify-end gap-4 pt-4">
+              <button type="button" onclick="window.location.href='sedes.html'"
+                class="bg-white border-2 border-[#0F172A] text-[#0F172A] font-semibold px-4 py-2 rounded hover:bg-[#F2B705] hover:bg-gray-300 transition">
+                Cancelar y volver
+              </button>
+              <button type="submit"
+                class="px-6 py-2 rounded-lg bg-[#48C4EF] text-white font-semibold border-2 border-[#0F172A] hover:bg-blue-600">
+                Guardar Sede
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <!-- Footer -->
+      <footer class="text-center mt-6 py-4 border-t border-gray-200">
+        <p class="text-sm text-[#0F172A] font-medium">Módulo de Sedes - Crear nueva</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/navegacion.js"></script>
+  <script src="../js/nuevaSede.js"></script>
+</body>
+
+</html>
