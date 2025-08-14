@@ -54,11 +54,38 @@ function cancelarEliminacion(id) {
 
 async function eliminarSede(id) {
   try {
-    await fetch(`https://inventario-api-gw73.onrender.com/sedes/${id}`, {
+    const res = await fetch(`https://inventario-api-gw73.onrender.com/sedes/${id}`, {
       method: "DELETE",
     });
-    location.reload();
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      mostrarMensaje(data.message || "No se pudo eliminar la sede.", true);
+      cancelarEliminacion(id);
+      return;
+    }
+
+    mostrarMensaje("✅ Sede eliminada correctamente.");
+    setTimeout(() => location.reload(), 1500);
   } catch (err) {
     console.error("Error al eliminar la sede:", err);
+    mostrarMensaje("Error al conectar con el servidor.", true);
   }
+}
+
+function mostrarMensaje(texto, esError = false) {
+  let mensaje = document.getElementById("mensaje");
+  if (!mensaje) {
+    mensaje = document.createElement("div");
+    mensaje.id = "mensaje";
+    mensaje.className = "mt-4 text-center font-semibold";
+    document.querySelector("main").prepend(mensaje);
+  }
+  mensaje.textContent = texto;
+  mensaje.style.color = esError ? "red" : "green";
+
+  setTimeout(() => {
+    mensaje.textContent = "";
+  }, 3000);
 }

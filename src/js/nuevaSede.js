@@ -1,16 +1,26 @@
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector("form");
+  const mensaje = document.getElementById("mensaje");
+
+  function mostrarMensaje(texto, esError = false) {
+    mensaje.textContent = texto;
+    mensaje.style.color = esError ? "red" : "green";
+
+    // Ocultar mensaje después de 3 segundos
+    setTimeout(() => {
+      mensaje.textContent = "";
+    }, 3000);
+  }
 
   form.addEventListener("submit", async (e) => {
-    e.preventDefault(); // Evita que se recargue la página
+    e.preventDefault();
 
     const codigo = document.getElementById("codigo").value.trim();
     const nombre = document.getElementById("nombre").value.trim();
     const direccion = document.getElementById("direccion").value.trim();
 
-    // Validación simple
     if (!codigo || !nombre || !direccion) {
-      alert("Por favor completa todos los campos.");
+      mostrarMensaje("Por favor completa todos los campos.", true);
       return;
     }
 
@@ -27,11 +37,13 @@ document.addEventListener("DOMContentLoaded", () => {
         throw new Error("Error al crear la sede.");
       }
 
-      alert("Sede creada exitosamente.");
-      window.location.href = "sedes.html"; // Redirige a la lista de sedes
+      mostrarMensaje("✅ Sede creada exitosamente.");
+      setTimeout(() => {
+        window.location.href = "sedes.html";
+      }, 1500); // Redirige después de mostrar el mensaje
     } catch (err) {
       console.error(err);
-      alert("Hubo un problema al guardar la sede.");
+      mostrarMensaje("Hubo un problema al guardar la sede.", true);
     }
   });
 });
