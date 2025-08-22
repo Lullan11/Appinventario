@@ -41,13 +41,13 @@
       <!-- Información de la sede -->
       <section class="bg-white border-2 border-[#0F172A] p-8 rounded-xl shadow-md mb-8">
         <h2 class="text-2xl font-semibold text-[#0F172A] mb-4">Información General</h2>
-        <p><strong class="text-[#0F172A]">Código:</strong> SD-001</p>
-        <p><strong class="text-[#0F172A]">Nombre:</strong> Sede Central</p>
-        <p><strong class="text-[#0F172A]">Dirección:</strong> Cra 8 #12-34</p>
+        <p><strong class="text-[#0F172A]">Código:</strong> <span id="codigo"></span></p>
+        <p><strong class="text-[#0F172A]">Nombre:</strong> <span id="nombre"></span></p>
+        <p><strong class="text-[#0F172A]">Dirección:</strong> <span id="direccion"></span></p>
 
         <!-- Botones de acción -->
         <div class="mt-6 flex gap-4">
-          <button onclick="window.location.href='editarSede.html'" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+          <button id="editarBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
             Editar Sede
           </button>
           <button onclick="window.location.href='sedes.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
@@ -67,15 +67,8 @@
               <th class="px-4 py-2 border text-center">Acciones</th>
             </tr>
           </thead>
-          <tbody>
-            <tr class="hover:bg-gray-100 transition">
-              <td class="px-4 py-2 border">AR-001</td>
-              <td class="px-4 py-2 border">Administración</td>
-              <td class="px-4 py-2 border text-center">
-                <button onclick="window.location.href='verArea.html'" class="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600">Ver</button>
-              </td>
-            </tr>
-            <!-- Más áreas si aplica -->
+          <tbody id="tabla-areas">
+            <!-- Las áreas se cargarán dinámicamente -->
           </tbody>
         </table>
       </section>
@@ -88,5 +81,6 @@
 
   <script src="../js/auth.js"></script>
   <script src="../js/navegacion.js"></script>
+  <script src="../js/verSede.js"></script>
 </body>
 </html>
