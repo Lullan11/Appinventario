@@ -35,5 +35,41 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+
   cargarSede();
+  async function cargarAreasSede() {
+    const tabla = document.getElementById("tablaAreasSede"); // crea este tbody en verSede.html
+    try {
+      const res = await fetch(`${API_BASE}/sedes/${encodeURIComponent(id)}/areas`);
+      if (!res.ok) {
+        console.error("Error al obtener áreas de la sede:", res.status);
+        return;
+      }
+
+      const areas = await res.json();
+      tabla.innerHTML = "";
+
+      if (areas.length === 0) {
+        tabla.innerHTML = `<tr><td colspan="3" class="text-center py-4">Esta sede no tiene áreas</td></tr>`;
+        return;
+      }
+
+      areas.forEach(area => {
+        const fila = document.createElement("tr");
+        fila.innerHTML = `
+        <td class="px-4 py-2 border">${area.codigo}</td>
+        <td class="px-4 py-2 border">${area.nombre}</td>
+        <td class="px-4 py-2 border text-center">
+        <a href="verArea.html?id=${area.id}" class="bg-[#FFD527] text-white px-3 py-1 rounded hover:bg-yellow-600">Ver</a>
+        </td>
+      `;
+        tabla.appendChild(fila);
+      });
+    } catch (err) {
+      console.error("Error cargando áreas de la sede:", err);
+    }
+  }
+  cargarSede();
+  cargarAreasSede();
+
 });
