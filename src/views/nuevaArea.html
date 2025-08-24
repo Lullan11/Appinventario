@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nueva Área - Inventario</title>
   <link rel="stylesheet" href="../../dist/output.css" />
 </head>
+
 <body class="flex h-screen bg-white">
   <div class="flex flex-1 h-screen overflow-hidden">
 
@@ -14,18 +16,26 @@
       <div>
         <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
         <nav class="space-y-3">
-          <a href="#" data-view="dashboard.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Inicio</a>
-          <a href="#" data-view="sedes.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Sedes</a>
-          <a href="#" data-view="areas.html" class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Áreas</a>
-          <a href="#" data-view="puestos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Puestos de trabajo</a>
-          <a href="#" data-view="equipos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Equipos</a>
-          <a href="#" data-view="historial.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Historial</a>
-          <a href="#" data-view="excel.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Excel</a>
+          <a href="#" data-view="dashboard.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Inicio</a>
+          <a href="#" data-view="sedes.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Sedes</a>
+          <a href="#" data-view="areas.html"
+            class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Áreas</a>
+          <a href="#" data-view="puestos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Puestos de trabajo</a>
+          <a href="#" data-view="equipos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Equipos</a>
+          <a href="#" data-view="historial.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Historial</a>
+          <a href="#" data-view="excel.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Excel</a>
         </nav>
       </div>
       <div class="text-sm mt-6">
         <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">...</span></p>
-        <button onclick="logout()" class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+        <button onclick="logout()"
+          class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
           Salir
         </button>
       </div>
@@ -44,7 +54,8 @@
 
         <section class="bg-white border-2 border-[#0F172A] p-8 rounded-xl shadow-md max-w-4xl mx-auto">
           <h2 class="text-xl font-semibold text-[#0F172A] mb-4">Información de la nueva área</h2>
-          <p class="text-sm text-gray-600 mb-6">Rellena los campos para registrar una nueva área asociada a una sede.</p>
+          <p class="text-sm text-gray-600 mb-6">Rellena los campos para registrar una nueva área asociada a una sede.
+          </p>
 
           <form id="form-nueva-area" class="space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -67,11 +78,9 @@
                 <label for="sede" class="block font-medium text-[#0F172A] mb-1">Sede</label>
                 <select id="sede" name="sede" required
                   class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#01983B] transition">
-                  <option value="">Selecciona una sede</option>
-                  <option value="1">Pamplona</option>
-                  <option value="2">Cúcuta</option>
-                  <option value="3">Villa del Rosario</option>
+                  <option value="">Cargando sedes...</option>
                 </select>
+
               </div>
             </div>
 
@@ -99,6 +108,7 @@
 
   <script src="../js/auth.js"></script>
   <script src="../js/navegacion.js"></script>
-  <script src="../js/areas.js"></script>
+  <script src="../js/nuevaArea.js"></script>
 </body>
+
 </html>
