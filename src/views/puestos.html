@@ -95,17 +95,7 @@
               </thead>
               <tbody id="tabla-puestos" class="text-black">
                 <tr class="hover:bg-gray-100 transition">
-                  <td class="px-4 py-2 border border-[#0F172A]">PST-001</td>
-                  <td class="px-4 py-2 border border-[#0F172A]">Contabilidad</td>
-                  <td class="px-4 py-2 border border-[#0F172A]">Sede Principal</td>
-                  <td class="px-4 py-2 border border-[#0F172A]">Laura Rodríguez</td>
-                  <td class="px-4 py-2 border border-[#0F172A]">1028456798</td>
-                  <td class="px-4 py-2 border border-[#0F172A] text-center">
-                    <div class="flex justify-center gap-2">
-                      <button onclick="window.location.href='verPuesto.html'" class="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600">Ver</button>
-                      <button onclick="window.location.href='editarPuesto.html'" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Editar</button>
-                      <button class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Eliminar</button>
-                    </div>
+                      <!-- Aqui se mostrarán dinamicamente los puestos -->
                   </td>
                 </tr>
                 <!-- Más filas -->
@@ -123,6 +113,7 @@
 
   <script src="../js/auth.js"></script>
   <script src="../js/navegacion.js"></script>
+  <script src="../js/puesto.js"></script>
   <script>
     function filtrarPuestos() {
       const input = document.getElementById("busqueda").value.toLowerCase();

@@ -1,41 +1,19 @@
-// editarSede.js
-// Script para editar una sede: carga los datos y hace PUT sin usar alert()
-
 const API_BASE = "https://inventario-api-gw73.onrender.com";
 
 document.addEventListener("DOMContentLoaded", () => {
-  const main = document.querySelector("main") || document.body;
-  let mensaje = document.getElementById("mensaje");
-  if (!mensaje) {
-    mensaje = document.createElement("div");
-    mensaje.id = "mensaje";
-    mensaje.className = "mt-4 text-center font-semibold";
-    mensaje.style.minHeight = "1.2em";
-    const formContainer = document.getElementById("editarSedeForm")?.parentElement || main;
-    formContainer.prepend(mensaje);
-  }
-
   // Obtener el ID desde la URL
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
 
   if (!id) {
-    mensaje.textContent = "ID de sede no especificado en la URL.";
-    mensaje.style.color = "red";
+    mostrarMensaje("ID de sede no especificado en la URL.", true);
     return;
   }
 
   const form = document.getElementById("editarSedeForm");
   if (!form) {
-    mensaje.textContent = "Formulario no encontrado.";
-    mensaje.style.color = "red";
+    mostrarMensaje("Formulario no encontrado.", true);
     return;
-  }
-
-  function showMessage(text, isError = false) {
-    mensaje.textContent = text;
-    mensaje.style.color = isError ? "red" : "green";
-    setTimeout(() => { if (mensaje) mensaje.textContent = ""; }, 3000);
   }
 
   async function cargarSede() {
@@ -43,9 +21,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch(`${API_BASE}/sedes/${encodeURIComponent(id)}`);
       if (!res.ok) {
         if (res.status === 404) {
-          showMessage("Sede no encontrada.", true);
+          mostrarMensaje("Sede no encontrada.", true);
         } else {
-          showMessage(`Error al obtener la sede (${res.status}).`, true);
+          mostrarMensaje(`Error al obtener la sede (${res.status}).`, true);
         }
         return;
       }
@@ -57,13 +35,12 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("id_direccion").value = sede.direccion ?? "";
     } catch (err) {
       console.error("Error cargando sede:", err);
-      showMessage("Error al conectar con el servidor al cargar la sede.", true);
+      mostrarMensaje("Error al conectar con el servidor al cargar la sede.", true);
     }
   }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    showMessage("");
 
     const datos = {
       codigo: document.getElementById("id_codigo").value.trim(),
@@ -72,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     if (!datos.codigo || !datos.nombre || !datos.direccion) {
-      showMessage("Completa todos los campos.", true);
+      mostrarMensaje("Completa todos los campos.", true);
       return;
     }
 
@@ -85,17 +62,36 @@ document.addEventListener("DOMContentLoaded", () => {
       const body = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        showMessage(body.message || `Error al actualizar (${res.status}).`, true);
+        mostrarMensaje(body.message || `Error al actualizar (${res.status}).`, true);
         return;
       }
 
-      showMessage("✅ Sede actualizada correctamente.");
+      mostrarMensaje("✅ Sede actualizada correctamente.");
       setTimeout(() => { window.location.href = "sedes.html"; }, 900);
     } catch (err) {
       console.error("Error en PUT:", err);
-      showMessage("Error al conectar con el servidor al guardar.", true);
+      mostrarMensaje("Error al conectar con el servidor al guardar.", true);
     }
   });
 
   cargarSede();
 });
+
+// Función para mostrar mensajes (mismo diseño que en puestos)
+function mostrarMensaje(texto, esError = false) {
+  let mensaje = document.getElementById("mensaje-sede");
+  if (!mensaje) {
+    mensaje = document.createElement("div");
+    mensaje.id = "mensaje-sede";
+    mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50";
+    document.body.appendChild(mensaje);
+  }
+  
+  mensaje.textContent = texto;
+  mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError ? 'bg-red-100 text-red-800 border-l-4 border-red-500' : 'bg-green-100 text-green-800 border-l-4 border-green-500'}`;
+  
+  setTimeout(() => {
+    mensaje.textContent = "";
+    mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 hidden";
+  }, 3000);
+}

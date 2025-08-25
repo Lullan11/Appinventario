@@ -1,5 +1,4 @@
-// areas.js
-const API_URL = "https://inventario-api-gw73.onrender.com/areas"; // ajusta si tu endpoint cambia
+const API_URL = "https://inventario-api-gw73.onrender.com/areas";
 
 // 🔹 Cargar todas las áreas
 async function cargarAreas() {
@@ -41,6 +40,7 @@ async function cargarAreas() {
     });
   } catch (error) {
     console.error("Error al cargar las áreas:", error);
+    mostrarMensaje("Error al cargar las áreas", true);
   }
 }
 
@@ -70,33 +70,35 @@ async function eliminarArea(id) {
     const data = await res.json();
 
     if (!res.ok) {
-      mostrarMensajeArea(data.message || "No se pudo eliminar el área.", true);
+      mostrarMensaje(data.message || "❌ No se pudo eliminar el área.", true);
       cancelarEliminacionArea(id);
       return;
     }
 
-    mostrarMensajeArea("✅ Área eliminada correctamente.");
+    mostrarMensaje("✅ Área eliminada correctamente.");
     setTimeout(() => location.reload(), 1500);
   } catch (err) {
     console.error("Error al eliminar el área:", err);
-    mostrarMensajeArea("Error al conectar con el servidor.", true);
+    mostrarMensaje("Error al conectar con el servidor.", true);
   }
 }
 
-// 🔹 Mostrar mensaje (verde o rojo)
-function mostrarMensajeArea(texto, esError = false) {
-  let mensaje = document.getElementById("mensajeArea");
+// Función para mostrar mensajes
+function mostrarMensaje(texto, esError = false) {
+  let mensaje = document.getElementById("mensaje-areas");
   if (!mensaje) {
     mensaje = document.createElement("div");
-    mensaje.id = "mensajeArea";
-    mensaje.className = "mt-4 text-center font-semibold";
-    document.querySelector("main").prepend(mensaje);
+    mensaje.id = "mensaje-areas";
+    mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50";
+    document.body.appendChild(mensaje);
   }
+  
   mensaje.textContent = texto;
-  mensaje.style.color = esError ? "red" : "green";
-
+  mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError ? 'bg-red-100 text-red-800 border-l-4 border-red-500' : 'bg-green-100 text-green-800 border-l-4 border-green-500'}`;
+  
   setTimeout(() => {
     mensaje.textContent = "";
+    mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 hidden";
   }, 3000);
 }
 
