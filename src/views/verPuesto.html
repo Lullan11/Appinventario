@@ -41,15 +41,15 @@
       <!-- Información del puesto -->
       <section class="bg-white border-2 border-[#0F172A] p-8 rounded-xl shadow-md mb-8">
         <h2 class="text-2xl font-semibold text-[#0F172A] mb-4">Información General</h2>
-        <p><strong class="text-[#0F172A]">Código:</strong> PST-001</p>
-        <p><strong class="text-[#0F172A]">Área:</strong> Contabilidad</p>
-        <p><strong class="text-[#0F172A]">Sede:</strong> Sede Central</p>
-        <p><strong class="text-[#0F172A]">Responsable:</strong> Laura Rodríguez</p>
-        <p><strong class="text-[#0F172A]">Documento:</strong> 1028456798</p>
+        <p><strong class="text-[#0F172A]">Código:</strong> <span id="detalle-codigo"></span></p>
+        <p><strong class="text-[#0F172A]">Área:</strong> <span id="detalle-area"></span></p>
+        <p><strong class="text-[#0F172A]">Sede:</strong> <span id="detalle-sede"></span></p>
+        <p><strong class="text-[#0F172A]">Responsable:</strong> <span id="detalle-responsable"></span></p>
+        <p><strong class="text-[#0F172A]">Documento:</strong> <span id="detalle-documento"></span></p>
 
         <!-- Botones de acción -->
         <div class="mt-6 flex gap-4">
-          <button onclick="window.location.href='editarPuesto.html'" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+          <button id="btn-editar" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
             Editar Puesto
           </button>
           <button onclick="window.location.href='puestos.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
@@ -58,10 +58,10 @@
         </div>
       </section>
 
-      <!-- Equipos asociados (opcional si aplican) -->
+      <!-- Equipos asociados -->
       <section class="bg-white border-2 border-[#0F172A] p-8 rounded-xl shadow-md">
         <h2 class="text-2xl font-semibold text-[#0F172A] mb-6">Equipos Asociados</h2>
-        <table class="min-w-full text-left border border-[#0F172A]">
+        <table id="tabla-equipos" class="min-w-full text-left border border-[#0F172A]">
           <thead class="bg-[#0F172A] text-white">
             <tr>
               <th class="px-4 py-2 border">Código</th>
@@ -70,14 +70,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr class="hover:bg-gray-100 transition">
-              <td class="px-4 py-2 border">EQ-001</td>
-              <td class="px-4 py-2 border">Computador Portátil</td>
-              <td class="px-4 py-2 border text-center">
-                <button onclick="window.location.href='verEquipo.html'" class="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600">Ver</button>
-              </td>
-            </tr>
-            <!-- Más equipos si aplica -->
+            <!-- Aquí se insertan los equipos con JS -->
           </tbody>
         </table>
       </section>
@@ -90,5 +83,6 @@
 
   <script src="../js/auth.js"></script>
   <script src="../js/navegacion.js"></script>
+  <script src="../js/verPuesto.js"></script>
 </body>
 </html>
