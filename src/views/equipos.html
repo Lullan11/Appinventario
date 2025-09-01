@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,18 +16,27 @@
       <div>
         <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
         <nav class="space-y-3">
-          <a href="#" data-view="dashboard.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Inicio</a>
-          <a href="#" data-view="sedes.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Sedes</a>
-          <a href="#" data-view="areas.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Áreas</a>
-          <a href="#" data-view="puestos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Puestos de trabajo</a>
-          <a href="#" data-view="equipos.html" class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A]">Equipos</a>
-          <a href="#" data-view="historial.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Historial</a>
-          <a href="#" data-view="excel.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Excel</a>
+          <a href="#" data-view="dashboard.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Inicio</a>
+          <a href="#" data-view="sedes.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Sedes</a>
+          <a href="#" data-view="areas.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Áreas</a>
+          <a href="#" data-view="puestos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Puestos
+            de trabajo</a>
+          <a href="#" data-view="equipos.html"
+            class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A]">Equipos</a>
+          <a href="#" data-view="historial.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Historial</a>
+          <a href="#" data-view="excel.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Excel</a>
         </nav>
       </div>
       <div class="text-sm mt-6">
         <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">...</span></p>
-        <button onclick="logout()" class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+        <button onclick="logout()"
+          class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
           Salir
         </button>
       </div>
@@ -47,7 +57,8 @@
         <!-- Descripción -->
         <div class="mb-6">
           <h2 class="text-lg font-semibold text-[#0F172A] mb-2">Equipos Registrados</h2>
-          <p class="text-gray-600">Aquí puedes ver todos los equipos inventariados, registrar nuevos, modificar información o marcar como inactivos.</p>
+          <p class="text-gray-600">Aquí puedes ver todos los equipos inventariados, registrar nuevos, modificar
+            información o marcar como inactivos.</p>
         </div>
 
         <!-- Tabla -->
@@ -70,13 +81,9 @@
                     clip-rule="evenodd" />
                 </svg>
               </div>
-              <input
-                type="text"
-                id="busqueda"
-                placeholder="Buscar por cualquier campo..."
+              <input type="text" id="busqueda" placeholder="Buscar por cualquier campo..."
                 class="block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#639A33] focus:border-[#639A33] placeholder-gray-500 text-sm"
-                oninput="filtrarEquipos()"
-              />
+                oninput="filtrarEquipos()" />
             </div>
           </div>
 
@@ -92,23 +99,7 @@
                 </tr>
               </thead>
               <tbody id="tablaEquipos">
-                <!-- Ejemplo -->
-                <tr class="hover:bg-gray-100 transition">
-                  <td class="px-4 py-2 border border-[#0F172A]">EQP-001</td>
-                  <td class="px-4 py-2 border border-[#0F172A]">Computador Dell</td>
-                  <td class="px-4 py-2 border border-[#0F172A]">Puesto 5 - Contabilidad</td>
-                  <td class="px-4 py-2 border border-[#0F172A]">Laura Rodríguez</td>
-                  <td class="px-4 py-2 border border-[#0F172A] text-center">
-                    <div class="flex justify-center gap-2">
-                      <button onclick="verEquipo('EQP-001')" title="Ver"
-                        class="bg-yellow-400 text-white font-semibold px-3 py-1 rounded hover:bg-yellow-600 transition">Ver</button>
-                      <button onclick="editarEquipo('EQP-001')" title="Editar"
-                        class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Editar</button>
-                      <button onclick="inactivarEquipo('EQP-001')" title="Inactivar"
-                        class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Inactivar</button>
-                    </div>
-                  </td>
-                </tr>
+                  <!-- Cargando equipos -->
               </tbody>
             </table>
           </div>
@@ -123,6 +114,8 @@
 
   <script src="../js/auth.js"></script>
   <script src="../js/navegacion.js"></script>
+  <script src="../js/equipos.js"></script>
+
   <script>
     function editarEquipo(id) {
       window.location.href = `editarEquipo.html?id=${id}`;
@@ -148,4 +141,5 @@
     }
   </script>
 </body>
+
 </html>
