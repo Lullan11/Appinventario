@@ -1,5 +1,6 @@
 const API_AREAS = "https://inventario-api-gw73.onrender.com/areas";
 const API_PUESTOS = "https://inventario-api-gw73.onrender.com/puestos";
+const API_EQUIPOS = "https://inventario-api-gw73.onrender.com/equipos";
 
 function getIdFromUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -34,7 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 2. Traer puestos asociados al área
     try {
-        const resP = await fetch(`${API_AREAS}/${id}/puestos`); // 👈 usamos el endpoint correcto
+        const resP = await fetch(`${API_AREAS}/${id}/puestos`);
         if (resP.ok) {
             const puestos = await resP.json();
             const tbody = document.getElementById("tabla-puestos");
@@ -62,4 +63,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
         console.error("Error cargando puestos:", err);
     }
+
+    // 3. Traer equipos asociados al área
+    try {
+        const resE = await fetch(`${API_AREAS}/${id}/equipos`);
+        if (resE.ok) {
+            const equipos = await resE.json();
+            const tbodyE = document.getElementById("tabla-equipos");
+            tbodyE.innerHTML = "";
+
+            if (equipos.length === 0) {
+                tbodyE.innerHTML = `<tr><td colspan="5" class="text-center py-4">No hay equipos registrados directamente en esta área</td></tr>`;
+            } else {
+                equipos.forEach(eq => {
+                    const tr = document.createElement("tr");
+                    tr.className = "hover:bg-gray-100 transition";
+                    tr.innerHTML = `
+                    <td class="px-4 py-2 border">${eq.codigo_interno}</td>
+                    <td class="px-4 py-2 border">${eq.nombre}</td>
+                    <td class="px-4 py-2 border">${eq.descripcion || "-"}</td>
+                    <td class="px-4 py-2 border">${eq.responsable_nombre || "-"}</td>
+                    <td class="px-4 py-2 border text-center">
+                        <button onclick="window.location.href='verEquipo.html?id=${eq.id}'" 
+                          class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-700">Ver</button>
+                    </td>
+                `;
+                    tbodyE.appendChild(tr);
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Error cargando equipos:", err);
+    }
+
+
 });

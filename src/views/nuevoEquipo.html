@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nuevo Equipo - Inventario</title>
   <link rel="stylesheet" href="../../dist/output.css" />
 </head>
@@ -15,18 +16,27 @@
       <div>
         <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
         <nav class="space-y-3">
-          <a href="#" data-view="dashboard.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Inicio</a>
-          <a href="#" data-view="sedes.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Sedes</a>
-          <a href="#" data-view="areas.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Áreas</a>
-          <a href="#" data-view="puestos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Puestos de trabajo</a>
-          <a href="#" data-view="equipos.html" class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Equipos</a>
-          <a href="#" data-view="historial.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Historial</a>
-          <a href="#" data-view="excel.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Excel</a>
+          <a href="#" data-view="dashboard.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Inicio</a>
+          <a href="#" data-view="sedes.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Sedes</a>
+          <a href="#" data-view="areas.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Áreas</a>
+          <a href="#" data-view="puestos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Puestos
+            de trabajo</a>
+          <a href="#" data-view="equipos.html"
+            class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Equipos</a>
+          <a href="#" data-view="historial.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Historial</a>
+          <a href="#" data-view="excel.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Excel</a>
         </nav>
       </div>
       <div class="text-sm mt-6">
         <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">...</span></p>
-        <button onclick="logout()" class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">Salir</button>
+        <button onclick="logout()"
+          class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">Salir</button>
       </div>
     </aside>
 
@@ -43,21 +53,26 @@
 
         <div class="mb-6">
           <h2 class="text-xl font-semibold text-[#0F172A]">Información del Equipo</h2>
-          <p class="text-sm text-gray-600">Rellena los campos para registrar un nuevo equipo vinculado a un puesto o área.</p>
+          <p class="text-sm text-gray-600">Rellena los campos para registrar un nuevo equipo vinculado a un puesto o
+            área.</p>
         </div>
 
         <div class="bg-white w-full max-w-4xl px-6 mx-auto rounded-xl border-2 border-[#0F172A] shadow-md p-8">
           <form id="form-equipo" class="space-y-6">
-            
+
             <!-- Nombre y Tipo -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label for="nombre" class="block text-[#0F172A] font-medium mb-1">Nombre del Equipo</label>
-                <input type="text" id="nombre" name="nombre" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required />
+                <input type="text" id="nombre" name="nombre"
+                  class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+                  required />
               </div>
               <div>
                 <label for="tipoEquipo" class="block text-[#0F172A] font-medium mb-1">Tipo de Equipo</label>
-                <select id="tipoEquipo" name="tipoEquipo" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required onchange="mostrarCamposTipo()">
+                <select id="tipoEquipo" name="tipoEquipo"
+                  class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+                  required onchange="mostrarCamposTipo()">
                   <option value="">Selecciona un tipo...</option>
                 </select>
               </div>
@@ -70,35 +85,59 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label for="ubicacion" class="block text-[#0F172A] font-medium mb-1">Ubicación (Área o Puesto)</label>
-                <select id="ubicacion" name="ubicacion" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required></select>
+                <select id="ubicacion" name="ubicacion"
+                  class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+                  required></select>
               </div>
               <div>
                 <label for="responsable" class="block text-[#0F172A] font-medium mb-1">Responsable</label>
-                <input type="text" id="responsable" name="responsable" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required />
+                <input type="text" id="responsable" name="responsable"
+                  class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+                  required />
               </div>
             </div>
 
             <!-- Código y descripción -->
             <div>
               <label for="codigo" class="block text-[#0F172A] font-medium mb-1">Código del Equipo</label>
-              <input type="text" id="codigo" name="codigo" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required />
+              <input type="text" id="codigo" name="codigo"
+                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+                required />
             </div>
             <div>
               <label for="descripcion" class="block text-[#0F172A] font-medium mb-1">Descripción General</label>
-              <textarea id="descripcion" name="descripcion" rows="3" placeholder="Describe el equipo..." class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#F2B705]"></textarea>
+              <textarea id="descripcion" name="descripcion" rows="3" placeholder="Describe el equipo..."
+                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#F2B705]"></textarea>
             </div>
 
             <!-- Frecuencia de mantenimiento -->
-            <div>
-              <label for="frecuencia" class="block text-[#0F172A] font-medium mb-1">Frecuencia de Mantenimiento Preventivo</label>
-              <input type="text" id="frecuencia" name="frecuencia" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="frecuencia" class="block text-[#0F172A] font-medium mb-1">
+                  Frecuencia de Mantenimiento Preventivo (días)
+                </label>
+                <input type="number" id="frecuencia" name="frecuencia" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2
+      focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required />
+              </div>
+              <div>
+                <label for="fecha_inicio" class="block text-[#0F172A] font-medium mb-1">
+                  Fecha de Inicio del Mantenimiento
+                </label>
+                <input type="date" id="fecha_inicio" name="fecha_inicio" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2
+      focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required />
+              </div>
             </div>
+
 
             <!-- Botones -->
             <div class="flex justify-between flex-wrap gap-4 pt-4">
-              <button type="button" onclick="window.location.href='equipos.html'" class="bg-white border-2 border-[#0F172A] text-[#0F172A] px-4 py-2 rounded hover:bg-gray-300">Cancelar</button>
-              <button type="button" onclick="window.location.href='nuevoTipoEquipo.html'" class="bg-[#0F172A] text-white px-4 py-2 rounded hover:bg-[#1e293b]">Nuevo Tipo de Equipo</button>
-              <button type="submit" class="px-6 py-2 rounded-lg bg-[#FFD527] text-black font-semibold border-2 border-[#0F172A] hover:bg-yellow-600">Guardar Equipo</button>
+              <button type="button" onclick="window.location.href='equipos.html'"
+                class="bg-white border-2 border-[#0F172A] text-[#0F172A] px-4 py-2 rounded hover:bg-gray-300">Cancelar</button>
+              <button type="button" onclick="window.location.href='nuevoTipoEquipo.html'"
+                class="bg-[#0F172A] text-white px-4 py-2 rounded hover:bg-[#1e293b]">Nuevo Tipo de Equipo</button>
+              <button type="submit"
+                class="px-6 py-2 rounded-lg bg-[#FFD527] text-black font-semibold border-2 border-[#0F172A] hover:bg-yellow-600">Guardar
+                Equipo</button>
             </div>
 
           </form>
@@ -115,4 +154,5 @@
   <script src="../js/navegacion.js"></script>
   <script src="../js/nuevoEquipo.js"></script>
 </body>
+
 </html>

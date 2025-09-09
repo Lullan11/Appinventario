@@ -133,7 +133,7 @@ document.getElementById("ubicacion").addEventListener("change", async (e) => {
     }
 });
 
-// Enviar formulario
+// Enviar formulario con mantenimientos
 document.getElementById("form-equipo").addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -142,11 +142,18 @@ document.getElementById("form-equipo").addEventListener("submit", async (e) => {
     const nombre = document.getElementById("nombre").value.trim();
     const codigo = document.getElementById("codigo").value.trim();
     const responsable = document.getElementById("responsable").value.trim();
+    const frecuencia = parseInt(document.getElementById("frecuencia").value);
+    const fechaInicio = document.getElementById("fecha_inicio").value;
 
-    if (!tipoId || !ubicacion || !nombre || !codigo || !responsable) {
+    if (!tipoId || !ubicacion || !nombre || !codigo || !responsable || !frecuencia || !fechaInicio) {
         mostrarMensajeEquipo("⚠️ Por favor completa todos los campos requeridos.", true);
         return;
     }
+
+    // Calcular próxima fecha
+    const fechaInicioObj = new Date(fechaInicio);
+    const proxima = new Date(fechaInicioObj);
+    proxima.setDate(proxima.getDate() + frecuencia);
 
     const [tipoUbic, idUbic] = ubicacion.split("-");
     const camposInputs = document.querySelectorAll("#campos-especificos input");
@@ -164,7 +171,12 @@ document.getElementById("form-equipo").addEventListener("submit", async (e) => {
         responsable_nombre: responsable,
         responsable_documento: "N/A",
         id_tipo_equipo: parseInt(tipoId),
-        campos_personalizados: camposPersonalizados
+        campos_personalizados: camposPersonalizados,
+
+        // 🔧 Nuevos campos de mantenimiento
+        intervalo_dias: frecuencia,
+        fecha_inicio_mantenimiento: fechaInicio,
+        proximo_mantenimiento: proxima.toISOString().split("T")[0]
     };
 
     try {

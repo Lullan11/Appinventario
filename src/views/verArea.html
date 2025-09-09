@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ver Área - Inventario</title>
   <link rel="stylesheet" href="../../dist/output.css" />
 </head>
+
 <body class="flex h-screen bg-white">
   <div class="flex flex-1 h-screen overflow-hidden">
     <!-- Sidebar -->
@@ -13,18 +15,27 @@
       <div>
         <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
         <nav class="space-y-3">
-          <a href="#" data-view="dashboard.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Inicio</a>
-          <a href="#" data-view="sedes.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Sedes</a>
-          <a href="#" data-view="areas.html" class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Áreas</a>
-          <a href="#" data-view="puestos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Puestos</a>
-          <a href="#" data-view="equipos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Equipos</a>
-          <a href="#" data-view="historial.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Historial</a>
-          <a href="#" data-view="excel.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Excel</a>
+          <a href="#" data-view="dashboard.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Inicio</a>
+          <a href="#" data-view="sedes.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Sedes</a>
+          <a href="#" data-view="areas.html"
+            class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Áreas</a>
+          <a href="#" data-view="puestos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Puestos</a>
+          <a href="#" data-view="equipos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Equipos</a>
+          <a href="#" data-view="historial.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Historial</a>
+          <a href="#" data-view="excel.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Excel</a>
         </nav>
       </div>
       <div class="text-sm mt-6">
-        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">gerente</span></p>
-        <button onclick="logout()" class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">Salir</button>
+        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">gerente</span>
+        </p>
+        <button onclick="logout()"
+          class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">Salir</button>
       </div>
     </aside>
 
@@ -50,7 +61,8 @@
           <button id="btn-editar" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
             Editar Área
           </button>
-          <button onclick="window.location.href='areas.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+          <button onclick="window.location.href='areas.html'"
+            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
             Volver
           </button>
         </div>
@@ -69,10 +81,33 @@
             </tr>
           </thead>
           <tbody id="tabla-puestos">
-            <tr><td colspan="3" class="text-center py-4">Cargando...</td></tr>
+            <tr>
+              <td colspan="3" class="text-center py-4">Cargando...</td>
+            </tr>
           </tbody>
         </table>
       </section>
+      <!-- Equipos asociados -->
+      <section class="bg-white border-2 border-[#0F172A] p-8 rounded-xl shadow-md mt-8">
+        <h2 class="text-2xl font-semibold text-[#0F172A] mb-6">Equipos del Área</h2>
+        <table class="min-w-full text-left border border-[#0F172A]">
+          <thead class="bg-[#0F172A] text-white">
+            <tr>
+              <th class="px-4 py-2 border">Código Interno</th>
+              <th class="px-4 py-2 border">Nombre</th>
+              <th class="px-4 py-2 border">Descripción</th>
+              <th class="px-4 py-2 border">Responsable</th>
+              <th class="px-4 py-2 border text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-equipos">
+            <tr>
+              <td colspan="4" class="text-center py-4">Cargando...</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
 
       <footer class="text-center mt-6 py-4 border-t border-gray-200">
         <p class="text-sm text-[#0F172A] font-medium">Módulo de Áreas - Ver Detalles</p>
@@ -85,4 +120,5 @@
   <script src="../js/verArea.js"></script>
 
 </body>
+
 </html>
