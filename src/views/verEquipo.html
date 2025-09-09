@@ -8,24 +8,28 @@
 </head>
 <body class="flex h-screen bg-white">
   <div class="flex flex-1 h-screen overflow-hidden">
-
     <!-- Sidebar -->
     <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
       <div>
         <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
         <nav class="space-y-3">
-          <a href="#" data-view="dashboard.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Inicio</a>
-          <a href="#" data-view="sedes.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Sedes</a>
-          <a href="#" data-view="areas.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Áreas</a>
-          <a href="#" data-view="puestos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Puestos</a>
-          <a href="#" data-view="equipos.html" class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Equipos</a>
-          <a href="#" data-view="historial.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Historial</a>
-          <a href="#" data-view="excel.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Excel</a>
+          <a href="dashboard.html" class="block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Inicio</a>
+          <a href="sedes.html" class="block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Sedes</a>
+          <a href="areas.html" class="block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Áreas</a>
+          <a href="puestos.html" class="block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Puestos</a>
+          <a href="equipos.html" class="block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Equipos</a>
+          <a href="historial.html" class="block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Historial</a>
+          <a href="excel.html" class="block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Excel</a>
         </nav>
       </div>
       <div class="text-sm mt-6">
-        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">gerente</span></p>
-        <button onclick="logout()" class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">Salir</button>
+        <p class="mb-2 text-gray-300">Usuario: 
+          <span id="user-role" class="text-[#639A33] font-semibold">gerente</span>
+        </p>
+        <button onclick="logout()" 
+          class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+          Salir
+        </button>
       </div>
     </aside>
 
@@ -34,17 +38,16 @@
       <header class="mb-6 flex items-center justify-between">
         <h1 class="text-4xl font-bold text-[#0F172A]">Detalles del Equipo</h1>
         <div class="flex gap-4">
-          <img src="../assets/Logo_ips.png" class="h-24 w-24 object-contain" alt="Logo IPS" />
-          <img src="../assets/logo_coop.png" class="h-24 w-24 object-contain" alt="Logo Cooperativa" />
+          <img src="../assets/Logo_ips.png" class="h-20 w-20 object-contain" alt="Logo IPS" />
+          <img src="../assets/logo_coop.png" class="h-20 w-20 object-contain" alt="Logo Cooperativa" />
         </div>
       </header>
 
       <!-- Información del equipo -->
-      <section class="bg-white border-2 border-[#0F172A] p-8 rounded-xl shadow-md mb-8">
+      <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-8">
         <h2 class="text-2xl font-semibold text-[#0F172A] mb-4">Información General</h2>
         <div id="info-equipo" class="space-y-2"></div>
 
-        <!-- Botones de acción -->
         <div class="mt-6 flex gap-4">
           <button id="editar-btn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
             Editar Equipo
@@ -55,47 +58,71 @@
         </div>
       </section>
 
+      <!-- Mantenimientos Preventivos -->
+      <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-8">
+        <h2 class="text-2xl font-semibold text-[#0F172A] mb-6">Mantenimientos Preventivos</h2>
+
+        <p><strong class="text-[#0F172A]">Próximo Mantenimiento:</strong> 
+          <span id="proximo-preventivo">Cargando...</span>
+        </p>
+
+        <table class="min-w-full text-left border mt-4">
+          <thead class="bg-[#0F172A] text-white">
+            <tr>
+              <th class="px-4 py-2 border">Fecha</th>
+              <th class="px-4 py-2 border">Realizado por</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-preventivos">
+            <!-- JS llena aquí -->
+          </tbody>
+        </table>
+
+        <div class="mt-6">
+          <button id="btn-validar-preventivo" 
+            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
+            Validar Mantenimiento Preventivo
+          </button>
+        </div>
+      </section>
+
+      <!-- Mantenimientos Correctivos -->
+      <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-8">
+        <h2 class="text-2xl font-semibold text-[#0F172A] mb-6">Mantenimientos Correctivos</h2>
+
+        <table class="min-w-full text-left border">
+          <thead class="bg-[#0F172A] text-white">
+            <tr>
+              <th class="px-4 py-2 border">Fecha</th>
+              <th class="px-4 py-2 border">Descripción</th>
+              <th class="px-4 py-2 border">Realizado por</th>
+              <th class="px-4 py-2 border">Observaciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-correctivos">
+            <!-- JS llena aquí -->
+          </tbody>
+        </table>
+
+        <div class="mt-6">
+          <button id="btn-agregar-correctivo" 
+            class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">
+            Agregar Mantenimiento Correctivo
+          </button>
+        </div>
+      </section>
+
       <footer class="text-center mt-6 py-4 border-t border-gray-200">
         <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos - Ver Detalles</p>
       </footer>
     </main>
   </div>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("id");
-    const equipos = JSON.parse(localStorage.getItem("equipos") || "[]");
-    const tipos = JSON.parse(localStorage.getItem("tiposDeEquipo") || "[]");
-    const equipo = equipos.find(eq => eq.id === id);
-
-    const contenedor = document.getElementById("info-equipo");
-    const editarBtn = document.getElementById("editar-btn");
-
-    if (!equipo) {
-      contenedor.innerHTML = `<p class="text-red-500 font-semibold">Equipo no encontrado.</p>`;
-      editarBtn.style.display = "none";
-    } else {
-      const tipo = tipos.find(t => t.nombre === equipo.tipo);
-      contenedor.innerHTML = `
-        <p><strong class="text-[#0F172A]">ID:</strong> ${equipo.id}</p>
-        <p><strong class="text-[#0F172A]">Nombre:</strong> ${equipo.nombre}</p>
-        <p><strong class="text-[#0F172A]">Tipo:</strong> ${equipo.tipo}</p>
-      `;
-      if (tipo?.campos) {
-        tipo.campos.forEach(campo => {
-          contenedor.innerHTML += `<p><strong class="text-[#0F172A]">${campo}:</strong> ${equipo[campo] || '-'}</p>`;
-        });
-      }
-      contenedor.innerHTML += `
-        <p><strong class="text-[#0F172A]">Ubicación:</strong> ${equipo.ubicacion}</p>
-        <p><strong class="text-[#0F172A]">Responsable:</strong> ${equipo.responsable}</p>
-      `;
-      // Activamos el botón para redirigir a la edición con ID dinámico
-      editarBtn.onclick = () => window.location.href = `editarEquipo.html?id=${equipo.id}`;
-    }
-  </script>
+  <!-- Contenedor mensajes flotantes -->
+  <div id="mensaje-equipo" class="hidden"></div>
 
   <script src="../js/auth.js"></script>
   <script src="../js/navegacion.js"></script>
+  <script src="../js/verEquipo.js"></script>
 </body>
 </html>

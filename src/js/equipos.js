@@ -24,19 +24,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         const tr = document.createElement("tr");
         tr.className = "hover:bg-gray-100 transition";
         tr.innerHTML = `
-          <td class="px-4 py-2 border border-[#0F172A]">${eq.id}</td>
+          <td class="px-4 py-2 border border-[#0F172A]">${eq.codigo_interno}</td>
           <td class="px-4 py-2 border border-[#0F172A] font-medium">${eq.nombre}</td>
           <td class="px-4 py-2 border border-[#0F172A]">
-            ${eq.ubicacion === "puesto" 
-              ? `Puesto: ${eq.puesto_codigo || "-"}`
-              : `Área: ${eq.area_nombre || "-"}`
-            }
+            ${eq.ubicacion === "puesto"
+                  ? `Puesto: ${eq.puesto_codigo || "-"}`
+                  : `Área: ${eq.area_nombre || "-"}`
+                }
           </td>
           <td class="px-4 py-2 border border-[#0F172A]">
             ${eq.ubicacion === "puesto"
-              ? (eq.puesto_responsable || "-")
-              : (eq.responsable_nombre ? `${eq.responsable_nombre} (${eq.responsable_documento || "-"})` : "-")
-            }
+                  ? (eq.puesto_responsable || "-")
+                  : (eq.responsable_nombre ? `${eq.responsable_nombre} (${eq.responsable_documento || "-"})` : "-")
+                }
+          </td>
+          <td class="px-4 py-2 border border-[#0F172A]">
+            ${eq.proximo_mantenimiento
+                  ? eq.proximo_mantenimiento.substring(0, 10).split("-").reverse().join("/")
+                  : "-"
+                }
           </td>
           <td class="px-4 py-2 border border-[#0F172A] text-center">
             <div class="flex justify-center gap-2">
@@ -53,6 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         `;
         tbody.appendChild(tr);
       });
+
     }
   } catch (err) {
     console.error("Error cargando equipos:", err);
@@ -109,10 +116,10 @@ function mostrarMensaje(texto, esError = false) {
     mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50";
     document.body.appendChild(mensaje);
   }
-  
+
   mensaje.textContent = texto;
   mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError ? 'bg-red-100 text-red-800 border-l-4 border-red-500' : 'bg-green-100 text-green-800 border-l-4 border-green-500'}`;
-  
+
   setTimeout(() => {
     mensaje.textContent = "";
     mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 hidden";
