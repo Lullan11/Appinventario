@@ -1,39 +1,37 @@
-// welcome.js - login
+// welcome.js - recover password
 document.addEventListener("DOMContentLoaded", () => {
-  const form = document.getElementById("loginForm");
+  const form = document.getElementById("recoverForm");
 
-  if (!form) return; // si no existe, salir (esto evita errores en recover.html)
+  if (!form) return; // si no existe, salir (evita errores en login.html)
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value.trim();
+    const email = document.getElementById("recoverEmail").value.trim();
+    const newPassword = document.getElementById("recoverNewPassword").value.trim();
 
-    if (!email || !password) {
-      mostrarMensaje("Por favor completa todos los campos.", true);
+    if (!email || !newPassword) {
+      mostrarMensaje("Completa todos los campos de recuperación.", true);
       return;
     }
 
     try {
-      const res = await fetch("https://inventario-api-gw73.onrender.com/usuarios/login", {
+      const res = await fetch("https://inventario-api-gw73.onrender.com/usuarios/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, newPassword }),
       });
 
       const data = await res.json();
+      mostrarMensaje(data.message || data.error, !res.ok);
 
       if (res.ok) {
-        localStorage.setItem("currentUser", JSON.stringify(data.usuario));
-        localStorage.setItem("token", data.token);
-        mostrarMensaje("✅ Login exitoso, redirigiendo...");
-        setTimeout(() => window.location.href = "./dashboard.html", 1500);
-      } else {
-        mostrarMensaje(data.error || "Error al iniciar sesión", true);
+        // Limpiar campos
+        document.getElementById("recoverEmail").value = "";
+        document.getElementById("recoverNewPassword").value = "";
       }
     } catch (err) {
-      console.error("Error en login:", err);
-      mostrarMensaje("No se pudo conectar con el servidor", true);
+      console.error("Error en recuperación:", err);
+      mostrarMensaje("Error al enviar la solicitud.", true);
     }
   });
 

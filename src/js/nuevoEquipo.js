@@ -60,10 +60,15 @@ async function mostrarCamposTipo() {
         if (!tipo || !tipo.campos) return;
 
         tipo.campos.forEach(campo => {
+            const nombre = campo.nombre_campo || "Campo";
+            let inputType = "text"; // por defecto
+            if (campo.tipo_dato === "numero") inputType = "number";
+            if (campo.tipo_dato === "fecha") inputType = "date";
+
             const div = document.createElement("div");
             div.innerHTML = `
-                <label class="block text-[#0F172A] font-medium mb-1">${campo.nombre_campo}</label>
-                <input type="text" name="${campo.nombre_campo}" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" />
+                <label class="block text-[#0F172A] font-medium mb-1">${nombre}</label>
+                <input type="${inputType}" name="${nombre}" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" />
             `;
             container.appendChild(div);
         });
@@ -72,6 +77,7 @@ async function mostrarCamposTipo() {
         mostrarMensajeEquipo("Error al mostrar campos específicos", true);
     }
 }
+
 
 // Cargar ubicaciones (áreas y puestos)
 async function cargarUbicaciones() {

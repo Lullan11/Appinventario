@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login</title>
+  <title>Recuperar Contraseña</title>
   <link rel="stylesheet" href="../../dist/output.css" />
 </head>
 
@@ -21,33 +21,27 @@
     </h1>
   </div>
 
-  <!-- Mitad derecha: Login -->
+  <!-- Mitad derecha: Recuperar contraseña -->
   <div class="w-1/2 bg-white flex flex-col items-center justify-center p-8">
-    <h2 class="text-3xl font-bold mb-4">¡Bienvenido/a!</h2>
-    <p class="mb-6 text-gray-600 text-lg">Inicia sesión con tu cuenta</p>
+    <h2 class="text-3xl font-bold mb-4">Recuperar Contraseña</h2>
+    <p class="mb-6 text-gray-600 text-lg">Ingresa tu correo y la nueva contraseña</p>
 
-    <form id="loginForm" class="w-80 flex flex-col space-y-4">
-      <input type="email" id="email" placeholder="Correo electrónico"
+    <form id="recoverForm" class="w-80 flex flex-col space-y-4">
+      <input type="email" id="recoverEmail" placeholder="Correo electrónico"
         class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]" required />
-      <input type="password" id="password" placeholder="Contraseña"
+      <input type="password" id="recoverNewPassword" placeholder="Nueva contraseña"
         class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]" required />
       <button type="submit" class="px-6 py-2 bg-[#639A33] text-white rounded hover:bg-[#079A33] transition">
-        Ingresar
+        Restablecer contraseña
       </button>
     </form>
 
     <p class="mt-4 text-sm text-gray-600">
-      ¿Olvidaste tu contraseña?
-      <a href="recover.html" class="text-[#0FBFBF] hover:underline">Recupérala aquí</a>
-    </p>
-
-    <p class="mt-2 text-sm text-gray-600">
-      ¿No tienes cuenta?
-      <a href="register.html" class="text-[#0FBFBF] hover:underline">Regístrate</a>
+      <a href="welcome.html" class="text-[#0FBFBF] hover:underline">Volver al login</a>
     </p>
   </div>
 
-  <script src="../js/welcome.js"></script>
+  <script src="../js/recover.js"></script>
 </body>
 
 </html>

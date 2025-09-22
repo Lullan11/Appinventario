@@ -12,10 +12,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     areas.forEach((area) => {
       const option = document.createElement("option");
-      option.value = area.id; // 👈 tu backend devuelve "id", no "id_area"
-      option.textContent = area.nombre;
+      option.value = area.id; // 👈 id de área
+      option.textContent = `${area.nombre} (${area.sede_nombre})`; // 👈 mostrar sede al lado
       select.appendChild(option);
     });
+
   } catch (err) {
     console.error("Error cargando áreas:", err);
     mostrarMensaje("❌ Error cargando áreas", true);
@@ -79,11 +80,10 @@ function mostrarMensaje(texto, esError = false) {
   }
 
   mensaje.textContent = texto;
-  mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${
-    esError
+  mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError
       ? "bg-red-100 text-red-800 border-l-4 border-red-500"
       : "bg-green-100 text-green-800 border-l-4 border-green-500"
-  }`;
+    }`;
 
   setTimeout(() => {
     mensaje.textContent = "";

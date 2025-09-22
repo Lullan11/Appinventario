@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ver Equipo - Inventario</title>
   <link rel="stylesheet" href="../../dist/output.css" />
 </head>
+
 <body class="flex h-screen bg-white">
   <div class="flex flex-1 h-screen overflow-hidden">
     <!-- Sidebar -->
@@ -23,10 +25,10 @@
         </nav>
       </div>
       <div class="text-sm mt-6">
-        <p class="mb-2 text-gray-300">Usuario: 
+        <p class="mb-2 text-gray-300">Usuario:
           <span id="user-role" class="text-[#639A33] font-semibold">gerente</span>
         </p>
-        <button onclick="logout()" 
+        <button onclick="logout()"
           class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
           Salir
         </button>
@@ -42,27 +44,46 @@
           <img src="../assets/logo_coop.png" class="h-20 w-20 object-contain" alt="Logo Cooperativa" />
         </div>
       </header>
-
       <!-- Información del equipo -->
       <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-8">
         <h2 class="text-2xl font-semibold text-[#0F172A] mb-4">Información General</h2>
-        <div id="info-equipo" class="space-y-2"></div>
+        <div id="info-equipo" class="space-y-2">
+          <!-- JS rellenará todos estos campos -->
+          <p><strong>Código:</strong> -</p>
+          <p><strong>Nombre:</strong> -</p>
+          <p><strong>Descripción:</strong> -</p>
+          <p><strong>Responsable:</strong> -</p>
+          <p><strong>Ubicación:</strong> -</p>
+
+          <h3 class="mt-3 font-semibold">📌 Información de Mantenimiento</h3>
+          <p><strong>Tipo de equipo:</strong> -</p>
+          <p><strong>Fecha inicio mantenimiento:</strong> -</p>
+          <p><strong>Próximo mantenimiento:</strong> -</p>
+          <p><strong>Intervalo:</strong> -</p>
+
+          <div id="campos-personalizados" class="mt-4">
+            <h3 class="font-semibold">Campos Personalizados:</h3>
+            <p>No hay información adicional</p>
+          </div>
+        </div>
 
         <div class="mt-6 flex gap-4">
           <button id="editar-btn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
             Editar Equipo
           </button>
-          <button onclick="window.location.href='equipos.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+          <button onclick="window.location.href='equipos.html'"
+            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
             Volver
           </button>
         </div>
       </section>
 
+
       <!-- Mantenimientos Preventivos -->
       <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-8">
         <h2 class="text-2xl font-semibold text-[#0F172A] mb-6">Mantenimientos Preventivos</h2>
 
-        <p><strong class="text-[#0F172A]">Próximo Mantenimiento:</strong> 
+        <p><strong class="text-[#0F172A]">Próximo Mantenimiento:</strong>
           <span id="proximo-preventivo">Cargando...</span>
         </p>
 
@@ -79,7 +100,7 @@
         </table>
 
         <div class="mt-6">
-          <button id="btn-validar-preventivo" 
+          <button id="btn-validar-preventivo"
             class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
             Validar Mantenimiento Preventivo
           </button>
@@ -105,7 +126,7 @@
         </table>
 
         <div class="mt-6">
-          <button id="btn-agregar-correctivo" 
+          <button id="btn-agregar-correctivo"
             class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">
             Agregar Mantenimiento Correctivo
           </button>
@@ -125,4 +146,5 @@
   <script src="../js/navegacion.js"></script>
   <script src="../js/verEquipo.js"></script>
 </body>
+
 </html>
