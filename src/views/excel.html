@@ -1,33 +1,88 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Exportar Excel - Inventario</title>
   <link href="../../dist/output.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Fuente moderna (Google Fonts - Poppins) -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
+  </style>
 </head>
 
-<body class="bg-white text-[#0F172A] font-sans min-h-screen flex">
+<body class="bg-white text-[#0F172A] min-h-screen flex">
   <div class="flex flex-1 h-screen overflow-hidden">
 
     <!-- Sidebar -->
     <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
       <div>
-        <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
+        <div class="flex items-center gap-2 mb-6">
+          <div class="bg-[#639A33] p-2 rounded-md">
+            <i class="fas fa-boxes-stacked text-white text-lg"></i>
+          </div>
+          <div>
+            <h1 class="sidebar-title font-bold text-[#639A33]">Inventario IPS</h1>
+            <p class="sidebar-subtitle text-white-400">Sistema de gestión</p>
+          </div>
+        </div>
         <nav class="space-y-3">
-          <a href="#" data-view="dashboard.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Inicio</a>
-          <a href="#" data-view="sedes.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Sedes</a>
-          <a href="#" data-view="areas.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Áreas</a>
-          <a href="#" data-view="puestos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Puestos de trabajo</a>
-          <a href="#" data-view="equipos.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Equipos</a>
-          <a href="#" data-view="historial.html" class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">Historial</a>
-          <a href="#" data-view="excel.html" class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Excel</a>
+          <a href="#" data-view="dashboard.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">
+            <i class="fas fa-home mr-2"></i> Inicio
+          </a>
+          <a href="#" data-view="sedes.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">
+            <i class="fas fa-building mr-2"></i> Sedes
+          </a>
+          <a href="#" data-view="areas.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">
+            <i class="fas fa-map-marker-alt mr-2"></i> Áreas
+          </a>
+          <a href="#" data-view="puestos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">
+            <i class="fas fa-briefcase mr-2"></i> Puestos de trabajo
+          </a>
+          <a href="#" data-view="equipos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">
+            <i class="fas fa-laptop mr-2"></i> Equipos
+          </a>
+          <a href="#" data-view="historial.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">
+            <i class="fas fa-history mr-2"></i> Historial
+          </a>
+          <a href="#" data-view="excel.html"
+            class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">
+            <i class="fas fa-file-excel mr-2"></i> Excel
+          </a>
+          <a href="#" data-view="inactivos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">
+            <i class="fas fa-ban mr-2"></i> Inactivos
+          </a>
+          <a href="#" data-view="Usuarios.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">
+            <i class="fas fa-users mr-2"></i> Usuarios
+          </a>
+          <a href="#" data-view="insumos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A] transition-colors">
+            <i class="fas fa-boxes mr-2"></i> Insumos
+          </a>
         </nav>
       </div>
       <div class="text-sm mt-6">
-        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">...</span></p>
-        <button onclick="logout()" class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
-          Salir
+        <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario: <span id="user-role"
+            class="text-[#639A33] font-semibold">...</span></p>
+        <button onclick="logout()"
+          class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+          <i class="fas fa-sign-out-alt"></i>
+          Cerrar Sesión
         </button>
       </div>
     </aside>
@@ -47,7 +102,8 @@
         <!-- Descripción -->
         <div class="mb-6">
           <h2 class="text-lg font-semibold text-[#0F172A] mb-2">Generar reportes</h2>
-          <p class="text-gray-600">Selecciona filtros específicos o exporta toda la información disponible en el sistema en formato Excel.</p>
+          <p class="text-gray-600">Selecciona filtros específicos o exporta toda la información disponible en el sistema
+            en formato Excel.</p>
         </div>
 
         <!-- Filtros y botón -->
@@ -55,7 +111,8 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label class="block text-sm font-medium mb-1" for="filtro-sede">Sede</label>
-              <select id="filtro-sede" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+              <select id="filtro-sede"
+                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
                 <option value="">Todas</option>
                 <option>Sede Norte</option>
                 <option>Sede Centro</option>
@@ -65,7 +122,8 @@
 
             <div>
               <label class="block text-sm font-medium mb-1" for="filtro-area">Área</label>
-              <select id="filtro-area" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+              <select id="filtro-area"
+                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
                 <option value="">Todas</option>
                 <option>Administrativa</option>
                 <option>Consultorio</option>
@@ -75,7 +133,8 @@
 
             <div>
               <label class="block text-sm font-medium mb-1" for="filtro-tipo">Tipo de equipo</label>
-              <select id="filtro-tipo" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+              <select id="filtro-tipo"
+                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
                 <option value="">Todos</option>
                 <option>Computador</option>
                 <option>Impresora</option>
@@ -85,7 +144,8 @@
 
             <div>
               <label class="block text-sm font-medium mb-1" for="filtro-estado">Estado</label>
-              <select id="filtro-estado" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+              <select id="filtro-estado"
+                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
                 <option value="">Todos</option>
                 <option value="activo">Activo</option>
                 <option value="inactivo">Inactivo</option>
@@ -94,7 +154,8 @@
           </div>
 
           <div class="text-center">
-            <button id="btn-exportar" class="bg-[#01983B] text-white font-semibold px-6 py-2 rounded-lg hover:bg-green-600 transition-all">
+            <button id="btn-exportar"
+              class="bg-[#01983B] text-white font-semibold px-6 py-2 rounded-lg hover:bg-green-600 transition-all">
               Generar Excel
             </button>
           </div>
@@ -111,4 +172,5 @@
   <script src="../js/navegacion.js"></script>
   <!-- <script src="../js/exportar.js"></script> -->
 </body>
+
 </html>

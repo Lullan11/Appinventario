@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Resaltar el enlace activo si coincide con la URL actual
     if (view && window.location.pathname.includes(view)) {
-      link.classList.add('bg-[#22C55E]', 'text-[#0F172A]', 'font-semibold');
+      link.classList.add('bg-[#639A33]', 'text-[#0F172A]', 'font-semibold');
     }
   });
 });

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Usuarios - Inventario</title>
+    <link href="../../dist/output.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Aplicar Poppins a todos los elementos */
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* Asegurar que elementos específicos usen Poppins */
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        p,
+        span,
+        a,
+        button,
+        input,
+        textarea,
+        select,
+        table,
+        th,
+        td,
+        label,
+        .sidebar-title,
+        .sidebar-subtitle {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* Estilos específicos para inputs y botones */
+        input,
+        button,
+        select {
+            font-family: 'Poppins', sans-serif !important;
+        }
+    </style>
+</head>
+
+<body class="bg-white text-[#0F172A] min-h-screen flex">
+    <div class="flex flex-1 h-screen overflow-hidden">
+
+        <!-- Sidebar -->
+        <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-2 mb-6">
+                    <div class="bg-[#639A33] p-2 rounded-md">
+                        <i class="fas fa-boxes-stacked text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="sidebar-title font-bold text-[#639A33]">Inventario IPS</h1>
+                        <p class="sidebar-subtitle text-white/70">Sistema de gestión</p>
+                    </div>
+                </div>
+                <nav class="space-y-3">
+                    <a href="#" data-view="dashboard.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-home mr-2"></i> Inicio
+                    </a>
+                    <a href="#" data-view="sedes.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-building mr-2"></i> Sedes
+                    </a>
+                    <a href="#" data-view="areas.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-map-marker-alt mr-2"></i> Áreas
+                    </a>
+                    <a href="#" data-view="puestos.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-briefcase mr-2"></i> Puestos de trabajo
+                    </a>
+                    <a href="#" data-view="equipos.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-laptop mr-2"></i> Equipos
+                    </a>
+                    <a href="#" data-view="historial.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-history mr-2"></i> Historial
+                    </a>
+                    <a href="#" data-view="excel.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-file-excel mr-2"></i> Excel
+                    </a>
+                    <a href="#" data-view="inactivos.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-ban mr-2"></i> Inactivos
+                    </a>
+                    <a href="#" data-view="usuarios.html"
+                        class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">
+                        <i class="fas fa-users mr-2"></i> Usuarios
+                    </a>
+                    <a href="#" data-view="insumos.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-boxes mr-2"></i> Insumos
+                    </a>
+                </nav>
+            </div>
+            <div class="text-sm mt-6">
+                <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario:
+                    <span id="user-role" class="text-[#639A33] font-semibold">...</span>
+                </p>
+                <button onclick="logout()"
+                    class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
+            <div>
+                <header class="mb-6 flex items-center justify-between">
+                    <h1 class="text-4xl font-semibold text-[#0F172A]">Gestión de Usuarios</h1>
+                    <div class="flex items-center gap-4">
+                        <img src="../assets/Logo_ips.png" class="h-20 w-20 object-contain" />
+                        <img src="../assets/logo_coop.png" class="h-20 w-20 object-contain" />
+                    </div>
+                </header>
+
+                <section class="max-w-7xl mx-auto bg-white p-6 border-2 border-[#0F172A] rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-semibold text-[#0F172A]">Listado de Usuarios</h3>
+                        <button onclick="abrirFormularioUsuario()"
+                            class="bg-[#639A33] text-[#FFFFFF] font-semibold px-4 py-2 rounded hover:bg-green-600 transition">
+                            + Nuevo Usuario
+                        </button>
+                    </div>
+
+                    <!-- Barra de búsqueda -->
+                    <div class="mb-4 flex items-center gap-2">
+                        <div class="relative w-full max-w-md">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M12.9 14.32a8 8 0 111.414-1.414l4.387 4.386a1 1 0 01-1.414 1.415l-4.387-4.387zM10 16a6 6 0 100-12 6 6 0 000 12z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <input type="text" id="busqueda" placeholder="Buscar por cualquier campo..."
+                                class="block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#639A33] focus:border-[#639A33] placeholder-gray-500 text-sm"
+                                oninput="filtrarUsuarios()" />
+                        </div>
+                    </div>
+
+                    <!-- Tabla -->
+                    <div class="overflow-x-auto mb-6">
+                        <table class="min-w-full text-left border border-[#0F172A]">
+                            <thead class="bg-[#0F172A] text-white">
+                                <tr>
+                                    <th class="px-4 py-2 border">Nombre</th>
+                                    <th class="px-4 py-2 border">Documento</th>
+                                    <th class="px-4 py-2 border">Correo</th>
+                                    <th class="px-4 py-2 border">Pregunta Secreta</th>
+                                    <th class="px-4 py-2 border">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaUsuarios">
+                                <!-- Usuarios cargados dinámicamente -->
+                            </tbody>
+
+                        </table>
+                    </div>
+
+                    <!-- Formulario modal/inline para crear/editar usuario -->
+                    <div id="formUsuarioContainer" class="hidden bg-gray-50 p-6 border border-gray-300 rounded-md">
+                        <h4 class="text-lg font-semibold mb-4 text-[#0F172A]" id="tituloFormUsuario">Nuevo Usuario</h4>
+                        <form id="formUsuario" class="flex flex-col space-y-4">
+                            <input type="text" id="usuarioNombre" placeholder="Nombre completo"
+                                class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]"
+                                required />
+
+                            <input type="text" id="usuarioDocumento" placeholder="Documento"
+                                class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]"
+                                required />
+
+                            <input type="email" id="usuarioCorreo" placeholder="Correo electrónico"
+                                class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]"
+                                required />
+
+                            <input type="text" id="usuarioPregunta" placeholder="Pregunta secreta"
+                                class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]"
+                                required />
+
+                            <input type="text" id="usuarioRespuesta" placeholder="Respuesta secreta"
+                                class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]" />
+
+                            <input type="password" id="usuarioPassword" placeholder="Contraseña"
+                                class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]" />
+
+                            <div class="flex gap-2">
+                                <button type="submit"
+                                    class="bg-[#639A33] text-white px-4 py-2 rounded hover:bg-green-600 transition">
+                                    Guardar
+                                </button>
+                                <button type="button" onclick="cerrarFormularioUsuario()"
+                                    class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 transition">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                </section>
+            </div>
+
+            <footer class="text-center mt-6 py-4 border-t border-gray-200">
+                <p class="text-sm text-[#0F172A] font-medium">Módulo de Usuarios</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="../js/usuarios.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/navegacion.js"></script>
+</body>
+
+</html>

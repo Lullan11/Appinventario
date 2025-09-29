@@ -5,13 +5,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Recuperar Contraseña</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../../dist/output.css" />
+
+  <!-- Fuente Poppins -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
+  </style>
 </head>
 
-<body class="h-screen flex text-[#0F172A] font-sans">
+<body class="h-screen flex text-[#0F172A]">
 
-  <!-- Mitad izquierda: Logo -->
-  <div class="w-1/2 bg-[#0F172A] text-white flex flex-col items-center justify-center p-8">
+  <!-- Mitad izquierda: Logo (oculta en móviles) -->
+  <div class="hidden lg:flex lg:w-1/2 bg-[#0F172A] text-white flex-col items-center justify-center p-8">
     <div class="flex items-center gap-4 mb-6">
       <img src="../assets/Logo_ips.png" alt="Logo IPS" class="w-40 object-contain" />
       <img src="../assets/Logo_coop.png" alt="Logo Cooperativa" class="w-40 object-contain" />
@@ -21,27 +31,99 @@
     </h1>
   </div>
 
-  <!-- Mitad derecha: Recuperar contraseña -->
-  <div class="w-1/2 bg-white flex flex-col items-center justify-center p-8">
+  <!-- Mitad derecha: Formulario -->
+  <div class="w-full lg:w-1/2 bg-white flex flex-col items-center justify-center p-8">
     <h2 class="text-3xl font-bold mb-4">Recuperar Contraseña</h2>
-    <p class="mb-6 text-gray-600 text-lg">Ingresa tu correo y la nueva contraseña</p>
+    <p class="mb-6 text-gray-600 text-lg">Ingresa tu correo para ver tu pregunta secreta</p>
 
+    <!-- Formulario para ingresar correo -->
     <form id="recoverForm" class="w-80 flex flex-col space-y-4">
       <input type="email" id="recoverEmail" placeholder="Correo electrónico"
         class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]" required />
-      <input type="password" id="recoverNewPassword" placeholder="Nueva contraseña"
-        class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]" required />
-      <button type="submit" class="px-6 py-2 bg-[#639A33] text-white rounded hover:bg-[#079A33] transition">
-        Restablecer contraseña
+      <button type="submit"
+        class="px-6 py-2 bg-[#639A33] text-white rounded hover:bg-[#079A33] transition">
+        Ver pregunta secreta
       </button>
     </form>
 
-    <p class="mt-4 text-sm text-gray-600">
-      <a href="welcome.html" class="text-[#0FBFBF] hover:underline">Volver al login</a>
+    <!-- Formulario para responder pregunta secreta y cambiar contraseña -->
+    <form id="answerForm" class="w-80 flex flex-col space-y-4 mt-6 hidden">
+      <p id="securityQuestion" class="text-gray-700 font-medium"></p>
+      <input type="text" id="securityAnswer" placeholder="Tu respuesta"
+        class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]" required />
+      <input type="password" id="newPassword" placeholder="Nueva contraseña"
+        class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#639A33]" required />
+      <button type="submit"
+        class="px-6 py-2 bg-[#639A33] text-white rounded hover:bg-[#079A33] transition">
+        Cambiar contraseña
+      </button>
+    </form>
+
+    <p class="mt-4 text-sm text-gray-600 text-center">
+      <a href="index.html" class="text-[#0FBFBF] hover:underline">Volver al login</a>
     </p>
   </div>
 
-  <script src="../js/recover.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const recoverForm = document.getElementById("recoverForm");
+      const answerForm = document.getElementById("answerForm");
+      const securityQuestionEl = document.getElementById("securityQuestion");
+
+      recoverForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("recoverEmail").value.trim();
+        if (!email) return alert("Por favor ingresa tu correo.");
+
+        try {
+          const res = await fetch("https://inventario-api-gw73.onrender.com/usuarios/get-security-question", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            securityQuestionEl.textContent = data.question;
+            recoverForm.classList.add("hidden");
+            answerForm.classList.remove("hidden");
+          } else {
+            alert(data.error || "Usuario no encontrado");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Error al obtener la pregunta secreta.");
+        }
+      });
+
+      answerForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("recoverEmail").value.trim();
+        const answer = document.getElementById("securityAnswer").value.trim();
+        const newPassword = document.getElementById("newPassword").value.trim();
+
+        if (!answer || !newPassword) return alert("Por favor completa todos los campos.");
+
+        try {
+          const res = await fetch("https://inventario-api-gw73.onrender.com/usuarios/verify-security-answer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, answer, newPassword }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            alert("Contraseña cambiada correctamente. Ahora puedes iniciar sesión.");
+            window.location.href = "index.html";
+          } else {
+            alert(data.error || "Respuesta incorrecta");
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Error al cambiar la contraseña.");
+        }
+      });
+    });
+  </script>
+
 </body>
 
 </html>

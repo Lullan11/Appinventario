@@ -6,6 +6,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nueva Área - Inventario</title>
   <link rel="stylesheet" href="../../dist/output.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Fuente Poppins (Google Fonts) -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* Aplica Poppins globalmente */
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
+  </style>
 </head>
 
 <body class="flex h-screen bg-white">
@@ -14,29 +25,65 @@
     <!-- Sidebar -->
     <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
       <div>
-        <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
+        <div class="flex items-center gap-2 mb-6">
+          <div class="bg-[#639A33] p-2 rounded-md">
+            <i class="fas fa-boxes-stacked text-white text-lg"></i>
+          </div>
+          <div>
+            <h1 class="sidebar-title font-bold text-[#639A33]">Inventario IPS</h1>
+            <p class="sidebar-subtitle text-gray-400">Sistema de gestión</p>
+          </div>
+        </div>
         <nav class="space-y-3">
           <a href="#" data-view="dashboard.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Inicio</a>
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+            <i class="fas fa-home mr-2"></i> Inicio
+          </a>
           <a href="#" data-view="sedes.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Sedes</a>
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+            <i class="fas fa-building mr-2"></i> Sedes
+          </a>
           <a href="#" data-view="areas.html"
-            class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Áreas</a>
+            class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">
+            <i class="fas fa-map-marker-alt mr-2"></i> Áreas
+          </a>
           <a href="#" data-view="puestos.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Puestos de trabajo</a>
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+            <i class="fas fa-briefcase mr-2"></i> Puestos de trabajo
+          </a>
           <a href="#" data-view="equipos.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Equipos</a>
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+            <i class="fas fa-laptop mr-2"></i> Equipos
+          </a>
           <a href="#" data-view="historial.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Historial</a>
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+            <i class="fas fa-history mr-2"></i> Historial
+          </a>
           <a href="#" data-view="excel.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Excel</a>
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+            <i class="fas fa-file-excel mr-2"></i> Excel
+          </a>
+          <a href="#" data-view="inactivos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+            <i class="fas fa-ban mr-2"></i> Inactivos
+          </a>
+          <a href="#" data-view="Usuarios.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+            <i class="fas fa-users mr-2"></i> Usuarios
+          </a>
+          <a href="#" data-view="insumos.html"
+            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+            <i class="fas fa-boxes mr-2"></i> Insumos
+          </a>
         </nav>
       </div>
       <div class="text-sm mt-6">
-        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">...</span></p>
+        <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario: <span id="user-role"
+            class="text-[#639A33] font-semibold">...</span></p>
         <button onclick="logout()"
           class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
-          Salir
+          <i class="fas fa-sign-out-alt"></i>
+          Cerrar Sesión
         </button>
       </div>
     </aside>
@@ -78,9 +125,8 @@
                 <label for="sede" class="block font-medium text-[#0F172A] mb-1">Sede</label>
                 <select id="sede" name="sede" required
                   class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#01983B] transition">
-                  <option value="">Cargando sedes...</option>
+                  <option value="">Selecciona una sede...</option>
                 </select>
-
               </div>
             </div>
 

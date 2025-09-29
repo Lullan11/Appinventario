@@ -6,37 +6,84 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Áreas - Inventario</title>
   <link href="../../dist/output.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Fuente moderna (Google Fonts) -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
+  </style>
 </head>
 
-<body class="bg-white text-[#0F172A] font-sans min-h-screen flex">
+<body class="bg-white text-[#0F172A] min-h-screen flex">
   <div class="flex flex-1 h-screen overflow-hidden">
+
 
     <!-- Sidebar -->
     <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
       <div>
-        <h1 class="text-xl font-bold text-[#639A33] mb-8">Inventario IPS</h1>
-        <nav class="space-y-3">
+        <div class="flex items-center gap-2 mb-6">
+          <div class="bg-[#639A33] p-2 rounded-md">
+            <i class="fas fa-boxes-stacked text-white text-lg"></i>
+          </div>
+          <div>
+            <h1 class="sidebar-title font-bold text-[#639A33]">Inventario IPS</h1>
+            <p class="sidebar-subtitle text-white/70">Sistema de gestión</p>
+          </div>
+        </div>
+        <nav class="space-y-2">
           <a href="#" data-view="dashboard.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Inicio</a>
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-home"></i> Inicio
+          </a>
           <a href="#" data-view="sedes.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Sedes</a>
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-building"></i> Sedes
+          </a>
           <a href="#" data-view="areas.html"
-            class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">Áreas</a>
+            class="view-link block py-2 px-3 rounded bg-[#639A33] text-[#0F172A] font-semibold text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-map-marker-alt"></i> Áreas
+          </a>
           <a href="#" data-view="puestos.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Puestos de trabajo</a>
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-briefcase"></i> Puestos de trabajo
+          </a>
           <a href="#" data-view="equipos.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Equipos</a>
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-laptop"></i> Equipos
+          </a>
           <a href="#" data-view="historial.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Historial</a>
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-history"></i> Historial
+          </a>
           <a href="#" data-view="excel.html"
-            class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">Excel</a>
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-file-excel"></i> Excel
+          </a>
+          <a href="#" data-view="inactivos.html"
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-ban"></i> Inactivos
+          </a>
+          <a href="#" data-view="usuarios.html"
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-users"></i> Usuarios
+          </a>
+          <a href="#" data-view="insumos.html"
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-boxes"></i> Insumos
+          </a>
         </nav>
       </div>
       <div class="text-sm mt-6">
-        <p class="mb-2 text-gray-300">Usuario: <span id="user-role" class="text-[#639A33] font-semibold">...</span></p>
+        <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario: <span id="user-role"
+            class="text-[#639A33] font-semibold">...</span></p>
         <button onclick="logout()"
           class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
-          Salir
+          <i class="fas fa-sign-out-alt"></i>
+          Cerrar Sesión
         </button>
       </div>
     </aside>
@@ -47,8 +94,8 @@
         <header class="mb-6 flex items-center justify-between">
           <h1 class="text-4xl font-semibold text-[#0F172A]">Gestión de Áreas</h1>
           <div class="flex items-center gap-4">
-            <img src="../assets/Logo_ips.png" class="h-25 w-24 object-contain" />
-            <img src="../assets/logo_coop.png" class="h-25 w-24 object-contain" />
+            <img src="../assets/Logo_ips.png" class="h-20 w-20 object-contain" />
+            <img src="../assets/logo_coop.png" class="h-20 w-20 object-contain" />
           </div>
         </header>
 
@@ -96,7 +143,6 @@
               <tbody id="tablaAreas">
                 <!-- Aquí se insertarán las áreas dinámicamente -->
               </tbody>
-
             </table>
           </div>
         </section>

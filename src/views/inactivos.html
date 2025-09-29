@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exportar Excel - Inventario</title>
+    <link href="../../dist/output.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Fuente moderna (Google Fonts - Poppins) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-white text-[#0F172A] min-h-screen flex">
+    <div class="flex flex-1 h-screen overflow-hidden">
+
+        <!-- Sidebar -->
+        <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-2 mb-6">
+                    <div class="bg-[#639A33] p-2 rounded-md">
+                        <i class="fas fa-boxes-stacked text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="sidebar-title font-bold text-[#639A33]">Inventario IPS</h1>
+                        <p class="sidebar-subtitle text-white-400">Sistema de gestión</p>
+                    </div>
+                </div>
+                <nav class="space-y-3">
+                    <a href="#" data-view="dashboard.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-home mr-2"></i> Inicio
+                    </a>
+                    <a href="#" data-view="sedes.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-building mr-2"></i> Sedes
+                    </a>
+                    <a href="#" data-view="areas.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-map-marker-alt mr-2"></i> Áreas
+                    </a>
+                    <a href="#" data-view="puestos.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-briefcase mr-2"></i> Puestos de trabajo
+                    </a>
+                    <a href="#" data-view="equipos.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-laptop mr-2"></i> Equipos
+                    </a>
+                    <a href="#" data-view="historial.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-history mr-2"></i> Historial
+                    </a>
+                    <a href="#" data-view="excel.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-file-excel mr-2"></i> Excel
+                    </a>
+                    <a href="#" data-view="inactivos.html"
+                        class="view-link block py-2 px-4 rounded bg-[#639A33] text-[#0F172A] font-semibold">
+                        <i class="fas fa-ban mr-2"></i> Inactivos
+                    </a>
+                    <a href="#" data-view="usuarios.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-users mr-2"></i> Usuarios
+                    </a>
+                    <a href="#" data-view="insumos.html"
+                        class="view-link block py-2 px-4 rounded hover:bg-[#639A33] hover:text-[#0F172A]">
+                        <i class="fas fa-boxes mr-2"></i> Insumos
+                    </a>
+                </nav>
+            </div>
+            <div class="text-sm mt-6">
+                <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario: <span id="user-role"
+                        class="text-[#639A33] font-semibold">...</span></p>
+                <button onclick="logout()"
+                    class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
+            <div>
+                <!-- Título y Logo -->
+                <header class="mb-6 flex items-center justify-between">
+                    <h1 class="text-4xl font-semibold text-[#0F172A]">Inactivos</h1>
+                    <div class="flex items-center gap-4">
+                        <img src="../assets/Logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
+                        <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
+                    </div>
+                </header>
+
+
+
+
+                <footer class="text-center mt-6 py-4 border-t border-gray-200">
+                    <p class="text-sm text-[#0F172A] font-medium">Módulo de Inactivos</p>
+                </footer>
+        </main>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script src="../js/navegacion.js"></script>
+    <!-- <script src="../js/exportar.js"></script> -->
+</body>
+
+</html>
