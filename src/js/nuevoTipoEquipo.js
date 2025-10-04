@@ -85,3 +85,59 @@ document.getElementById("form-tipo-equipo").addEventListener("submit", async fun
     mostrarMensaje("Error de conexión con el servidor.", true);
   }
 });
+
+async function cargarTipos() {
+  try {
+    const res = await fetch("https://inventario-api-gw73.onrender.com/tipos-equipo");
+    const tipos = await res.json();
+
+    const tabla = document.getElementById("tabla-tipos");
+    tabla.innerHTML = "";
+
+    tipos.forEach(tipo => {
+      const fila = document.createElement("tr");
+      fila.innerHTML = `
+        <td class="p-2 border border-[#0F172A]">${tipo.id}</td>
+        <td class="p-2 border border-[#0F172A] font-semibold">${tipo.nombre}</td>
+        <td class="p-2 border border-[#0F172A]">
+          ${tipo.campos.map(c => `<span class="inline-block bg-gray-200 px-2 py-1 rounded text-xs mr-1">${c.nombre_campo} (${c.tipo_dato})</span>`).join("")}
+        </td>
+        <td class="p-2 border border-[#0F172A]">
+          <button onclick="eliminarTipo(${tipo.id})" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
+            <i class="fas fa-trash"></i> Eliminar
+          </button>
+        </td>
+      `;
+      tabla.appendChild(fila);
+    });
+  } catch (err) {
+    console.error(err);
+    mostrarMensaje("❌ Error al cargar tipos de equipo", true);
+  }
+}
+
+async function eliminarTipo(id) {
+  if (!confirm("¿Seguro que quieres eliminar este tipo de equipo?")) return;
+
+  try {
+    const res = await fetch(`https://inventario-api-gw73.onrender.com/tipos-equipo/${id}`, {
+      method: "DELETE"
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      mostrarMensaje(data.msg || "Error al eliminar", true);
+      return;
+    }
+
+    mostrarMensaje("✅ Tipo de equipo eliminado correctamente");
+    cargarTipos();
+  } catch (err) {
+    console.error(err);
+    mostrarMensaje("❌ Error de conexión", true);
+  }
+}
+
+// 🔹 Llamar al cargar la página
+cargarTipos();
