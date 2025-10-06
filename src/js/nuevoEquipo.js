@@ -1,36 +1,92 @@
 const apiUrl = "https://inventario-api-gw73.onrender.com";
 
+// Variables globales
+let tiposMantenimiento = [];
+let mantenimientosConfigurados = [];
+
 // Función para mostrar mensajes tipo toast
 function mostrarMensajeEquipo(texto, esError = false) {
     let mensaje = document.getElementById("mensaje-equipo");
     if (!mensaje) {
         mensaje = document.createElement("div");
         mensaje.id = "mensaje-equipo";
-        mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 hidden";
+        mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50";
         document.body.appendChild(mensaje);
     }
 
     mensaje.textContent = texto;
-    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${
-        esError
+    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError
             ? "bg-red-100 text-red-800 border-l-4 border-red-500"
             : "bg-green-100 text-green-800 border-l-4 border-green-500"
-    }`;
+        }`;
 
     setTimeout(() => {
         mensaje.textContent = "";
         mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 hidden";
-    }, 3000);
+    }, 4000);
+}
+// Cargar tipos de mantenimiento (EXCLUYENDO Correctivo)
+async function cargarTiposMantenimiento() {
+    try {
+        console.log("Cargando tipos de mantenimiento...");
+        const res = await fetch(`${apiUrl}/tipos-mantenimiento`);
+
+        if (!res.ok) {
+            throw new Error(`Error HTTP: ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log("Tipos de mantenimiento cargados:", data);
+
+        if (Array.isArray(data)) {
+            // 🚫 FILTRAR PARA EXCLUIR CORRECTIVO
+            tiposMantenimiento = data.filter(tipo => 
+                !tipo.nombre.toLowerCase().includes('correctivo')
+            );
+            
+            // Si después de filtrar no hay tipos, usar valores por defecto sin Correctivo
+            if (tiposMantenimiento.length === 0) {
+                tiposMantenimiento = [
+                    { id: 1, nombre: "Preventivo" },
+                    { id: 3, nombre: "Calibración" }
+                ];
+                console.log("Usando tipos por defecto (sin Correctivo):", tiposMantenimiento);
+            }
+            
+            return true;
+        } else {
+            throw new Error("Formato de respuesta inválido");
+        }
+    } catch (err) {
+        console.error("Error al cargar tipos de mantenimiento:", err);
+        
+        // Si falla, usar valores por defecto SIN Correctivo
+        tiposMantenimiento = [
+            { id: 1, nombre: "Preventivo" },
+            { id: 3, nombre: "Calibración" }
+        ];
+        
+        mostrarMensajeEquipo("⚠️ Usando tipos de mantenimiento por defecto", true);
+        return false;
+    }
 }
 
 // Cargar tipos de equipo al iniciar
 async function cargarTiposEquipo() {
     const selectTipo = document.getElementById("tipoEquipo");
+    if (!selectTipo) {
+        console.error("No se encontró el elemento tipoEquipo");
+        return;
+    }
+
     selectTipo.innerHTML = '<option value="">Selecciona un tipo...</option>';
 
     try {
         const res = await fetch(`${apiUrl}/tipos-equipo`);
+        if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+
         const tipos = await res.json();
+        console.log("Tipos de equipo cargados:", tipos);
 
         tipos.forEach(tipo => {
             const option = document.createElement("option");
@@ -48,12 +104,20 @@ async function cargarTiposEquipo() {
 async function mostrarCamposTipo() {
     const tipoId = document.getElementById("tipoEquipo").value;
     const container = document.getElementById("campos-especificos");
+
+    if (!container) {
+        console.error("No se encontró el contenedor campos-especificos");
+        return;
+    }
+
     container.innerHTML = "";
 
     if (!tipoId) return;
 
     try {
         const res = await fetch(`${apiUrl}/tipos-equipo`);
+        if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+
         const tipos = await res.json();
         const tipo = tipos.find(t => t.id == tipoId);
 
@@ -61,7 +125,7 @@ async function mostrarCamposTipo() {
 
         tipo.campos.forEach(campo => {
             const nombre = campo.nombre_campo || "Campo";
-            let inputType = "text"; // por defecto
+            let inputType = "text";
             if (campo.tipo_dato === "numero") inputType = "number";
             if (campo.tipo_dato === "fecha") inputType = "date";
 
@@ -78,15 +142,23 @@ async function mostrarCamposTipo() {
     }
 }
 
-
 // Cargar ubicaciones (áreas y puestos)
 async function cargarUbicaciones() {
     const select = document.getElementById("ubicacion");
+    if (!select) {
+        console.error("No se encontró el elemento ubicacion");
+        return;
+    }
+
     select.innerHTML = '<option value="">Selecciona una ubicación...</option>';
 
     try {
         const areasRes = await fetch(`${apiUrl}/areas`);
+        if (!areasRes.ok) throw new Error(`Error HTTP en áreas: ${areasRes.status}`);
+
         const areas = await areasRes.json();
+        console.log("Áreas cargadas:", areas);
+
         areas.forEach(a => {
             const option = document.createElement("option");
             option.value = `area-${a.id}`;
@@ -95,7 +167,11 @@ async function cargarUbicaciones() {
         });
 
         const puestosRes = await fetch(`${apiUrl}/puestos`);
+        if (!puestosRes.ok) throw new Error(`Error HTTP en puestos: ${puestosRes.status}`);
+
         const puestos = await puestosRes.json();
+        console.log("Puestos cargados:", puestos);
+
         puestos.forEach(p => {
             const option = document.createElement("option");
             option.value = `puesto-${p.id}`;
@@ -110,23 +186,22 @@ async function cargarUbicaciones() {
 }
 
 // Autocompletar responsable al cambiar ubicación
-document.getElementById("ubicacion").addEventListener("change", async (e) => {
+document.getElementById("ubicacion")?.addEventListener("change", async (e) => {
     const value = e.target.value;
     const responsableInput = document.getElementById("responsable");
-    const codigoInput = document.getElementById("codigo");
 
-    if (!value) {
-        responsableInput.value = "";
-        codigoInput.value = "";
+    if (!value || !responsableInput) {
+        if (responsableInput) responsableInput.value = "";
         return;
     }
 
     const [tipo, id] = value.split("-");
-    codigoInput.value = "";
 
     if (tipo === "puesto") {
         try {
             const res = await fetch(`${apiUrl}/ubicacion/${tipo}/${id}`);
+            if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+
             const data = await res.json();
             responsableInput.value = data.responsable_nombre || "";
         } catch (err) {
@@ -139,27 +214,234 @@ document.getElementById("ubicacion").addEventListener("change", async (e) => {
     }
 });
 
-// Enviar formulario con mantenimientos
-document.getElementById("form-equipo").addEventListener("submit", async (e) => {
-    e.preventDefault();
+// 🆕 FUNCIONES PARA MANEJAR MANTENIMIENTOS
 
-    const tipoId = document.getElementById("tipoEquipo").value;
-    const ubicacion = document.getElementById("ubicacion").value;
-    const nombre = document.getElementById("nombre").value.trim();
-    const codigo = document.getElementById("codigo").value.trim();
-    const responsable = document.getElementById("responsable").value.trim();
-    const frecuencia = parseInt(document.getElementById("frecuencia").value);
-    const fechaInicio = document.getElementById("fecha_inicio").value;
 
-    if (!tipoId || !ubicacion || !nombre || !codigo || !responsable || !frecuencia || !fechaInicio) {
-        mostrarMensajeEquipo("⚠️ Por favor completa todos los campos requeridos.", true);
+// Mostrar modal para agregar mantenimiento
+function mostrarModalMantenimiento() {
+    // Verificar que tenemos tipos de mantenimiento
+    if (tiposMantenimiento.length === 0) {
+        mostrarMensajeEquipo("⚠️ No se pudieron cargar los tipos de mantenimiento", true);
         return;
     }
 
-    // Calcular próxima fecha
-    const fechaInicioObj = new Date(fechaInicio);
-    const proxima = new Date(fechaInicioObj);
-    proxima.setDate(proxima.getDate() + frecuencia);
+    const modalHTML = `
+        <div id="modal-mantenimiento" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                <h3 class="text-xl font-semibold mb-4">Agregar Mantenimiento Programado</h3>
+                
+                <form id="form-mantenimiento">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Tipo de Mantenimiento *</label>
+                        <select id="tipo-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300" required>
+                            <option value="">Seleccionar...</option>
+                            ${tiposMantenimiento.map(tipo =>
+                                `<option value="${tipo.id}">${tipo.nombre}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Nombre personalizado (opcional)</label>
+                        <input type="text" id="nombre-personalizado" 
+                               class="w-full border rounded px-3 py-2 border-gray-300"
+                               placeholder="Ej: Mantenimiento mensual, Calibración trimestral">
+                        <p class="text-xs text-gray-500 mt-1">Útil para identificar múltiples mantenimientos del mismo tipo</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Intervalo (días) *</label>
+                        <input type="number" id="intervalo-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300" 
+                               min="1" value="30" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Fecha de Inicio *</label>
+                        <input type="date" id="fecha-inicio-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300" required>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button type="button" onclick="cerrarModalMantenimiento()" 
+                                class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">
+                            Cancelar
+                        </button>
+                        <button type="submit" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Agregar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+
+    // Evitar duplicados
+    if (document.getElementById('modal-mantenimiento')) {
+        document.getElementById('modal-mantenimiento').remove();
+    }
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Establecer fecha actual por defecto
+    const fechaInput = document.getElementById('fecha-inicio-mantenimiento');
+    if (fechaInput) {
+        fechaInput.valueAsDate = new Date();
+    }
+
+    // Configurar el formulario
+    const form = document.getElementById('form-mantenimiento');
+    if (form) {
+        form.addEventListener('submit', agregarMantenimiento);
+    }
+}
+
+// Cerrar modal de mantenimiento
+function cerrarModalMantenimiento() {
+    const modal = document.getElementById('modal-mantenimiento');
+    if (modal) {
+        modal.remove();
+    }
+}
+// Agregar mantenimiento a la lista
+function agregarMantenimiento(e) {
+    e.preventDefault();
+
+    const tipoSelect = document.getElementById('tipo-mantenimiento');
+    const nombreInput = document.getElementById('nombre-personalizado');
+    const intervaloInput = document.getElementById('intervalo-mantenimiento');
+    const fechaInput = document.getElementById('fecha-inicio-mantenimiento');
+
+    if (!tipoSelect || !intervaloInput || !fechaInput) {
+        mostrarMensajeEquipo("⚠️ Error al procesar el formulario", true);
+        return;
+    }
+
+    const tipoId = tipoSelect.value;
+    const nombrePersonalizado = nombreInput?.value.trim() || '';
+    const intervalo = parseInt(intervaloInput.value);
+    const fechaInicio = fechaInput.value;
+
+    if (!tipoId || !intervalo || !fechaInicio) {
+        mostrarMensajeEquipo("⚠️ Completa todos los campos requeridos", true);
+        return;
+    }
+
+    const tipo = tiposMantenimiento.find(t => t.id == tipoId);
+    if (!tipo) {
+        mostrarMensajeEquipo("⚠️ Tipo de mantenimiento no válido", true);
+        return;
+    }
+
+    const proximaFecha = new Date(fechaInicio);
+    proximaFecha.setDate(proximaFecha.getDate() + intervalo);
+
+    const mantenimiento = {
+        id_tipo: parseInt(tipoId),
+        tipo_nombre: tipo.nombre,
+        nombre_personalizado: nombrePersonalizado,
+        intervalo_dias: intervalo,
+        fecha_inicio: fechaInicio,
+        proxima_fecha: proximaFecha.toISOString().split('T')[0]
+    };
+
+    // 🆕 PERMITIR MÚLTIPLES MANTENIMIENTOS SIN RESTRICCIONES
+    // Solo mostramos advertencia si es exactamente igual, pero permitimos agregar
+    const existeIdentico = mantenimientosConfigurados.find(m =>
+        m.id_tipo === mantenimiento.id_tipo &&
+        m.nombre_personalizado === mantenimiento.nombre_personalizado &&
+        m.intervalo_dias === mantenimiento.intervalo_dias &&
+        m.fecha_inicio === mantenimiento.fecha_inicio
+    );
+
+    if (existeIdentico) {
+        if (!confirm("⚠️ Ya existe un mantenimiento idéntico. ¿Estás seguro de que quieres agregarlo?")) {
+            return;
+        }
+    }
+
+    mantenimientosConfigurados.push(mantenimiento);
+    actualizarListaMantenimientos();
+    cerrarModalMantenimiento();
+
+    mostrarMensajeEquipo("✅ Mantenimiento agregado correctamente");
+}
+// Actualizar lista visual de mantenimientos
+function actualizarListaMantenimientos() {
+    const container = document.getElementById('lista-mantenimientos');
+    if (!container) {
+        console.error("No se encontró el contenedor lista-mantenimientos");
+        return;
+    }
+
+    if (mantenimientosConfigurados.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4 text-gray-500 border-2 border-dashed border-gray-300 rounded">
+                <i class="fas fa-tools text-2xl mb-2"></i>
+                <p>No hay mantenimientos configurados</p>
+                <p class="text-sm">Haz clic en "Agregar Mantenimiento" para configurar</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = mantenimientosConfigurados.map((mant, index) => `
+        <div class="border border-gray-300 rounded p-3 mb-2 bg-white shadow-sm">
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-tools text-blue-600"></i>
+                        <strong class="text-gray-800">${mant.tipo_nombre}</strong>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div>
+                            <span class="font-medium">Intervalo:</span> ${mant.intervalo_dias} días
+                        </div>
+                        <div>
+                            <span class="font-medium">Inicio:</span> ${new Date(mant.fecha_inicio).toLocaleDateString()}
+                        </div>
+                        <div class="col-span-2">
+                            <span class="font-medium">Próxima:</span> 
+                            <span class="font-semibold text-green-600">
+                                ${new Date(mant.proxima_fecha).toLocaleDateString()}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="eliminarMantenimiento(${index})" 
+                        class="text-red-500 hover:text-red-700 p-1 ml-2"
+                        title="Eliminar mantenimiento">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Eliminar mantenimiento de la lista
+// Hacer la función eliminarMantenimiento disponible globalmente
+window.eliminarMantenimiento = function(index) {
+    if (index >= 0 && index < mantenimientosConfigurados.length) {
+        const eliminado = mantenimientosConfigurados.splice(index, 1)[0];
+        actualizarListaMantenimientos();
+        mostrarMensajeEquipo(`Mantenimiento "${eliminado.tipo_nombre}" eliminado`);
+    }
+};
+
+// Enviar formulario con mantenimientos
+document.getElementById("form-equipo")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const tipoId = document.getElementById("tipoEquipo")?.value;
+    const ubicacion = document.getElementById("ubicacion")?.value;
+    const nombre = document.getElementById("nombre")?.value.trim();
+    const codigo = document.getElementById("codigo")?.value.trim();
+    const responsable = document.getElementById("responsable")?.value.trim();
+
+    if (!tipoId || !ubicacion || !nombre || !codigo || !responsable) {
+        mostrarMensajeEquipo("⚠️ Por favor completa todos los campos requeridos.", true);
+        return;
+    }
 
     const [tipoUbic, idUbic] = ubicacion.split("-");
     const camposInputs = document.querySelectorAll("#campos-especificos input");
@@ -170,7 +452,7 @@ document.getElementById("form-equipo").addEventListener("submit", async (e) => {
 
     const equipo = {
         nombre,
-        descripcion: document.getElementById("descripcion").value,
+        descripcion: document.getElementById("descripcion")?.value || "",
         codigo_interno: codigo,
         ubicacion_tipo: tipoUbic,
         id_ubicacion: parseInt(idUbic),
@@ -178,12 +460,10 @@ document.getElementById("form-equipo").addEventListener("submit", async (e) => {
         responsable_documento: "N/A",
         id_tipo_equipo: parseInt(tipoId),
         campos_personalizados: camposPersonalizados,
-
-        // 🔧 Nuevos campos de mantenimiento
-        intervalo_dias: frecuencia,
-        fecha_inicio_mantenimiento: fechaInicio,
-        proximo_mantenimiento: proxima.toISOString().split("T")[0]
+        mantenimientos: mantenimientosConfigurados
     };
+
+    console.log("Enviando equipo:", equipo);
 
     try {
         const res = await fetch(`${apiUrl}/equipos`, {
@@ -195,22 +475,39 @@ document.getElementById("form-equipo").addEventListener("submit", async (e) => {
         const data = await res.json();
 
         if (!res.ok) {
-            mostrarMensajeEquipo(data.error || "⚠️ Error al crear equipo", true);
-            console.error("Error detalle:", data);
+            console.error("Error del servidor:", data);
+            mostrarMensajeEquipo(data.msg || data.error || "⚠️ Error al crear equipo", true);
             return;
         }
 
         mostrarMensajeEquipo("✅ Equipo creado correctamente.");
         setTimeout(() => {
             window.location.href = "equipos.html";
-        }, 1500);
+        }, 2000);
 
     } catch (err) {
         console.error("Error al comunicarse con la API:", err);
-        mostrarMensajeEquipo("❌ Error al comunicarse con la API.", true);
+        mostrarMensajeEquipo("❌ Error de conexión con el servidor", true);
     }
 });
 
 // Inicializar página
-cargarTiposEquipo();
-cargarUbicaciones();
+async function inicializar() {
+    console.log("Inicializando página...");
+
+    // Cargar tipos de mantenimiento primero
+    await cargarTiposMantenimiento();
+
+    // Luego cargar el resto
+    cargarTiposEquipo();
+    cargarUbicaciones();
+
+    console.log("Página inicializada correctamente");
+}
+
+// Inicializar cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializar);
+} else {
+    inicializar();
+}

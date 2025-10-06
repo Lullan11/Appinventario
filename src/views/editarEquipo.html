@@ -4,27 +4,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Editar equipo</title>
+  <title>Editar Equipo - Inventario</title>
   <link rel="stylesheet" href="../../dist/output.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- Importar tipografía Poppins -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
     body {
       font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+    }
+    
+    .main-wrapper {
+      display: flex;
+      width: 100%;
+      height: 100vh;
+    }
+    
+    .content-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+    
+    .footer {
+      background: white;
+      border-top: 1px solid #e5e7eb;
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .mantenimientos-container {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        background: white;
     }
   </style>
 </head>
 
-<body class="flex h-screen bg-white">
-  <div class="flex flex-1 h-screen overflow-hidden">
-
+<body>
+  <div class="main-wrapper">
     <!-- Sidebar -->
     <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
       <div>
-        <!-- Logo y título -->
         <div class="flex items-center gap-2 mb-6">
           <div class="bg-[#639A33] p-2 rounded-md">
             <i class="fas fa-boxes-stacked text-white text-lg"></i>
@@ -34,8 +68,6 @@
             <p class="sidebar-subtitle text-white/70">Sistema de gestión</p>
           </div>
         </div>
-
-        <!-- Navegación -->
         <nav class="space-y-2">
           <a href="dashboard.html"
             class="block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
@@ -79,8 +111,6 @@
           </a>
         </nav>
       </div>
-
-      <!-- Usuario y logout -->
       <div class="text-sm mt-6">
         <p class="mb-2 text-gray-300">
           <i class="fas fa-user text-white"></i> Usuario:
@@ -94,11 +124,9 @@
       </div>
     </aside>
 
-
     <!-- Contenido principal -->
-    <main class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
-      <div>
-        <!-- Encabezado -->
+    <div class="content-wrapper">
+      <div class="main-content">
         <header class="mb-6 flex items-center justify-between">
           <h1 class="text-4xl font-semibold text-[#0F172A]">Editar Equipo</h1>
           <div class="flex items-center gap-4">
@@ -107,134 +135,30 @@
           </div>
         </header>
 
-        <!-- Descripción -->
         <div class="mb-6">
-          <h2 class="text-xl font-semibold text-[#0F172A]">Modifica los datos del equipo</h2>
-          <p class="text-sm text-gray-600">Actualiza los campos disponibles para este equipo específico.</p>
+          <h2 class="text-xl font-semibold text-[#0F172A]">Modificar información del equipo</h2>
+          <p class="text-sm text-gray-600">Actualiza los datos del equipo según sea necesario.</p>
         </div>
 
-        <!-- Formulario dinámico -->
-        <div class="bg-white w-full max-w-5xl mx-auto rounded-xl border-2 border-[#0F172A] shadow-md p-8">
-          <div id="form-equipo" class="text-center text-lg text-gray-800">Cargando...</div>
+        <div class="bg-white w-full max-w-4xl mx-auto rounded-xl border-2 border-[#0F172A] shadow-md p-8">
+          <div id="loading-message" class="text-center text-lg text-gray-800">
+            <i class="fas fa-spinner fa-spin mr-2"></i>Cargando datos del equipo...
+          </div>
+          <form id="form-equipo" class="space-y-6 hidden">
+            <!-- Los campos se llenarán dinámicamente con JavaScript -->
+          </form>
         </div>
       </div>
 
-      <!-- Footer -->
-      <footer class="text-center mt-6 py-4 border-t border-gray-200">
+      <footer class="footer">
         <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos - Editar</p>
       </footer>
-    </main>
+    </div>
   </div>
 
-  <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const equipoId = urlParams.get("id");
-
-    const equipos = JSON.parse(localStorage.getItem("equipos")) || [];
-    const equipo = equipos.find(e => e.id === equipoId);
-
-    const contenedor = document.getElementById("form-equipo");
-
-    if (!equipo) {
-      contenedor.innerHTML = `
-        <div class="text-center text-red-600 font-semibold text-lg">
-          El equipo no fue encontrado.<br/><br/>
-            <a href="equipos.html" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-[#0FBFBF] border border-[#0FBFBF] rounded hover:bg-[#0FBFBF] hover:text-white transition">
-            ← Volver al listado
-            </a>
-        </div>
-      `;
-    } else {
-      let camposHTML = `
-        <form id="formulario-edicion" class="space-y-6 text-left">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label class="block text-[#0F172A] font-medium mb-1">Tipo</label>
-              <input type="text" name="tipo" value="${equipo.tipo || ''}" disabled
-                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 bg-gray-100"/>
-            </div>
-            <div>
-              <label class="block text-[#0F172A] font-medium mb-1">Responsable</label>
-              <input type="text" name="responsable" value="${equipo.responsable || ''}"
-                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#ED1C24]" />
-            </div>
-            <div>
-              <label class="block text-[#0F172A] font-medium mb-1">Marca</label>
-              <input type="text" name="marca" value="${equipo.marca || ''}"
-                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#ED1C24]" />
-            </div>
-            <div>
-              <label class="block text-[#0F172A] font-medium mb-1">Serial</label>
-              <input type="text" name="serial" value="${equipo.serial || ''}"
-                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#ED1C24]" />
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-[#0F172A] font-medium mb-1">Descripción</label>
-              <textarea name="descripcion"
-                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#ED1C24]">${equipo.descripcion || ''}</textarea>
-            </div>
-            <div>
-              <label class="block text-[#0F172A] font-medium mb-1">Estado</label>
-              <select name="estado"
-                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#ED1C24]">
-                <option value="activo" ${equipo.estado === 'activo' ? 'selected' : ''}>Activo</option>
-                <option value="inactivo" ${equipo.estado === 'inactivo' ? 'selected' : ''}>Inactivo</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="flex justify-between pt-4">
-            <a href="equipos.html"
-              class="bg-white border-2 border-[#0F172A] text-[#0F172A] font-semibold px-4 py-2 rounded hover:bg-gray-300 transition">
-              Cancelar y volver
-            </a>
-
-            
-            <button type="submit"
-              class="bg-[#ED1C24] text-white font-semibold px-6 py-2 rounded border-2 border-[#0F172A] hover:bg-red-700 transition">
-              Guardar Cambios
-            </button>
-          </div>
-        </form>
-      `;
-
-      if (equipo.mantenimientos?.length > 0) {
-        camposHTML += `
-          <div class="mt-10">
-            <h3 class="text-lg font-semibold text-[#0F172A] mb-4">Mantenimientos registrados</h3>
-            <ul class="space-y-2 text-sm">
-              ${equipo.mantenimientos.map(m => `
-                <li class="p-4 bg-gray-100 border border-gray-300 rounded shadow-sm">
-                  <p><strong>Fecha:</strong> ${m.fecha}</p>
-                  <p><strong>Descripción:</strong> ${m.descripcion}</p>
-                </li>`).join("")}
-            </ul>
-          </div>
-        `;
-      }
-
-      contenedor.innerHTML = camposHTML;
-
-      document.getElementById("formulario-edicion").addEventListener("submit", function (e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        const datosActualizados = {};
-        formData.forEach((value, key) => datosActualizados[key] = value);
-
-        const index = equipos.findIndex(e => e.id === equipoId);
-        equipos[index] = { ...equipos[index], ...datosActualizados };
-        localStorage.setItem("equipos", JSON.stringify(equipos));
-        alert("Equipo actualizado correctamente.");
-        window.location.href = "equipos.html";
-      });
-    }
-
-    function logout() {
-      window.location.href = "index.html";
-    }
-  </script>
   <script src="../js/auth.js"></script>
-
+  <script src="../js/editarEquipo.js"></script>
+  <script src="../js/navegacion.js"></script>
 </body>
 
 </html>

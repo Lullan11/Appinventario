@@ -157,24 +157,31 @@
               <textarea id="descripcion" name="descripcion" rows="3" placeholder="Describe el equipo..."
                 class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#F2B705]"></textarea>
             </div>
+            <!-- Configuración de Mantenimientos -->
+            <div class="border-2 border-[#0F172A] rounded-lg p-4 bg-gray-50">
+              <div class="flex justify-between items-center mb-4">
+                <div>
+                  <h3 class="text-lg font-semibold text-[#0F172A]">Mantenimientos Programados</h3>
+                  <p class="text-sm text-gray-600">Agrega mantenimientos preventivos y calibraciones recurrentes</p>
+                </div>
+                <button type="button" onclick="mostrarModalMantenimiento()"
+                  class="px-4 py-2 bg-[#0F172A] text-white rounded hover:bg-[#1e293b] transition-colors flex items-center gap-2">
+                  <i class="fas fa-plus"></i>
+                  Agregar Mantenimiento
+                </button>
+              </div>
 
-            <!-- Frecuencia de mantenimiento -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label for="frecuencia" class="block text-[#0F172A] font-medium mb-1">
-                  Frecuencia de Mantenimiento Preventivo (días)
-                </label>
-                <input type="number" id="frecuencia" name="frecuencia" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2
-      focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required />
+              <div id="lista-mantenimientos" class="space-y-2 min-h-[100px]">
+                <!-- Aquí se mostrarán los mantenimientos -->
               </div>
-              <div>
-                <label for="fecha_inicio" class="block text-[#0F172A] font-medium mb-1">
-                  Fecha de Inicio del Mantenimiento
-                </label>
-                <input type="date" id="fecha_inicio" name="fecha_inicio" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2
-      focus:outline-none focus:ring-2 focus:ring-[#F2B705]" required />
-              </div>
+
             </div>
+
+            <p class="text-sm text-gray-500 mt-3">
+              <i class="fas fa-info-circle mr-1"></i>
+              <strong>Nota:</strong> Puedes agregar múltiples mantenimientos del mismo tipo.
+              Los mantenimientos correctivos se registran manualmente cuando ocurren.
+            </p>
 
             <!-- Botones -->
             <div class="flex justify-between flex-wrap gap-4 pt-4">
@@ -186,15 +193,16 @@
                 class="px-6 py-2 rounded-lg bg-[#FFD527] text-black font-semibold border-2 border-[#0F172A] hover:bg-yellow-600">Guardar
                 Equipo</button>
             </div>
-
-          </form>
         </div>
+        </form>
       </div>
-
       <footer class="text-center mt-6 py-4 border-t border-gray-200">
-        <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos - Crear nuevo</p>
+        <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos</p>
       </footer>
-    </main>
+  </div>
+
+
+  </main>
   </div>
 
   <script src="../js/auth.js"></script>
