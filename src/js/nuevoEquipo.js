@@ -16,8 +16,8 @@ function mostrarMensajeEquipo(texto, esError = false) {
 
     mensaje.textContent = texto;
     mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError
-            ? "bg-red-100 text-red-800 border-l-4 border-red-500"
-            : "bg-green-100 text-green-800 border-l-4 border-green-500"
+        ? "bg-red-100 text-red-800 border-l-4 border-red-500"
+        : "bg-green-100 text-green-800 border-l-4 border-green-500"
         }`;
 
     setTimeout(() => {
@@ -40,10 +40,10 @@ async function cargarTiposMantenimiento() {
 
         if (Array.isArray(data)) {
             // 🚫 FILTRAR PARA EXCLUIR CORRECTIVO
-            tiposMantenimiento = data.filter(tipo => 
+            tiposMantenimiento = data.filter(tipo =>
                 !tipo.nombre.toLowerCase().includes('correctivo')
             );
-            
+
             // Si después de filtrar no hay tipos, usar valores por defecto sin Correctivo
             if (tiposMantenimiento.length === 0) {
                 tiposMantenimiento = [
@@ -52,20 +52,20 @@ async function cargarTiposMantenimiento() {
                 ];
                 console.log("Usando tipos por defecto (sin Correctivo):", tiposMantenimiento);
             }
-            
+
             return true;
         } else {
             throw new Error("Formato de respuesta inválido");
         }
     } catch (err) {
         console.error("Error al cargar tipos de mantenimiento:", err);
-        
+
         // Si falla, usar valores por defecto SIN Correctivo
         tiposMantenimiento = [
             { id: 1, nombre: "Preventivo" },
             { id: 3, nombre: "Calibración" }
         ];
-        
+
         mostrarMensajeEquipo("⚠️ Usando tipos de mantenimiento por defecto", true);
         return false;
     }
@@ -142,7 +142,8 @@ async function mostrarCamposTipo() {
     }
 }
 
-// Cargar ubicaciones (áreas y puestos)
+
+// Cargar ubicaciones (áreas y puestos) con información completa de sede
 async function cargarUbicaciones() {
     const select = document.getElementById("ubicacion");
     if (!select) {
@@ -159,11 +160,31 @@ async function cargarUbicaciones() {
         const areas = await areasRes.json();
         console.log("Áreas cargadas:", areas);
 
-        areas.forEach(a => {
-            const option = document.createElement("option");
-            option.value = `area-${a.id}`;
-            option.textContent = `Área: ${a.nombre} (Sede: ${a.sede_nombre})`;
-            select.appendChild(option);
+        // Agrupar áreas por sede para mejor organización
+        const areasPorSede = {};
+        areas.forEach(area => {
+            const sedeNombre = area.sede_nombre || 'Sin sede';
+            if (!areasPorSede[sedeNombre]) {
+                areasPorSede[sedeNombre] = [];
+            }
+            areasPorSede[sedeNombre].push(area);
+        });
+
+        // Crear optgroups para áreas por sede
+        Object.keys(areasPorSede).forEach(sedeNombre => {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = `📍 ${sedeNombre} - Áreas`;
+
+            areasPorSede[sedeNombre].forEach(area => {
+                const option = document.createElement("option");
+                option.value = `area-${area.id}`;
+                option.textContent = `🏢 ${area.nombre} (Sede: ${sedeNombre})`;
+                option.setAttribute('data-tipo', 'area');
+                option.setAttribute('data-sede', sedeNombre);
+                optgroup.appendChild(option);
+            });
+
+            select.appendChild(optgroup);
         });
 
         const puestosRes = await fetch(`${apiUrl}/puestos`);
@@ -172,23 +193,57 @@ async function cargarUbicaciones() {
         const puestos = await puestosRes.json();
         console.log("Puestos cargados:", puestos);
 
-        puestos.forEach(p => {
-            const option = document.createElement("option");
-            option.value = `puesto-${p.id}`;
-            option.textContent = `Puesto: ${p.codigo} (${p.responsable_nombre}) - Área: ${p.area_nombre}`;
-            select.appendChild(option);
+        // Agrupar puestos por sede
+        const puestosPorSede = {};
+        puestos.forEach(puesto => {
+            const sedeNombre = puesto.sede_nombre || 'Sin sede';
+            if (!puestosPorSede[sedeNombre]) {
+                puestosPorSede[sedeNombre] = [];
+            }
+            puestosPorSede[sedeNombre].push(puesto);
         });
+
+        // Crear optgroups para puestos por sede
+        Object.keys(puestosPorSede).forEach(sedeNombre => {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = `👤 ${sedeNombre} - Puestos`;
+
+            puestosPorSede[sedeNombre].forEach(puesto => {
+                const option = document.createElement("option");
+                option.value = `puesto-${puesto.id}`;
+                option.textContent = `💼 ${puesto.codigo} - ${puesto.responsable_nombre} (Área: ${puesto.area_nombre}, Sede: ${sedeNombre})`;
+                option.setAttribute('data-tipo', 'puesto');
+                option.setAttribute('data-sede', sedeNombre);
+                optgroup.appendChild(option);
+            });
+
+            select.appendChild(optgroup);
+        });
+
+        // Si no hay datos, mostrar mensaje
+        if (areas.length === 0 && puestos.length === 0) {
+            select.innerHTML = '<option value="">No hay ubicaciones disponibles</option>';
+        }
 
     } catch (err) {
         console.error("Error al cargar ubicaciones:", err);
         mostrarMensajeEquipo("Error al cargar ubicaciones", true);
+
+        // Opción de respaldo
+        select.innerHTML = `
+            <option value="">Error al cargar ubicaciones</option>
+            <option value="area-1">Área: Administración (Sede: Principal)</option>
+            <option value="puesto-1">Puesto: A001 - Juan Pérez (Área: Administración, Sede: Principal)</option>
+        `;
     }
 }
 
-// Autocompletar responsable al cambiar ubicación
+
+// Autocompletar responsable al cambiar ubicación (mejorada)
 document.getElementById("ubicacion")?.addEventListener("change", async (e) => {
     const value = e.target.value;
     const responsableInput = document.getElementById("responsable");
+    const selectedOption = e.target.options[e.target.selectedIndex];
 
     if (!value || !responsableInput) {
         if (responsableInput) responsableInput.value = "";
@@ -204,15 +259,29 @@ document.getElementById("ubicacion")?.addEventListener("change", async (e) => {
 
             const data = await res.json();
             responsableInput.value = data.responsable_nombre || "";
+            
+            // Mostrar información adicional en consola
+            const sede = selectedOption.getAttribute('data-sede');
+            console.log(`📍 Ubicación seleccionada: Puesto ${id} en sede ${sede}`);
+            
         } catch (err) {
             console.error("Error al obtener información de puesto:", err);
             responsableInput.value = "";
             mostrarMensajeEquipo("Error al obtener responsable del puesto", true);
         }
+    } else if (tipo === "area") {
+        // Para áreas, limpiar el responsable ya que las áreas no tienen responsable específico
+        responsableInput.value = "";
+        const sede = selectedOption.getAttribute('data-sede');
+        console.log(`📍 Ubicación seleccionada: Área ${id} en sede ${sede}`);
+        
+        // Opcional: mostrar mensaje informativo
+        mostrarMensajeEquipo("ℹ️ Área seleccionada - complete manualmente el responsable");
     } else {
         responsableInput.value = "";
     }
 });
+
 
 // 🆕 FUNCIONES PARA MANEJAR MANTENIMIENTOS
 
@@ -236,8 +305,8 @@ function mostrarModalMantenimiento() {
                         <select id="tipo-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300" required>
                             <option value="">Seleccionar...</option>
                             ${tiposMantenimiento.map(tipo =>
-                                `<option value="${tipo.id}">${tipo.nombre}</option>`
-                            ).join('')}
+        `<option value="${tipo.id}">${tipo.nombre}</option>`
+    ).join('')}
                         </select>
                     </div>
                     
@@ -420,7 +489,7 @@ function actualizarListaMantenimientos() {
 
 // Eliminar mantenimiento de la lista
 // Hacer la función eliminarMantenimiento disponible globalmente
-window.eliminarMantenimiento = function(index) {
+window.eliminarMantenimiento = function (index) {
     if (index >= 0 && index < mantenimientosConfigurados.length) {
         const eliminado = mantenimientosConfigurados.splice(index, 1)[0];
         actualizarListaMantenimientos();

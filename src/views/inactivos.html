@@ -87,8 +87,8 @@
         </aside>
 
         <!-- Contenido principal -->
-        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
-            <div>
+        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col">
+            <div class="flex-1">
                 <!-- Título y Logo -->
                 <header class="mb-6 flex items-center justify-between">
                     <h1 class="text-4xl font-semibold text-[#0F172A]">Inactivos</h1>
@@ -98,12 +98,16 @@
                     </div>
                 </header>
 
+                <!-- Contenedor para el contenido dinámico -->
+                <div id="contenido-dinamico" class="flex-1">
+                    <!-- Aquí se cargará la tabla o mensaje de no datos -->
+                </div>
+            </div>
 
-
-
-                <footer class="text-center mt-6 py-4 border-t border-gray-200">
-                    <p class="text-sm text-[#0F172A] font-medium">Módulo de Inactivos</p>
-                </footer>
+            <!-- Footer que ahora estará debajo del contenido -->
+            <footer class="text-center mt-6 py-4 border-t border-gray-200">
+                <p class="text-sm text-[#0F172A] font-medium">Módulo de Inactivos</p>
+            </footer>
         </main>
     </div>
 

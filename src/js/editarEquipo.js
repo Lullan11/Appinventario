@@ -17,9 +17,8 @@ function mostrarMensaje(texto, esError = false) {
     }
 
     mensaje.textContent = texto;
-    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${
-        esError ? "bg-red-100 text-red-800 border-l-4 border-red-500" : "bg-green-100 text-green-800 border-l-4 border-green-500"
-    }`;
+    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError ? "bg-red-100 text-red-800 border-l-4 border-red-500" : "bg-green-100 text-green-800 border-l-4 border-green-500"
+        }`;
 
     setTimeout(() => {
         mensaje.textContent = "";
@@ -32,7 +31,7 @@ async function cargarTiposMantenimiento() {
     try {
         const res = await fetch(`${apiUrl}/tipos-mantenimiento`);
         if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-        
+
         const data = await res.json();
         tiposMantenimiento = data.filter(tipo => !tipo.nombre.toLowerCase().includes('correctivo'));
         return true;
@@ -56,7 +55,7 @@ async function cargarDatosEquipo() {
     try {
         const res = await fetch(`${apiUrl}/equipos/${equipoId}/completo`);
         if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-        
+
         const data = await res.json();
         equipoData = data;
         return true;
@@ -78,8 +77,7 @@ async function cargarTiposEquipo() {
         return [];
     }
 }
-
-// Cargar ubicaciones
+// Cargar ubicaciones (áreas y puestos) con información completa de sede
 async function cargarUbicaciones() {
     try {
         const [areasRes, puestosRes] = await Promise.all([
@@ -97,6 +95,64 @@ async function cargarUbicaciones() {
         console.error("Error al cargar ubicaciones:", err);
         return { areas: [], puestos: [] };
     }
+}
+
+// Renderizar select de ubicaciones organizado por sedes
+function renderizarSelectUbicaciones(areas, puestos, ubicacionActual = '') {
+    let html = '<option value="">Selecciona una ubicación...</option>';
+
+    // Agrupar áreas por sede
+    const areasPorSede = {};
+    areas.forEach(area => {
+        const sedeNombre = area.sede_nombre || 'Sin sede';
+        if (!areasPorSede[sedeNombre]) {
+            areasPorSede[sedeNombre] = [];
+        }
+        areasPorSede[sedeNombre].push(area);
+    });
+
+    // Crear optgroups para áreas por sede
+    Object.keys(areasPorSede).forEach(sedeNombre => {
+        html += `<optgroup label="📍 ${sedeNombre} - Áreas">`;
+        areasPorSede[sedeNombre].forEach(area => {
+            const value = `area-${area.id}`;
+            const selected = ubicacionActual === value ? 'selected' : '';
+            html += `<option value="${value}" ${selected} data-tipo="area" data-sede="${sedeNombre}">
+                        🏢 ${area.nombre} (Sede: ${sedeNombre})
+                     </option>`;
+        });
+        html += '</optgroup>';
+    });
+
+    // Agrupar puestos por sede
+    const puestosPorSede = {};
+    puestos.forEach(puesto => {
+        const sedeNombre = puesto.sede_nombre || 'Sin sede';
+        if (!puestosPorSede[sedeNombre]) {
+            puestosPorSede[sedeNombre] = [];
+        }
+        puestosPorSede[sedeNombre].push(puesto);
+    });
+
+    // Crear optgroups para puestos por sede
+    Object.keys(puestosPorSede).forEach(sedeNombre => {
+        html += `<optgroup label="👤 ${sedeNombre} - Puestos">`;
+        puestosPorSede[sedeNombre].forEach(puesto => {
+            const value = `puesto-${puesto.id}`;
+            const selected = ubicacionActual === value ? 'selected' : '';
+            html += `<option value="${value}" ${selected} data-tipo="puesto" data-sede="${sedeNombre}">
+                        💼 ${puesto.codigo} - ${puesto.responsable_nombre} (Área: ${puesto.area_nombre}, Sede: ${sedeNombre})
+                     </option>`;
+        });
+        html += '</optgroup>';
+    });
+
+    // Si no hay datos, mostrar mensaje
+    if (areas.length === 0 && puestos.length === 0) {
+        html = '<option value="">No hay ubicaciones disponibles</option>';
+    }
+
+    return html;
 }
 
 // Renderizar formulario
@@ -148,9 +204,9 @@ async function renderizarFormulario() {
                     class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
                     required onchange="mostrarCamposTipo()">
                     <option value="">Selecciona un tipo...</option>
-                    ${tiposEquipo.map(tipo => 
-                        `<option value="${tipo.id}" ${equipoData.id_tipo_equipo == tipo.id ? 'selected' : ''}>${tipo.nombre}</option>`
-                    ).join('')}
+                    ${tiposEquipo.map(tipo =>
+        `<option value="${tipo.id}" ${equipoData.id_tipo_equipo == tipo.id ? 'selected' : ''}>${tipo.nombre}</option>`
+    ).join('')}
                 </select>
             </div>
         </div>
@@ -158,37 +214,23 @@ async function renderizarFormulario() {
         <!-- Campos dinámicos -->
         <div id="campos-especificos" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
 
-        <!-- Ubicación y Responsable -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label for="ubicacion" class="block text-[#0F172A] font-medium mb-1">Ubicación (Área o Puesto)</label>
-                <select id="ubicacion" name="ubicacion"
-                    class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
-                    required>
-                    <option value="">Selecciona una ubicación...</option>
-                    <optgroup label="Áreas">
-                        ${areas.map(area => 
-                            `<option value="area-${area.id}" ${ubicacionActual === `area-${area.id}` ? 'selected' : ''}>
-                                Área: ${area.nombre} (Sede: ${area.sede_nombre})
-                            </option>`
-                        ).join('')}
-                    </optgroup>
-                    <optgroup label="Puestos">
-                        ${puestos.map(puesto => 
-                            `<option value="puesto-${puesto.id}" ${ubicacionActual === `puesto-${puesto.id}` ? 'selected' : ''}>
-                                Puesto: ${puesto.codigo} (${puesto.responsable_nombre}) - Área: ${puesto.area_nombre}
-                            </option>`
-                        ).join('')}
-                    </optgroup>
-                </select>
-            </div>
-            <div>
-                <label for="responsable" class="block text-[#0F172A] font-medium mb-1">Responsable</label>
-                <input type="text" id="responsable" name="responsable" value="${equipoData.responsable_nombre || ''}"
-                    class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
-                    required />
-            </div>
-        </div>
+<!-- Ubicación y Responsable -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+        <label for="ubicacion" class="block text-[#0F172A] font-medium mb-1">Ubicación (Área o Puesto)</label>
+        <select id="ubicacion" name="ubicacion"
+            class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+            required>
+            ${renderizarSelectUbicaciones(areas, puestos, ubicacionActual)}
+        </select>
+    </div>
+    <div>
+        <label for="responsable" class="block text-[#0F172A] font-medium mb-1">Responsable</label>
+        <input type="text" id="responsable" name="responsable" value="${equipoData.responsable_nombre || ''}"
+            class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+            required />
+    </div>
+</div>
 
         <!-- Código y descripción -->
         <div>
@@ -304,13 +346,13 @@ function renderizarMantenimientos() {
 async function mostrarCamposTipo() {
     const tipoId = document.getElementById("tipoEquipo").value;
     const container = document.getElementById("campos-especificos");
-    
+
     if (!container || !tipoId) return;
 
     try {
         const res = await fetch(`${apiUrl}/tipos-equipo`);
         if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-        
+
         const tipos = await res.json();
         const tipo = tipos.find(t => t.id == tipoId);
 
@@ -340,15 +382,17 @@ async function mostrarCamposTipo() {
     }
 }
 
-// Configurar eventos
+
+// En configurarEventos(), reemplaza el evento change del ubicacion con esto:
 function configurarEventos() {
-    // Autocompletar responsable
+    // Autocompletar responsable al cambiar ubicación (mejorada)
     document.getElementById("ubicacion").addEventListener("change", async (e) => {
         const value = e.target.value;
         const responsableInput = document.getElementById("responsable");
+        const selectedOption = e.target.options[e.target.selectedIndex];
 
-        if (!value) {
-            responsableInput.value = "";
+        if (!value || !responsableInput) {
+            if (responsableInput) responsableInput.value = "";
             return;
         }
 
@@ -358,13 +402,27 @@ function configurarEventos() {
             try {
                 const res = await fetch(`${apiUrl}/ubicacion/${tipo}/${id}`);
                 if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-                
+
                 const data = await res.json();
                 responsableInput.value = data.responsable_nombre || "";
+
+                // Mostrar información adicional en consola
+                const sede = selectedOption.getAttribute('data-sede');
+                console.log(`📍 Ubicación seleccionada: Puesto ${id} en sede ${sede}`);
+
             } catch (err) {
                 console.error("Error al obtener información de puesto:", err);
                 responsableInput.value = "";
+                mostrarMensaje("Error al obtener responsable del puesto", true);
             }
+        } else if (tipo === "area") {
+            // Para áreas, limpiar el responsable ya que las áreas no tienen responsable específico
+            responsableInput.value = "";
+            const sede = selectedOption.getAttribute('data-sede');
+            console.log(`📍 Ubicación seleccionada: Área ${id} en sede ${sede}`);
+
+            // Opcional: mostrar mensaje informativo
+            mostrarMensaje("ℹ️ Área seleccionada - complete manualmente el responsable");
         } else {
             responsableInput.value = "";
         }
@@ -376,7 +434,6 @@ function configurarEventos() {
         await actualizarEquipo();
     });
 }
-
 // Actualizar equipo
 async function actualizarEquipo() {
     const formData = {

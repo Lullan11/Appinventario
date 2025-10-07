@@ -129,29 +129,107 @@
             información o marcar como inactivos.</p>
         </div>
 
+        <!-- Contenedor para alertas -->
+        <div id="alertas-mantenimiento"></div>
+
         <!-- Tabla -->
         <section class="max-w-7xl mx-auto bg-white p-6 border-2 border-[#0F172A] rounded-xl shadow-md">
           <div class="flex justify-between items-center mb-6">
             <h3 class="text-2xl font-semibold text-[#0F172A]">Listado de Equipos</h3>
-            <button onclick="window.location.href='nuevoEquipo.html'"
-              class="bg-[#639A33] text-[#FFFFFF] font-semibold px-4 py-2 rounded hover:bg-green-600 transition">
-              + Nuevo Equipo
-            </button>
+            <div class="flex gap-2">
+              <button onclick="solicitarPermisosNotificacion()"
+                class="bg-purple-600 text-white font-semibold px-4 py-2 rounded hover:bg-purple-700 transition text-sm flex items-center gap-2">
+                <i class="fas fa-bell"></i> Notificaciones
+              </button>
+              <button onclick="window.location.href='nuevoEquipo.html'"
+                class="bg-[#639A33] text-[#FFFFFF] font-semibold px-4 py-2 rounded hover:bg-green-600 transition text-sm flex items-center gap-2">
+                <i class="fas fa-plus"></i> Nuevo Equipo
+              </button>
+            </div>
           </div>
 
-          <!-- Barra de búsqueda -->
-          <div class="mb-4 flex items-center gap-2">
-            <div class="relative w-full max-w-md">
-              <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd"
-                    d="M12.9 14.32a8 8 0 111.414-1.414l4.387 4.386a1 1 0 01-1.414 1.415l-4.387-4.387zM10 16a6 6 0 100-12 6 6 0 000 12z"
-                    clip-rule="evenodd" />
-                </svg>
+          <!-- Barra de búsqueda avanzada -->
+          <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-lg font-semibold text-[#0F172A]">Búsqueda Avanzada</h4>
+              <button onclick="limpiarFiltros()" class="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1">
+                <i class="fas fa-times"></i> Limpiar
+              </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <!-- Filtro por código -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Código</label>
+                <input type="text" id="filtro-codigo" placeholder="Buscar por código..."
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
               </div>
-              <input type="text" id="busqueda" placeholder="Buscar por cualquier campo..."
-                class="block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#639A33] focus:border-[#639A33] placeholder-gray-500 text-sm"
-                oninput="filtrarEquipos()" />
+
+              <!-- Filtro por nombre -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Nombre</label>
+                <input type="text" id="filtro-nombre" placeholder="Buscar por nombre..."
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+              </div>
+
+              <!-- Filtro por ubicación -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Ubicación</label>
+                <select id="filtro-ubicacion" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                  <option value="">Todas las ubicaciones</option>
+                  <option value="puesto">Puestos</option>
+                  <option value="area">Áreas</option>
+                </select>
+              </div>
+
+              <!-- Filtro por estado de mantenimiento -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Estado Mantenimiento</label>
+                <select id="filtro-estado" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                  <option value="">Todos los estados</option>
+                  <option value="VENCIDO">Vencido</option>
+                  <option value="PRÓXIMO">Próximo</option>
+                  <option value="OK">Al Día</option>
+                  <option value="SIN_DATOS">Sin Configuración</option>
+                </select>
+              </div>
+
+              <!-- Filtro por sede -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Sede</label>
+                <input type="text" id="filtro-sede" placeholder="Buscar por sede..."
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+              </div>
+
+              <!-- Filtro por área -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Área</label>
+                <input type="text" id="filtro-area" placeholder="Buscar por área..."
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+              </div>
+
+              <!-- Filtro por responsable -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Responsable</label>
+                <input type="text" id="filtro-responsable" placeholder="Buscar responsable..."
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+              </div>
+
+              <!-- Filtro por tipo de equipo -->
+              <div>
+                <label class="block text-sm font-medium mb-1">Tipo de Equipo</label>
+                <input type="text" id="filtro-tipo" placeholder="Buscar por tipo..."
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center mt-4">
+              <div class="text-sm text-gray-600">
+                <span id="contador-resultados">0</span> equipos encontrados
+              </div>
+              <button onclick="aplicarFiltros()" class="bg-[#639A33] text-white px-4 py-2 rounded hover:bg-green-600 text-sm flex items-center gap-2">
+                <i class="fas fa-search"></i> Buscar
+              </button>
             </div>
           </div>
 
@@ -163,7 +241,7 @@
                   <th class="px-4 py-2 border border-[#0F172A]">Nombre</th>
                   <th class="px-4 py-2 border border-[#0F172A]">Ubicación</th>
                   <th class="px-4 py-2 border border-[#0F172A]">Responsable</th>
-                  <th class="px-4 py-2 border border-[#0F172A]">Próximo Mantenimiento</th>
+                  <th class="px-4 py-2 border border-[#0F172A]">Estado Mantenimiento</th>
                   <th class="px-4 py-2 border border-[#0F172A] text-center">Acciones</th>
                 </tr>
               </thead>
@@ -250,31 +328,6 @@
   <script src="../js/auth.js"></script>
   <script src="../js/navegacion.js"></script>
   <script src="../js/equipos.js"></script>
-
-  <script>
-    function editarEquipo(id) {
-      window.location.href = `editarEquipo.html?id=${id}`;
-    }
-
-    function inactivarEquipo(id) {
-      if (confirm("¿Estás seguro de inactivar este equipo?")) {
-        alert(`Equipo ${id} marcado como inactivo.`);
-      }
-    }
-
-    function verEquipo(id) {
-      window.location.href = `verEquipo.html?id=${id}`;
-    }
-
-    function filtrarEquipos() {
-      const texto = document.getElementById('busqueda').value.toLowerCase();
-      const filas = document.querySelectorAll('#tablaEquipos tr');
-      filas.forEach(fila => {
-        const contenido = fila.textContent.toLowerCase();
-        fila.style.display = contenido.includes(texto) ? '' : 'none';
-      });
-    }
-  </script>
 </body>
 
 </html>
