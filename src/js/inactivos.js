@@ -186,7 +186,7 @@ async function verPDFInactivo(equipoId) {
         
         const equipo = await res.json();
         
-        // Aquí puedes implementar la generación del PDF de visualización
+        // PDF con diseño mejorado y botones de acción
         const contenidoPDF = `
             <!DOCTYPE html>
             <html>
@@ -194,33 +194,334 @@ async function verPDFInactivo(equipoId) {
                 <meta charset="utf-8">
                 <title>Equipo Inactivo - ${equipo.codigo_interno}</title>
                 <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; }
-                    .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
-                    .section { margin-bottom: 20px; }
-                    .section-title { background: #f0f0f0; padding: 8px; font-weight: bold; }
-                    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-                    .info-item { margin-bottom: 5px; }
-                    .label { font-weight: bold; color: #555; }
-                    .estado-inactivo { color: #dc2626ff; font-weight: bold; }
+                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+                    
+                    * { 
+                        margin: 0; 
+                        padding: 0; 
+                        box-sizing: border-box; 
+                    }
+                    
+                    body { 
+                        font-family: 'Inter', Arial, sans-serif; 
+                        margin: 0; 
+                        padding: 0; 
+                        background: white;
+                        color: #1e293b;
+                    }
+                    
+                    .action-buttons {
+                        position: fixed;
+                        top: 15px;
+                        right: 15px;
+                        z-index: 1000;
+                        display: flex;
+                        gap: 8px;
+                    }
+                    
+                    .action-btn {
+                        background: linear-gradient(135deg, #639A33 0%, #4a7a27 100%);
+                        color: white;
+                        border: none;
+                        padding: 8px 12px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 11px;
+                        font-weight: 600;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        transition: all 0.3s;
+                        border: 1px solid #4a7a27;
+                    }
+                    
+                    .action-btn:hover {
+                        background: linear-gradient(135deg, #4a7a27 0%, #3a6a1f 100%);
+                        transform: translateY(-1px);
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25);
+                    }
+                    
+                    .action-btn.download {
+                        background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+                        border: 1px solid #1e3a8a;
+                    }
+                    
+                    .action-btn.download:hover {
+                        background: linear-gradient(135deg, #1e3a8a 0%, #1e2f6d 100%);
+                    }
+                    
+                    .page-container {
+                        width: 210mm;
+                        min-height: 297mm;
+                        margin: 0 auto;
+                        background: white;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                        position: relative;
+                    }
+                    
+                    .header {
+                        background: linear-gradient(135deg, #639A33 0%, #4a7a27 100%);
+                        color: white;
+                        padding: 20px 30px;
+                        text-align: center;
+                        position: relative;
+                        overflow: hidden;
+                        border-bottom: 3px solid #4a7a27;
+                    }
+                    
+                    .logo-container {
+                        display: inline-block;
+                        background: white;
+                        padding: 10px;
+                        border-radius: 10px;
+                        margin-bottom: 15px;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+                    }
+                    
+                    .logo-container img {
+                        width: 90px;
+                        height: 90px;
+                        object-fit: contain;
+                    }
+                    
+                    .header h1 {
+                        font-size: 26px;
+                        font-weight: 700;
+                        margin-bottom: 8px;
+                        color: white;
+                        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+                    }
+                    
+                    .status-badge {
+                        display: inline-block;
+                        background: rgba(220, 38, 38, 0.95);
+                        color: white;
+                        padding: 8px 20px;
+                        border-radius: 20px;
+                        font-weight: 700;
+                        font-size: 13px;
+                        margin-top: 8px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        border: 2px solid rgba(255, 255, 255, 0.3);
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                    }
+                    
+                    .content {
+                        padding: 25px 30px;
+                    }
+                    
+                    .two-columns {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 20px;
+                        margin-bottom: 20px;
+                    }
+                    
+                    .section {
+                        background: white;
+                        border-radius: 10px;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                        overflow: hidden;
+                        border: 1px solid #e2e8f0;
+                    }
+                    
+                    .section-title {
+                        background: linear-gradient(135deg, #639A33 0%, #4a7a27 100%);
+                        padding: 14px 20px;
+                        font-weight: 600;
+                        color: white;
+                        font-size: 14px;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        border-left: 4px solid #4a7a27;
+                    }
+                    
+                    .section-content {
+                        padding: 20px;
+                    }
+                    
+                    .info-grid {
+                        display: grid;
+                        grid-template-columns: 1fr;
+                        gap: 12px;
+                    }
+                    
+                    .info-item {
+                        display: flex;
+                        flex-direction: column;
+                        padding: 8px 0;
+                        border-bottom: 1px solid #f8fafc;
+                    }
+                    
+                    .info-item:last-child {
+                        border-bottom: none;
+                    }
+                    
+                    .label {
+                        font-weight: 600;
+                        color: #475569;
+                        font-size: 11px;
+                        margin-bottom: 4px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.3px;
+                    }
+                    
+                    .value {
+                        font-weight: 500;
+                        color: #1e293b;
+                        font-size: 13px;
+                        line-height: 1.4;
+                    }
+                    
+                    .footer {
+                        margin-top: 25px;
+                        padding: 20px 30px;
+                        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                        border-top: 2px solid #639A33;
+                        text-align: center;
+                    }
+                    
+                    .copyright {
+                        font-size: 11px;
+                        color: #64748b;
+                        margin-top: 10px;
+                    }
+                    
+                    @media print {
+                        .action-buttons {
+                            display: none !important;
+                        }
+                        
+                        body {
+                            margin: 0;
+                            padding: 0;
+                        }
+                        
+                        .page-container {
+                            box-shadow: none;
+                        }
+                    }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h1>INFORMACIÓN DE EQUIPO INACTIVO</h1>
-                    <p class="estado-inactivo">ESTADO: INACTIVO</p>
+                <!-- Botones de acción -->
+                <div class="action-buttons">
+                    <button class="action-btn download" onclick="downloadPDF()">
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
+                    <button class="action-btn" onclick="window.print()">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
                 </div>
-                
-                <div class="section">
-                    <div class="section-title">DATOS DEL EQUIPO</div>
-                    <div class="info-grid">
-                        <div class="info-item"><span class="label">Código:</span> ${equipo.codigo_interno}</div>
-                        <div class="info-item"><span class="label">Nombre:</span> ${equipo.nombre}</div>
-                        <div class="info-item"><span class="label">Tipo:</span> ${equipo.tipo_equipo_nombre || '-'}</div>
-                        <div class="info-item"><span class="label">Ubicación:</span> ${equipo.ubicacion === 'puesto' ? `Puesto: ${equipo.puesto_codigo || '-'}` : `Área: ${equipo.area_nombre || '-'}`}</div>
-                        <div class="info-item"><span class="label">Motivo baja:</span> ${equipo.motivo || '-'}</div>
-                        <div class="info-item"><span class="label">Fecha baja:</span> ${equipo.fecha_baja ? new Date(equipo.fecha_baja).toLocaleDateString() : '-'}</div>
+            
+                <div class="page-container">
+                    <div class="header">
+                        <div class="logo-container">
+                            <img src="../assets/LOGO-IPS-INCONTEC.png" alt="Logo IPS Progresando" />
+                        </div>
+                        <h1>INFORMACIÓN DE EQUIPO INACTIVO</h1>
+                        <div class="status-badge">EQUIPO INACTIVO - DADO DE BAJA</div>
+                    </div>
+                    
+                    <div class="content">
+                        <div class="two-columns">
+                            <!-- Datos generales -->
+                            <div class="section">
+                                <div class="section-title">
+                                    <i class="fas fa-info-circle"></i>
+                                    DATOS GENERALES
+                                </div>
+                                <div class="section-content">
+                                    <div class="info-grid">
+                                        <div class="info-item">
+                                            <span class="label">Código interno</span>
+                                            <span class="value">${equipo.codigo_interno}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="label">Nombre del equipo</span>
+                                            <span class="value">${equipo.nombre}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="label">Tipo de equipo</span>
+                                            <span class="value">${equipo.tipo_equipo_nombre || 'No especificado'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="label">Ubicación</span>
+                                            <span class="value">${equipo.ubicacion === 'puesto' ? `Puesto: ${equipo.puesto_codigo || 'No especificado'}` : `Área: ${equipo.area_nombre || 'No especificado'}`}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="label">Sede</span>
+                                            <span class="value">${equipo.sede_nombre || 'No especificada'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="label">Descripción</span>
+                                            <span class="value">${equipo.descripcion || 'No disponible'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Información de baja -->
+                            <div class="section">
+                                <div class="section-title">
+                                    <i class="fas fa-ban"></i>
+                                    INFORMACIÓN DE LA BAJA
+                                </div>
+                                <div class="section-content">
+                                    <div class="info-grid">
+                                        <div class="info-item">
+                                            <span class="label">Motivo de baja</span>
+                                            <span class="value">${equipo.motivo || 'No especificado'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="label">Fecha de baja</span>
+                                            <span class="value">${equipo.fecha_baja ? new Date(equipo.fecha_baja).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'No especificada'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="label">Realizado por</span>
+                                            <span class="value">${equipo.realizado_por || 'No especificado'}</span>
+                                        </div>
+                                        ${equipo.observaciones ? `
+                                        <div class="info-item">
+                                            <span class="label">Observaciones</span>
+                                            <span class="value" style="font-style: italic;">${equipo.observaciones}</span>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <div class="copyright">
+                            © ${new Date().getFullYear()} IPS Progresando - Sistema de Gestión de Inventarios
+                            <br>Documento generado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}
+                        </div>
                     </div>
                 </div>
+
+                <script>
+                    function downloadPDF() {
+                        window.print();
+                    }
+                    
+                    // También permitir Ctrl+P para descarga
+                    document.addEventListener('keydown', function(e) {
+                        if (e.ctrlKey && e.key === 'p') {
+                            e.preventDefault();
+                            window.print();
+                        }
+                    });
+                    
+                    // Mejorar la experiencia de impresión
+                    window.addEventListener('beforeprint', function() {
+                        document.title = 'Equipo_Inactivo_${equipo.codigo_interno}';
+                    });
+                </script>
             </body>
             </html>
         `;

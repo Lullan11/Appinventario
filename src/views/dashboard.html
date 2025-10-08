@@ -154,6 +154,7 @@
               </div>
               <h3 class="text-base font-semibold text-[#0F172A] mb-2">Sedes</h3>
               <p id="total-sedes" class="text-3xl font-bold text-blue-500">0</p>
+              <p class="text-sm text-gray-600 mt-1">Sedes activas</p>
             </div>
         </a>
 
@@ -168,6 +169,7 @@
             </div>
             <h3 class="text-base font-semibold text-[#0F172A] mb-2">Áreas</h3>
             <p id="total-oficinas" class="text-3xl font-bold text-green-600">0</p>
+            <p class="text-sm text-gray-600 mt-1">Áreas activas</p>
           </div>
         </a>
 
@@ -182,6 +184,7 @@
             </div>
             <h3 class="text-base font-semibold text-[#0F172A] mb-2">Puestos</h3>
             <p id="total-puestos" class="text-3xl font-bold text-purple-600">0</p>
+            <p class="text-sm text-gray-600 mt-1">Puestos activos</p>
           </div>
         </a>
 
@@ -196,9 +199,11 @@
             </div>
             <h3 class="text-base font-semibold text-[#0F172A] mb-2">Equipos</h3>
             <p id="total-equipos" class="text-3xl font-bold text-orange-500">0</p>
+            <p class="text-sm text-gray-600 mt-1">Equipos activos</p>
           </div>
         </a>
         </section>
+
 
         <!-- Gráficas -->
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -213,7 +218,15 @@
             <h3 class="text-lg font-semibold text-[#0F172A] mb-4">Proporción General</h3>
             <canvas id="pieChart"></canvas>
           </div>
+        </section>
 
+
+        <!-- Después de la sección de tarjetas principales -->
+        <section id="mantenimientos-section" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <!-- Las tarjetas se generan automáticamente con JavaScript -->
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Tendencia -->
           <div class="bg-white border rounded-lg p-6 shadow">
             <h3 class="text-lg font-semibold text-[#0F172A] mb-4">Tendencia de Equipos</h3>
@@ -226,6 +239,7 @@
             <canvas id="radarChart"></canvas>
           </div>
         </section>
+
       </div>
 
       <!-- Footer -->

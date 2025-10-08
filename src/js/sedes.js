@@ -23,10 +23,10 @@ function renderSedes(sedes) {
       <td class="px-4 py-2 border">${sede.direccion}</td>
       <td class="px-4 py-2 border text-center">
         <div class="flex justify-center gap-2 flex-wrap">
-          <a href="verSede.html?id=${sede.id}" class="bg-[#FFD527] text-white px-3 py-1 rounded hover:bg-yellow-600">Ver</a>
-          <a href="editarSede.html?id=${sede.id}" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Editar</a>
+          <a href="verSede.html?id=${sede.id}" class="bg-[#FFD527] text-white px-3 py-1 rounded hover:bg-yellow-600"><i class="fas fa-eye"></i> Ver</a>
+          <a href="editarSede.html?id=${sede.id}" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"><i class="fas fa-edit"></i> Editar</a>
           <div id="delete-controls-${sede.id}">
-            <button onclick="mostrarConfirmacion('${sede.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Eliminar</button>
+            <button onclick="mostrarConfirmacion('${sede.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i> Eliminar</button>
           </div>
         </div>
       </td>
@@ -49,7 +49,7 @@ function mostrarConfirmacion(id) {
 function cancelarEliminacion(id) {
   const container = document.getElementById(`delete-controls-${id}`);
   container.innerHTML = `
-    <button onclick="mostrarConfirmacion('${id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Eliminar</button>
+    <button onclick="mostrarConfirmacion('${id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i> Eliminar</button>
   `;
 }
 

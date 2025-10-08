@@ -31,6 +31,21 @@
     span {
       font-family: 'Poppins', sans-serif !important;
     }
+
+    .notificaciones-activas {
+      background-color: #10B981 !important;
+      /* Verde */
+    }
+
+    .notificaciones-inactivas {
+      background-color: #6B7280 !important;
+      /* Gris */
+    }
+
+    .notificaciones-bloqueadas {
+      background-color: #EF4444 !important;
+      /* Rojo */
+    }
   </style>
 </head>
 
@@ -137,9 +152,11 @@
           <div class="flex justify-between items-center mb-6">
             <h3 class="text-2xl font-semibold text-[#0F172A]">Listado de Equipos</h3>
             <div class="flex gap-2">
-              <button onclick="solicitarPermisosNotificacion()"
-                class="bg-purple-600 text-white font-semibold px-4 py-2 rounded hover:bg-purple-700 transition text-sm flex items-center gap-2">
-                <i class="fas fa-bell"></i> Notificaciones
+              <!-- En tu barra de herramientas o header -->
+              <button onclick="toggleNotificaciones()"
+                class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-2">
+                <i class="fas fa-bell"></i>
+                <span id="estado-notificaciones">Notificaciones</span>
               </button>
               <button onclick="window.location.href='nuevoEquipo.html'"
                 class="bg-[#639A33] text-[#FFFFFF] font-semibold px-4 py-2 rounded hover:bg-green-600 transition text-sm flex items-center gap-2">
@@ -152,11 +169,12 @@
           <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
             <div class="flex items-center justify-between mb-3">
               <h4 class="text-lg font-semibold text-[#0F172A]">Búsqueda Avanzada</h4>
-              <button onclick="limpiarFiltros()" class="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1">
+              <button onclick="limpiarFiltros()"
+                class="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1">
                 <i class="fas fa-times"></i> Limpiar
               </button>
             </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <!-- Filtro por código -->
               <div>
@@ -175,7 +193,8 @@
               <!-- Filtro por ubicación -->
               <div>
                 <label class="block text-sm font-medium mb-1">Ubicación</label>
-                <select id="filtro-ubicacion" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                <select id="filtro-ubicacion"
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
                   <option value="">Todas las ubicaciones</option>
                   <option value="puesto">Puestos</option>
                   <option value="area">Áreas</option>
@@ -185,7 +204,8 @@
               <!-- Filtro por estado de mantenimiento -->
               <div>
                 <label class="block text-sm font-medium mb-1">Estado Mantenimiento</label>
-                <select id="filtro-estado" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                <select id="filtro-estado"
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
                   <option value="">Todos los estados</option>
                   <option value="VENCIDO">Vencido</option>
                   <option value="PRÓXIMO">Próximo</option>
@@ -216,41 +236,42 @@
               </div>
 
               <!-- Filtro por tipo de equipo -->
+              <!-- Filtro por tipo de equipo (ACTUALIZADO) -->
               <div>
                 <label class="block text-sm font-medium mb-1">Tipo de Equipo</label>
-                <input type="text" id="filtro-tipo" placeholder="Buscar por tipo..."
+                <select id="filtro-tipo"
                   class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                  <option value="">Todos los tipos</option>
+                  <!-- Se llenará dinámicamente con los tipos de equipo disponibles -->
+                </select>
+              </div>
+
+              <div class="flex justify-between items-center mt-4">
+                <div class="text-sm text-gray-600">
+                  <span id="contador-resultados">0</span> equipos encontrados
+                </div>
+
               </div>
             </div>
 
-            <div class="flex justify-between items-center mt-4">
-              <div class="text-sm text-gray-600">
-                <span id="contador-resultados">0</span> equipos encontrados
-              </div>
-              <button onclick="aplicarFiltros()" class="bg-[#639A33] text-white px-4 py-2 rounded hover:bg-green-600 text-sm flex items-center gap-2">
-                <i class="fas fa-search"></i> Buscar
-              </button>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-left border border-[#0F172A]">
+                <thead class="bg-[#0F172A] text-white">
+                  <tr>
+                    <th class="px-4 py-2 border border-[#0F172A]">Código</th>
+                    <th class="px-4 py-2 border border-[#0F172A]">Nombre</th>
+                    <th class="px-4 py-2 border border-[#0F172A]">Ubicación</th>
+                    <th class="px-4 py-2 border border-[#0F172A]">Responsable</th>
+                    <th class="px-4 py-2 border border-[#0F172A]">Estado Mantenimiento</th>
+                    <th class="px-4 py-2 border border-[#0F172A] text-center">Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody id="tablaEquipos">
+
+                </tbody>
+              </table>
             </div>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-left border border-[#0F172A]">
-              <thead class="bg-[#0F172A] text-white">
-                <tr>
-                  <th class="px-4 py-2 border border-[#0F172A]">Código</th>
-                  <th class="px-4 py-2 border border-[#0F172A]">Nombre</th>
-                  <th class="px-4 py-2 border border-[#0F172A]">Ubicación</th>
-                  <th class="px-4 py-2 border border-[#0F172A]">Responsable</th>
-                  <th class="px-4 py-2 border border-[#0F172A]">Estado Mantenimiento</th>
-                  <th class="px-4 py-2 border border-[#0F172A] text-center">Acciones</th>
-                </tr>
-              </thead>
-
-              <tbody id="tablaEquipos">
-
-              </tbody>
-            </table>
-          </div>
         </section>
       </div>
 

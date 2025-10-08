@@ -31,12 +31,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           <td class="px-4 py-2 border border-[#0F172A] text-center">
             <div class="flex justify-center gap-2">
               <button onclick="window.location.href='verPuesto.html?id=${p.id}'"
-                class="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600">Ver</button>
+                class="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600"><i class="fas fa-eye"></i> Ver</button>
               <button onclick="window.location.href='editarPuesto.html?id=${p.id}'"
-                class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Editar</button>
+                class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"><i class="fas fa-edit"></i> Editar</button>
               <div id="delete-controls-${p.id}">
                 <button onclick="mostrarConfirmacion(${p.id})"
-                  class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Eliminar</button>
+                  class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i> Eliminar</button>
               </div>
             </div>
           </td>
@@ -65,7 +65,7 @@ function mostrarConfirmacion(id) {
 function cancelarEliminacion(id) {
   const container = document.getElementById(`delete-controls-${id}`);
   container.innerHTML = `
-    <button onclick="mostrarConfirmacion(${id})" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Eliminar</button>
+    <button onclick="mostrarConfirmacion(${id})" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i> Eliminar</button>
   `;
 }
 

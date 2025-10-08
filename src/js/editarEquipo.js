@@ -58,6 +58,19 @@ async function cargarDatosEquipo() {
 
         const data = await res.json();
         equipoData = data;
+        
+        // Cargar mantenimientos existentes asegurándonos de incluir el ID
+        mantenimientosConfigurados = equipoData.mantenimientos_configurados ? equipoData.mantenimientos_configurados.map(mant => ({
+            id: mant.id, // ← ESTE ES EL CAMPO IMPORTANTE
+            id_tipo_mantenimiento: mant.id_tipo_mantenimiento,
+            tipo_mantenimiento_nombre: mant.tipo_mantenimiento_nombre,
+            nombre_personalizado: mant.nombre_personalizado,
+            intervalo_dias: mant.intervalo_dias,
+            fecha_inicio: mant.fecha_inicio,
+            proxima_fecha: mant.proxima_fecha,
+            _eliminar: false // Nueva propiedad para marcar eliminación
+        })) : [];
+        
         return true;
     } catch (err) {
         console.error("Error al cargar datos del equipo:", err);
@@ -77,6 +90,7 @@ async function cargarTiposEquipo() {
         return [];
     }
 }
+
 // Cargar ubicaciones (áreas y puestos) con información completa de sede
 async function cargarUbicaciones() {
     try {
@@ -186,9 +200,6 @@ async function renderizarFormulario() {
         idUbicacionActual = equipoData.id_area;
     }
 
-    // Cargar mantenimientos existentes
-    mantenimientosConfigurados = equipoData.mantenimientos_configurados || [];
-
     const formularioHTML = `
         <!-- Nombre y Tipo -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -214,23 +225,23 @@ async function renderizarFormulario() {
         <!-- Campos dinámicos -->
         <div id="campos-especificos" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
 
-<!-- Ubicación y Responsable -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div>
-        <label for="ubicacion" class="block text-[#0F172A] font-medium mb-1">Ubicación (Área o Puesto)</label>
-        <select id="ubicacion" name="ubicacion"
-            class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
-            required>
-            ${renderizarSelectUbicaciones(areas, puestos, ubicacionActual)}
-        </select>
-    </div>
-    <div>
-        <label for="responsable" class="block text-[#0F172A] font-medium mb-1">Responsable</label>
-        <input type="text" id="responsable" name="responsable" value="${equipoData.responsable_nombre || ''}"
-            class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
-            required />
-    </div>
-</div>
+        <!-- Ubicación y Responsable -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="ubicacion" class="block text-[#0F172A] font-medium mb-1">Ubicación (Área o Puesto)</label>
+                <select id="ubicacion" name="ubicacion"
+                    class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+                    required>
+                    ${renderizarSelectUbicaciones(areas, puestos, ubicacionActual)}
+                </select>
+            </div>
+            <div>
+                <label for="responsable" class="block text-[#0F172A] font-medium mb-1">Responsable</label>
+                <input type="text" id="responsable" name="responsable" value="${equipoData.responsable_nombre || ''}"
+                    class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+                    required />
+            </div>
+        </div>
 
         <!-- Código y descripción -->
         <div>
@@ -296,7 +307,7 @@ async function renderizarFormulario() {
     configurarEventos();
 }
 
-// Renderizar lista de mantenimientos
+// FUNCIÓN MODIFICADA - Mostrar mantenimientos marcados para eliminar
 function renderizarMantenimientos() {
     if (mantenimientosConfigurados.length === 0) {
         return `
@@ -308,16 +319,27 @@ function renderizarMantenimientos() {
         `;
     }
 
-    return mantenimientosConfigurados.map((mant, index) => `
-        <div class="border border-gray-300 rounded p-3 mb-2 bg-white shadow-sm">
+    return mantenimientosConfigurados.map((mant, index) => {
+        const estaMarcadoEliminar = mant._eliminar;
+        const clasesEliminacion = estaMarcadoEliminar 
+            ? 'opacity-50 bg-red-50 border-red-200' 
+            : 'bg-white';
+        
+        return `
+        <div class="border border-gray-300 rounded p-3 mb-2 shadow-sm ${clasesEliminacion}">
             <div class="flex justify-between items-start">
                 <div class="flex-1">
+                    ${estaMarcadoEliminar ? `
+                        <div class="text-red-600 text-sm font-medium mb-2">
+                            <i class="fas fa-trash mr-1"></i>Marcado para eliminar
+                        </div>
+                    ` : ''}
                     <div class="flex items-center gap-2 mb-2">
                         <i class="fas fa-tools text-blue-600"></i>
-                        <strong class="text-gray-800">${mant.tipo_mantenimiento_nombre}</strong>
-                        ${mant.nombre_personalizado ? `<span class="text-sm text-gray-600">- ${mant.nombre_personalizado}</span>` : ''}
+                        <strong class="text-gray-800 ${estaMarcadoEliminar ? 'line-through' : ''}">${mant.tipo_mantenimiento_nombre}</strong>
+                        ${mant.nombre_personalizado ? `<span class="text-sm text-gray-600 ${estaMarcadoEliminar ? 'line-through' : ''}">- ${mant.nombre_personalizado}</span>` : ''}
                     </div>
-                    <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                    <div class="grid grid-cols-2 gap-2 text-sm text-gray-600 ${estaMarcadoEliminar ? 'line-through' : ''}">
                         <div>
                             <span class="font-medium">Intervalo:</span> ${mant.intervalo_dias} días
                         </div>
@@ -333,13 +355,14 @@ function renderizarMantenimientos() {
                     </div>
                 </div>
                 <button onclick="eliminarMantenimiento(${index})" 
-                        class="text-red-500 hover:text-red-700 p-1 ml-2"
-                        title="Eliminar mantenimiento">
+                        class="text-red-500 hover:text-red-700 p-1 ml-2 ${estaMarcadoEliminar ? 'opacity-50 cursor-not-allowed' : ''}"
+                        ${estaMarcadoEliminar ? 'disabled' : ''}
+                        title="${estaMarcadoEliminar ? 'Ya marcado para eliminar' : 'Eliminar mantenimiento'}">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 // Mostrar campos específicos del tipo de equipo
@@ -382,10 +405,9 @@ async function mostrarCamposTipo() {
     }
 }
 
-
-// En configurarEventos(), reemplaza el evento change del ubicacion con esto:
+// Configurar eventos
 function configurarEventos() {
-    // Autocompletar responsable al cambiar ubicación (mejorada)
+    // Autocompletar responsable al cambiar ubicación
     document.getElementById("ubicacion").addEventListener("change", async (e) => {
         const value = e.target.value;
         const responsableInput = document.getElementById("responsable");
@@ -434,33 +456,55 @@ function configurarEventos() {
         await actualizarEquipo();
     });
 }
+
 // Actualizar equipo
 async function actualizarEquipo() {
-    const formData = {
-        nombre: document.getElementById("nombre").value.trim(),
-        descripcion: document.getElementById("descripcion").value.trim(),
-        codigo_interno: document.getElementById("codigo").value.trim(),
-        responsable_nombre: document.getElementById("responsable").value.trim(),
-        id_tipo_equipo: parseInt(document.getElementById("tipoEquipo").value),
-        estado: document.getElementById("estado").value
-    };
-
-    // Obtener ubicación
-    const ubicacion = document.getElementById("ubicacion").value;
-    const [ubicacion_tipo, id_ubicacion] = ubicacion.split("-");
-    formData.ubicacion_tipo = ubicacion_tipo;
-    formData.id_ubicacion = parseInt(id_ubicacion);
-
-    // Obtener campos personalizados
-    const camposInputs = document.querySelectorAll("#campos-especificos input");
-    const camposPersonalizados = {};
-    camposInputs.forEach(inp => {
-        const campoNombre = inp.name.replace('campo_', '');
-        camposPersonalizados[campoNombre] = inp.value;
-    });
-    formData.campos_personalizados = camposPersonalizados;
-
+    const submitBtn = document.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
     try {
+        // Mostrar estado de carga
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+        submitBtn.disabled = true;
+
+        const formData = {
+            nombre: document.getElementById("nombre").value.trim(),
+            descripcion: document.getElementById("descripcion").value.trim(),
+            codigo_interno: document.getElementById("codigo").value.trim(),
+            responsable_nombre: document.getElementById("responsable").value.trim(),
+            id_tipo_equipo: parseInt(document.getElementById("tipoEquipo").value),
+            estado: document.getElementById("estado").value
+        };
+
+        // Validaciones básicas
+        if (!formData.nombre || !formData.codigo_interno || !formData.responsable_nombre) {
+            throw new Error("Complete todos los campos obligatorios");
+        }
+
+        // Obtener ubicación
+        const ubicacion = document.getElementById("ubicacion").value;
+        if (!ubicacion) {
+            throw new Error("Seleccione una ubicación válida");
+        }
+        
+        const [ubicacion_tipo, id_ubicacion] = ubicacion.split("-");
+        formData.ubicacion_tipo = ubicacion_tipo;
+        formData.id_ubicacion = parseInt(id_ubicacion);
+
+        // Obtener campos personalizados
+        const camposInputs = document.querySelectorAll("#campos-especificos input");
+        const camposPersonalizados = {};
+        camposInputs.forEach(inp => {
+            const campoNombre = inp.name.replace('campo_', '');
+            if (inp.value.trim()) {
+                camposPersonalizados[campoNombre] = inp.value.trim();
+            }
+        });
+        formData.campos_personalizados = camposPersonalizados;
+
+        console.log("📤 Enviando datos del equipo:", formData);
+
+        // Actualizar equipo principal
         const res = await fetch(`${apiUrl}/equipos/${equipoId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -468,43 +512,310 @@ async function actualizarEquipo() {
         });
 
         if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || "Error al actualizar equipo");
+            const errorText = await res.text();
+            let errorMessage = "Error al actualizar equipo";
+            
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.error || errorMessage;
+            } catch {
+                errorMessage = errorText || `Error HTTP: ${res.status}`;
+            }
+            
+            throw new Error(errorMessage);
         }
 
-        // Actualizar mantenimientos si hay cambios
-        await actualizarMantenimientos();
+        // Actualizar mantenimientos (esto incluye eliminaciones y creaciones)
+        if (mantenimientosConfigurados.length > 0) {
+            console.log("🔄 Actualizando mantenimientos...");
+            await actualizarMantenimientos(); // Esta función ahora maneja eliminaciones y creaciones
+            console.log("✅ Mantenimientos procesados correctamente");
+        }
 
         mostrarMensaje("✅ Equipo actualizado correctamente");
+        
         setTimeout(() => {
             window.location.href = "equipos.html";
-        }, 2000);
+        }, 1500);
 
     } catch (err) {
         console.error("Error al actualizar equipo:", err);
-        mostrarMensaje("❌ Error al actualizar equipo: " + err.message, true);
+        mostrarMensaje("❌ " + err.message, true);
+    } finally {
+        // Restaurar botón
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
     }
 }
 
-// Actualizar mantenimientos
-async function actualizarMantenimientos() {
-    // Aquí puedes implementar la lógica para actualizar los mantenimientos
-    // Por ahora, solo mostramos un mensaje
-    console.log("Mantenimientos a actualizar:", mantenimientosConfigurados);
-}
-
-// Funciones para mantenimientos (similares a nuevoEquipo.js)
-function mostrarModalMantenimiento() {
-    // Implementar similar a nuevoEquipo.js
-    mostrarMensaje("Funcionalidad en desarrollo", true);
-}
-
+// FUNCIÓN MODIFICADA - Solo marca para eliminar, no elimina inmediatamente
 function eliminarMantenimiento(index) {
     if (index >= 0 && index < mantenimientosConfigurados.length) {
-        mantenimientosConfigurados.splice(index, 1);
+        const mantenimiento = mantenimientosConfigurados[index];
+        
+        // Mostrar confirmación
+        if (!confirm(`¿Estás seguro de que quieres eliminar el mantenimiento "${mantenimiento.tipo_mantenimiento_nombre}"?`)) {
+            return;
+        }
+
+        // Marcar el mantenimiento para eliminación
+        mantenimientosConfigurados[index]._eliminar = true;
+        
+        // Actualizar la vista para mostrar el estado de eliminación
         document.getElementById('lista-mantenimientos').innerHTML = renderizarMantenimientos();
-        mostrarMensaje("Mantenimiento eliminado");
+
+        mostrarMensaje(`🗑️ Mantenimiento "${mantenimiento.tipo_mantenimiento_nombre}" marcado para eliminar (se aplicará al guardar)`);
     }
+}
+
+// NUEVA FUNCIÓN - Procesar las eliminaciones marcadas
+async function procesarEliminacionesMantenimientos() {
+    try {
+        // Filtrar mantenimientos marcados para eliminar (que tienen ID en la BD)
+        const mantenimientosAEliminar = mantenimientosConfigurados.filter(
+            mant => mant._eliminar && mant.id
+        );
+
+        console.log(`🗑️ Procesando ${mantenimientosAEliminar.length} mantenimientos para eliminar...`);
+
+        for (const mantenimiento of mantenimientosAEliminar) {
+            try {
+                const res = await fetch(`${apiUrl}/mantenimientos-programados/${mantenimiento.id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (res.ok) {
+                    console.log(`✅ Mantenimiento ${mantenimiento.id} eliminado de la BD`);
+                } else {
+                    throw new Error(`Error HTTP: ${res.status}`);
+                }
+            } catch (err) {
+                console.error('Error al eliminar mantenimiento de la BD:', err);
+                throw new Error(`No se pudo eliminar el mantenimiento "${mantenimiento.tipo_mantenimiento_nombre}"`);
+            }
+        }
+
+        // Remover todos los mantenimientos marcados para eliminar del array local
+        mantenimientosConfigurados = mantenimientosConfigurados.filter(mant => !mant._eliminar);
+        
+        return mantenimientosAEliminar.length;
+        
+    } catch (err) {
+        console.error("❌ Error en procesarEliminacionesMantenimientos:", err);
+        throw err;
+    }
+}
+
+// FUNCIÓN MODIFICADA - Ahora procesa eliminaciones y creaciones
+async function actualizarMantenimientos() {
+    try {
+        // PRIMERO: Procesar eliminaciones
+        const eliminadosCount = await procesarEliminacionesMantenimientos();
+        
+        // LUEGO: Crear nuevos mantenimientos
+        console.log("🔄 Procesando mantenimientos para AGREGAR...");
+        const mantenimientosNuevos = mantenimientosConfigurados.filter(mant => !mant.id && !mant._eliminar);
+        
+        if (mantenimientosNuevos.length === 0) {
+            console.log("ℹ️ No hay mantenimientos nuevos para agregar");
+            if (eliminadosCount > 0) {
+                mostrarMensaje(`✅ ${eliminadosCount} mantenimiento(s) eliminado(s) correctamente`);
+            }
+            return;
+        }
+
+        console.log(`➕ Creando ${mantenimientosNuevos.length} mantenimientos nuevos...`);
+        
+        for (const mantenimiento of mantenimientosNuevos) {
+            try {
+                const mantenimientoData = {
+                    id_tipo_mantenimiento: mantenimiento.id_tipo_mantenimiento,
+                    intervalo_dias: mantenimiento.intervalo_dias,
+                    fecha_inicio: mantenimiento.fecha_inicio,
+                    nombre_personalizado: mantenimiento.nombre_personalizado || null
+                };
+
+                console.log(`🔄 Creando: ${mantenimiento.tipo_mantenimiento_nombre}`);
+                
+                const res = await fetch(`${apiUrl}/equipos/${equipoId}/mantenimientos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(mantenimientoData)
+                });
+
+                if (res.ok) {
+                    console.log(`✅ ${mantenimiento.tipo_mantenimiento_nombre} creado exitosamente`);
+                } else {
+                    const errorText = await res.text();
+                    console.error(`❌ Error creando ${mantenimiento.tipo_mantenimiento_nombre}:`, errorText);
+                    throw new Error(`Error al crear ${mantenimiento.tipo_mantenimiento_nombre}: ${errorText}`);
+                }
+            } catch (err) {
+                console.error(`❌ Error en ${mantenimiento.tipo_mantenimiento_nombre}:`, err);
+                throw err;
+            }
+        }
+
+        let mensajeFinal = "✅ Mantenimientos actualizados correctamente";
+        if (eliminadosCount > 0) {
+            mensajeFinal += ` (${eliminadosCount} eliminado(s))`;
+        }
+        if (mantenimientosNuevos.length > 0) {
+            mensajeFinal += ` (${mantenimientosNuevos.length} agregado(s))`;
+        }
+        
+        console.log(mensajeFinal);
+
+    } catch (err) {
+        console.error("❌ Error en actualizarMantenimientos:", err);
+        throw new Error("No se pudieron actualizar los mantenimientos: " + err.message);
+    }
+}
+
+// MODAL PARA AGREGAR MANTENIMIENTOS
+function mostrarModalMantenimiento() {
+    // Crear modal si no existe
+    let modal = document.getElementById('modal-mantenimiento');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-mantenimiento';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg w-full max-w-md mx-4">
+                <div class="border-b border-gray-200 px-6 py-4">
+                    <h3 class="text-lg font-semibold text-[#0F172A]">Agregar Mantenimiento</h3>
+                </div>
+                <div class="px-6 py-4 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Mantenimiento</label>
+                        <select id="tipo-mantenimiento" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]">
+                            <option value="">Selecciona un tipo...</option>
+                            ${tiposMantenimiento.map(tipo => 
+                                `<option value="${tipo.id}">${tipo.nombre}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Personalizado (opcional)</label>
+                        <input type="text" id="nombre-mantenimiento" 
+                            placeholder="Ej: Mantenimiento trimestral, Calibración anual..."
+                            class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Intervalo (días)</label>
+                        <input type="number" id="intervalo-mantenimiento" min="1" value="30"
+                            class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
+                        <input type="date" id="fecha-inicio-mantenimiento"
+                            class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]">
+                    </div>
+                </div>
+                <div class="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+                    <button type="button" onclick="cerrarModalMantenimiento()"
+                        class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="agregarMantenimiento()"
+                        class="px-4 py-2 bg-[#0F172A] text-white rounded hover:bg-[#1e293b] transition-colors">
+                        Agregar
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Configurar fecha mínima como hoy
+    const fechaInput = document.getElementById('fecha-inicio-mantenimiento');
+    const hoy = new Date().toISOString().split('T')[0];
+    fechaInput.min = hoy;
+    fechaInput.value = hoy;
+
+    // Mostrar modal
+    modal.classList.remove('hidden');
+}
+
+function cerrarModalMantenimiento() {
+    const modal = document.getElementById('modal-mantenimiento');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function agregarMantenimiento() {
+    const tipoSelect = document.getElementById('tipo-mantenimiento');
+    const nombreInput = document.getElementById('nombre-mantenimiento');
+    const intervaloInput = document.getElementById('intervalo-mantenimiento');
+    const fechaInput = document.getElementById('fecha-inicio-mantenimiento');
+
+    // Validaciones
+    if (!tipoSelect.value) {
+        mostrarMensaje('❌ Selecciona un tipo de mantenimiento', true);
+        return;
+    }
+
+    if (!intervaloInput.value || intervaloInput.value < 1) {
+        mostrarMensaje('❌ El intervalo debe ser de al menos 1 día', true);
+        return;
+    }
+
+    if (!fechaInput.value) {
+        mostrarMensaje('❌ Selecciona una fecha de inicio', true);
+        return;
+    }
+
+    // Obtener datos
+    const idTipoMantenimiento = parseInt(tipoSelect.value);
+    const tipoMantenimientoNombre = tiposMantenimiento.find(t => t.id === idTipoMantenimiento)?.nombre;
+    const nombrePersonalizado = nombreInput.value.trim() || null;
+    const intervaloDias = parseInt(intervaloInput.value);
+    const fechaInicio = fechaInput.value;
+
+    // Calcular próxima fecha
+    const fechaInicioObj = new Date(fechaInicio);
+    const proximaFecha = new Date(fechaInicioObj);
+    proximaFecha.setDate(proximaFecha.getDate() + intervaloDias);
+
+    // Crear objeto de mantenimiento
+    const nuevoMantenimiento = {
+        id_tipo_mantenimiento: idTipoMantenimiento,
+        tipo_mantenimiento_nombre: tipoMantenimientoNombre,
+        nombre_personalizado: nombrePersonalizado,
+        intervalo_dias: intervaloDias,
+        fecha_inicio: fechaInicio,
+        proxima_fecha: proximaFecha.toISOString().split('T')[0],
+        _eliminar: false
+    };
+
+    // Verificar si ya existe un mantenimiento del mismo tipo
+    const existeMismoTipo = mantenimientosConfigurados.some(
+        mant => mant.id_tipo_mantenimiento === idTipoMantenimiento && !mant._eliminar
+    );
+
+    if (existeMismoTipo) {
+        mostrarMensaje('⚠️ Ya existe un mantenimiento de este tipo. Elimina el existente primero.', true);
+        return;
+    }
+
+    // Agregar a la lista
+    mantenimientosConfigurados.push(nuevoMantenimiento);
+
+    // Actualizar la vista
+    document.getElementById('lista-mantenimientos').innerHTML = renderizarMantenimientos();
+
+    // Cerrar modal y limpiar campos
+    cerrarModalMantenimiento();
+    tipoSelect.value = '';
+    nombreInput.value = '';
+    intervaloInput.value = '30';
+    fechaInput.value = new Date().toISOString().split('T')[0];
+
+    mostrarMensaje('✅ Mantenimiento agregado correctamente');
 }
 
 // Inicializar
@@ -518,6 +829,8 @@ async function inicializar() {
 
 // Hacer funciones globales
 window.mostrarModalMantenimiento = mostrarModalMantenimiento;
+window.cerrarModalMantenimiento = cerrarModalMantenimiento;
+window.agregarMantenimiento = agregarMantenimiento;
 window.eliminarMantenimiento = eliminarMantenimiento;
 window.mostrarCamposTipo = mostrarCamposTipo;
 

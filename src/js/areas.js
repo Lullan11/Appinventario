@@ -27,10 +27,10 @@ async function cargarAreas() {
         <td class="px-4 py-2 border">${area.sede_nombre || "Sin sede"}</td>
         <td class="px-4 py-2 border text-center">
           <div class="flex justify-center gap-2 flex-wrap">
-            <a href="verArea.html?id=${area.id}" class="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600">Ver</a>
-            <a href="editarArea.html?id=${area.id}" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Editar</a>
+            <a href="verArea.html?id=${area.id}" class="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600"><i class="fas fa-eye"></i> Ver</a>
+            <a href="editarArea.html?id=${area.id}" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"><i class="fas fa-edit"></i> Editar</a>
             <div id="delete-controls-${area.id}">
-              <button onclick="mostrarConfirmacionArea('${area.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Eliminar</button>
+              <button onclick="mostrarConfirmacionArea('${area.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i> Eliminar</button>
             </div>
           </div>
         </td>
@@ -59,7 +59,7 @@ function mostrarConfirmacionArea(id) {
 function cancelarEliminacionArea(id) {
   const container = document.getElementById(`delete-controls-${id}`);
   container.innerHTML = `
-    <button onclick="mostrarConfirmacionArea('${id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Eliminar</button>
+    <button onclick="mostrarConfirmacionArea('${id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"><i class="fas fa-trash"></i> Eliminar</button>
   `;
 }
 
