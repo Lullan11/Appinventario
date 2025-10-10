@@ -134,50 +134,73 @@ function detenerMonitoreoNotificaciones() {
   console.log("🔕 Notificaciones desactivadas - Título limpiado");
 }
 
-// ✅ FUNCIÓN QUE FALTABA: Obtener equipos con problemas
-function obtenerEquiposConProblemas(equipos) {
-  const equiposConProblemas = [];
-
-  equipos.forEach(equipo => {
-    const estado = determinarEstadoMantenimientoReal(equipo);
-    // Solo considerar equipos con mantenimientos configurados que estén vencidos o próximos
-    if (estado === "VENCIDO" || estado === "PRÓXIMO") {
-      equiposConProblemas.push(equipo);
+// ✅ FUNCIÓN CORREGIDA: Determinar estado real del mantenimiento
+function determinarEstadoMantenimientoReal(equipo) {
+    // Si no tiene mantenimientos configurados, es "SIN_DATOS"
+    if (!equipo.mantenimientos_configurados || equipo.mantenimientos_configurados.length === 0) {
+        return "SIN_DATOS";
     }
-  });
 
-  return equiposConProblemas;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+    
+    let estado = "OK"; // Por defecto asumimos que está al día
+    let mantenimientoMasUrgente = null;
+    let diasMasUrgente = Infinity;
+
+    // Revisar todos los mantenimientos del equipo
+    equipo.mantenimientos_configurados.forEach(mant => {
+        if (mant.proxima_fecha) {
+            const proxima = new Date(mant.proxima_fecha);
+            proxima.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+            
+            const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
+            
+            // Si encontramos un mantenimiento más urgente, actualizamos
+            if (diffDias < diasMasUrgente) {
+                diasMasUrgente = diffDias;
+                mantenimientoMasUrgente = mant;
+            }
+        }
+    });
+
+    // Determinar el estado basado en el mantenimiento más urgente
+    if (diasMasUrgente < 0) {
+        // Si hay días negativos, está VENCIDO
+        estado = "VENCIDO";
+    } else if (diasMasUrgente <= 10) {
+        // Si está entre 0 y 10 días, está PRÓXIMO
+        estado = "PRÓXIMO";
+    } else if (diasMasUrgente === Infinity) {
+        // Si no se encontraron mantenimientos con fechas
+        estado = "SIN_DATOS";
+    }
+    // Si está más de 10 días en el futuro, se mantiene como "OK"
+
+    return estado;
 }
 
-// ✅ FUNCIÓN QUE FALTABA: Determinar estado real del mantenimiento
-function determinarEstadoMantenimientoReal(equipo) {
-  // Si no tiene mantenimientos configurados, es "SIN_DATOS"
-  if (!equipo.mantenimientos_configurados || equipo.mantenimientos_configurados.length === 0) {
-    return "SIN_DATOS";
-  }
+// ✅ FUNCIÓN CORREGIDA: Obtener equipos con problemas
+function obtenerEquiposConProblemas(equipos) {
+    const equiposConProblemas = [];
 
-  const hoy = new Date();
-  let estado = "OK"; // Por defecto asumimos que está al día
+    equipos.forEach(equipo => {
+        const estado = determinarEstadoMantenimientoReal(equipo);
+        // Solo considerar equipos con mantenimientos configurados que estén vencidos o próximos
+        if (estado === "VENCIDO" || estado === "PRÓXIMO") {
+            equiposConProblemas.push(equipo);
+        }
+    });
 
-  // Revisar todos los mantenimientos del equipo
-  equipo.mantenimientos_configurados.forEach(mant => {
-    if (mant.proxima_fecha) {
-      const proxima = new Date(mant.proxima_fecha);
-      const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
-      
-      // Si hay al menos UN mantenimiento vencido, el estado general es VENCIDO
-      if (diffDias <= 0) {
-        estado = "VENCIDO";
-        return; // Salir del forEach temprano
-      }
-      // Si hay al menos UN mantenimiento próximo (y no hay vencidos), el estado es PRÓXIMO
-      else if (diffDias <= 10 && estado !== "VENCIDO") {
-        estado = "PRÓXIMO";
-      }
-    }
-  });
+    return equiposConProblemas;
+}
 
-  return estado;
+// ✅ FUNCIÓN QUE FALTABA: Generar clave única para notificación
+function generarKeyNotificacion(equiposConProblemas) {
+  return equiposConProblemas
+    .map(eq => `${eq.id}-${determinarEstadoMantenimientoReal(eq)}`)
+    .sort()
+    .join('|');
 }
 
 // Verificar y mostrar notificaciones si es necesario - CORREGIDO
@@ -222,14 +245,6 @@ function verificarYMostrarNotificaciones() {
     key: notificacionKey,
     timestamp: ahora
   };
-}
-
-// ✅ FUNCIÓN QUE FALTABA: Generar clave única para notificación
-function generarKeyNotificacion(equiposConProblemas) {
-  return equiposConProblemas
-    .map(eq => `${eq.id}-${determinarEstadoMantenimientoReal(eq)}`)
-    .sort()
-    .join('|');
 }
 
 // Función para mostrar notificaciones del sistema
@@ -337,8 +352,6 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 
-// ... (EL RESTO DEL CÓDIGO SE MANTIENE IGUAL, SIN CAMBIOS)
-// [Las funciones de filtros, tabla, inactivación, etc. permanecen igual]
 // ========================= FUNCIONES EXISTENTES (MANTENIDAS) =========================
 
 // Cargar tipos de equipo en el filtro
@@ -451,37 +464,6 @@ function aplicarFiltros() {
   actualizarContador();
 }
 
-// FUNCIÓN NUEVA: Determinar estado real del mantenimiento
-function determinarEstadoMantenimientoReal(equipo) {
-  // Si no tiene mantenimientos configurados, es "SIN_DATOS"
-  if (!equipo.mantenimientos_configurados || equipo.mantenimientos_configurados.length === 0) {
-    return "SIN_DATOS";
-  }
-
-  const hoy = new Date();
-  let estado = "OK"; // Por defecto asumimos que está al día
-
-  // Revisar todos los mantenimientos del equipo
-  equipo.mantenimientos_configurados.forEach(mant => {
-    if (mant.proxima_fecha) {
-      const proxima = new Date(mant.proxima_fecha);
-      const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
-      
-      // Si hay al menos UN mantenimiento vencido, el estado general es VENCIDO
-      if (diffDias <= 0) {
-        estado = "VENCIDO";
-        return; // Salir del forEach temprano
-      }
-      // Si hay al menos UN mantenimiento próximo (y no hay vencidos), el estado es PRÓXIMO
-      else if (diffDias <= 10 && estado !== "VENCIDO") {
-        estado = "PRÓXIMO";
-      }
-    }
-  });
-
-  return estado;
-}
-
 // Función para limpiar todos los filtros
 function limpiarFiltros() {
   document.getElementById('filtro-codigo').value = '';
@@ -506,150 +488,164 @@ function actualizarContador() {
   }
 }
 
-// Función para mostrar alertas de mantenimiento en la página
+// ✅ FUNCIÓN CORREGIDA: Mostrar alertas de mantenimiento en la página
 function mostrarAlertasMantenimiento(equipos) {
-  const hoy = new Date();
-  const equiposConMantenimientoProximo = [];
-  const equiposConMantenimientoVencido = [];
-  const equiposSinConfiguracion = [];
-
-  equipos.forEach(equipo => {
-    const estado = determinarEstadoMantenimientoReal(equipo);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
     
-    if (estado === "VENCIDO") {
-      // Para equipos vencidos, encontrar el mantenimiento más urgente
-      const mantenimientoVencido = equipo.mantenimientos_configurados?.find(mant => {
-        if (mant.proxima_fecha) {
-          const proxima = new Date(mant.proxima_fecha);
-          const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
-          return diffDias <= 0;
+    const equiposConMantenimientoProximo = [];
+    const equiposConMantenimientoVencido = [];
+    const equiposSinConfiguracion = [];
+
+    equipos.forEach(equipo => {
+        const estado = determinarEstadoMantenimientoReal(equipo);
+        
+        if (estado === "VENCIDO") {
+            // Para equipos vencidos, encontrar el mantenimiento más urgente
+            let mantenimientoMasVencido = null;
+            let diasMasVencido = 0;
+            
+            equipo.mantenimientos_configurados?.forEach(mant => {
+                if (mant.proxima_fecha) {
+                    const proxima = new Date(mant.proxima_fecha);
+                    proxima.setHours(0, 0, 0, 0);
+                    const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDias < 0 && (!mantenimientoMasVencido || diffDias < diasMasVencido)) {
+                        mantenimientoMasVencido = mant;
+                        diasMasVencido = diffDias;
+                    }
+                }
+            });
+            
+            if (mantenimientoMasVencido) {
+                equiposConMantenimientoVencido.push({
+                    equipo: equipo,
+                    mantenimiento: mantenimientoMasVencido,
+                    dias: diasMasVencido
+                });
+            }
+        } else if (estado === "PRÓXIMO") {
+            // Para equipos próximos, encontrar el mantenimiento más cercano
+            let mantenimientoMasCercano = null;
+            let diasMasCercano = Infinity;
+            
+            equipo.mantenimientos_configurados?.forEach(mant => {
+                if (mant.proxima_fecha) {
+                    const proxima = new Date(mant.proxima_fecha);
+                    proxima.setHours(0, 0, 0, 0);
+                    const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDias >= 0 && diffDias <= 10 && diffDias < diasMasCercano) {
+                        mantenimientoMasCercano = mant;
+                        diasMasCercano = diffDias;
+                    }
+                }
+            });
+            
+            if (mantenimientoMasCercano) {
+                equiposConMantenimientoProximo.push({
+                    equipo: equipo,
+                    mantenimiento: mantenimientoMasCercano,
+                    dias: diasMasCercano
+                });
+            }
+        } else if (estado === "SIN_DATOS") {
+            equiposSinConfiguracion.push(equipo);
         }
-        return false;
-      });
-      
-      if (mantenimientoVencido) {
-        const diffDias = Math.ceil((new Date(mantenimientoVencido.proxima_fecha) - hoy) / (1000 * 60 * 60 * 24));
-        equiposConMantenimientoVencido.push({
-          equipo: equipo,
-          mantenimiento: mantenimientoVencido,
-          dias: diffDias
-        });
-      }
-    } else if (estado === "PRÓXIMO") {
-      // Para equipos próximos, encontrar el mantenimiento más cercano
-      const mantenimientoProximo = equipo.mantenimientos_configurados?.find(mant => {
-        if (mant.proxima_fecha) {
-          const proxima = new Date(mant.proxima_fecha);
-          const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
-          return diffDias > 0 && diffDias <= 10;
-        }
-        return false;
-      });
-      
-      if (mantenimientoProximo) {
-        const diffDias = Math.ceil((new Date(mantenimientoProximo.proxima_fecha) - hoy) / (1000 * 60 * 60 * 24));
-        equiposConMantenimientoProximo.push({
-          equipo: equipo,
-          mantenimiento: mantenimientoProximo,
-          dias: diffDias
-        });
-      }
-    } else if (estado === "SIN_DATOS") {
-      equiposSinConfiguracion.push(equipo);
+    });
+
+    const alertasContainer = document.getElementById('alertas-mantenimiento');
+    let alertasHTML = '';
+
+    // Alertas para mantenimientos vencidos
+    if (equiposConMantenimientoVencido.length > 0) {
+        alertasHTML += `
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-xl mr-3"></i>
+                        <div>
+                            <strong class="text-lg">¡Atención!</strong>
+                            <p class="text-sm">${equiposConMantenimientoVencido.length} equipo(s) tienen mantenimiento VENCIDO</p>
+                        </div>
+                    </div>
+                    <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                        ${equiposConMantenimientoVencido.length}
+                    </span>
+                </div>
+                <div class="mt-2 text-sm">
+                    <ul class="list-disc list-inside ml-4">
+                        ${equiposConMantenimientoVencido.slice(0, 3).map(item => `
+                            <li>
+                                <strong>${item.equipo.codigo_interno}</strong> - ${item.equipo.nombre}
+                                (${item.mantenimiento.tipo_mantenimiento_nombre} - Vencido hace ${Math.abs(item.dias)} día(s))
+                            </li>
+                        `).join('')}
+                        ${equiposConMantenimientoVencido.length > 3 ? 
+                            `<li>... y ${equiposConMantenimientoVencido.length - 3} más</li>` : ''}
+                    </ul>
+                </div>
+            </div>
+        `;
     }
-  });
 
-  const alertasContainer = document.getElementById('alertas-mantenimiento');
-  let alertasHTML = '';
-
-  // Alertas para mantenimientos vencidos
-  if (equiposConMantenimientoVencido.length > 0) {
-    alertasHTML += `
-      <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <i class="fas fa-exclamation-triangle text-red-500 text-xl mr-3"></i>
-            <div>
-              <strong class="text-lg">¡Atención!</strong>
-              <p class="text-sm">${equiposConMantenimientoVencido.length} equipo(s) tienen mantenimiento VENCIDO</p>
+    // Alertas para mantenimientos próximos
+    if (equiposConMantenimientoProximo.length > 0) {
+        alertasHTML += `
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fas fa-clock text-yellow-500 text-xl mr-3"></i>
+                        <div>
+                            <strong class="text-lg">Mantenimientos Próximos</strong>
+                            <p class="text-sm">${equiposConMantenimientoProximo.length} equipo(s) necesitan mantenimiento pronto</p>
+                        </div>
+                    </div>
+                    <span class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                        ${equiposConMantenimientoProximo.length}
+                    </span>
+                </div>
+                <div class="mt-2 text-sm">
+                    <ul class="list-disc list-inside ml-4">
+                        ${equiposConMantenimientoProximo.slice(0, 3).map(item => `
+                            <li>
+                                <strong>${item.equipo.codigo_interno}</strong> - ${item.equipo.nombre}
+                                (${item.mantenimiento.tipo_mantenimiento_nombre} - En ${item.dias} día(s))
+                            </li>
+                        `).join('')}
+                        ${equiposConMantenimientoProximo.length > 3 ? 
+                            `<li>... y ${equiposConMantenimientoProximo.length - 3} más</li>` : ''}
+                    </ul>
+                </div>
             </div>
-          </div>
-          <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-            ${equiposConMantenimientoVencido.length}
-          </span>
-        </div>
-        <div class="mt-2 text-sm">
-          <ul class="list-disc list-inside ml-4">
-            ${equiposConMantenimientoVencido.slice(0, 3).map(item => `
-              <li>
-                <strong>${item.equipo.codigo_interno}</strong> - ${item.equipo.nombre}
-                (${item.mantenimiento.tipo_mantenimiento_nombre} - Vencido hace ${Math.abs(item.dias)} día(s))
-              </li>
-            `).join('')}
-            ${equiposConMantenimientoVencido.length > 3 ? 
-              `<li>... y ${equiposConMantenimientoVencido.length - 3} más</li>` : ''}
-          </ul>
-        </div>
-      </div>
-    `;
-  }
+        `;
+    }
 
-  // Alertas para mantenimientos próximos
-  if (equiposConMantenimientoProximo.length > 0) {
-    alertasHTML += `
-      <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <i class="fas fa-clock text-yellow-500 text-xl mr-3"></i>
-            <div>
-              <strong class="text-lg">Mantenimientos Próximos</strong>
-              <p class="text-sm">${equiposConMantenimientoProximo.length} equipo(s) necesitan mantenimiento pronto</p>
+    // Información sobre equipos sin configuración (solo informativo, no alerta)
+    if (equiposSinConfiguracion.length > 0) {
+        alertasHTML += `
+            <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4 rounded">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle text-blue-500 text-xl mr-3"></i>
+                        <div>
+                            <strong class="text-lg">Información</strong>
+                            <p class="text-sm">${equiposSinConfiguracion.length} equipo(s) no tienen mantenimientos configurados</p>
+                        </div>
+                    </div>
+                    <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                        ${equiposSinConfiguracion.length}
+                    </span>
+                </div>
+                <div class="mt-2 text-sm">
+                    <p>Estos equipos no tienen programación de mantenimientos. Considera agregar mantenimientos para un mejor control.</p>
+                </div>
             </div>
-          </div>
-          <span class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-            ${equiposConMantenimientoProximo.length}
-          </span>
-        </div>
-        <div class="mt-2 text-sm">
-          <ul class="list-disc list-inside ml-4">
-            ${equiposConMantenimientoProximo.slice(0, 3).map(item => `
-              <li>
-                <strong>${item.equipo.codigo_interno}</strong> - ${item.equipo.nombre}
-                (${item.mantenimiento.tipo_mantenimiento_nombre} - En ${item.dias} día(s))
-              </li>
-            `).join('')}
-            ${equiposConMantenimientoProximo.length > 3 ? 
-              `<li>... y ${equiposConMantenimientoProximo.length - 3} más</li>` : ''}
-          </ul>
-        </div>
-      </div>
-    `;
-  }
+        `;
+    }
 
-  // Información sobre equipos sin configuración (solo informativo, no alerta)
-  if (equiposSinConfiguracion.length > 0) {
-    alertasHTML += `
-      <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4 rounded">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <i class="fas fa-info-circle text-blue-500 text-xl mr-3"></i>
-            <div>
-              <strong class="text-lg">Información</strong>
-              <p class="text-sm">${equiposSinConfiguracion.length} equipo(s) no tienen mantenimientos configurados</p>
-            </div>
-          </div>
-          <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-            ${equiposSinConfiguracion.length}
-          </span>
-        </div>
-        <div class="mt-2 text-sm">
-          <p>Estos equipos no tienen programación de mantenimientos. Considera agregar mantenimientos para un mejor control.</p>
-        </div>
-      </div>
-    `;
-  }
-
-  alertasContainer.innerHTML = alertasHTML;
+    alertasContainer.innerHTML = alertasHTML;
 }
 
 // Función para renderizar la tabla de equipos (ACTUALIZADA)
@@ -875,21 +871,191 @@ document.getElementById('form-inactivar').addEventListener('submit', async (e) =
   }
 });
 
-// Función para generar PDF de baja - MEJORADA PARA MÚLTIPLES PÁGINAS
+// Función para generar PDF de baja - CORREGIDA PARA ABRIR EN NUEVA PESTAÑA
 async function generarPDFBaja(equipoId, datosBaja) {
   try {
-    // Obtener datos completos del equipo inactivo
     const res = await fetch(`${API_EQUIPOS}/${equipoId}/inactivo-completo`);
     if (!res.ok) throw new Error("Error al obtener datos para PDF");
     
     const equipo = await res.json();
     
-    // Calcular contenido dinámicamente para evitar desbordamiento
     const tieneEspecificaciones = Object.keys(equipo.campos_personalizados || {}).length > 0;
     const tieneHistorial = equipo.historial_mantenimientos && equipo.historial_mantenimientos.length > 0;
-    const tieneObservaciones = datosBaja.observaciones && datosBaja.observaciones.length > 0;
     
-    // Crear contenido del PDF optimizado
+    // VERIFICAR SI EL EQUIPO TIENE IMAGEN
+    const imagenEquipo = equipo.imagen_url || equipo.imagen || equipo.url_imagen;
+
+    // CONTENIDO BÁSICO - INFORMACIÓN DEL EQUIPO Y BAJA
+    const contenidoBasico = `
+        <!-- Información de la baja -->
+        <div class="section no-break">
+          <div class="section-title">
+            <i class="fas fa-file-contract"></i>
+            INFORMACIÓN DE LA BAJA
+          </div>
+          <div class="section-content">
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="label">Fecha de baja</span>
+                <span class="value">${new Date(datosBaja.fecha_baja).toLocaleDateString()}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Motivo de baja</span>
+                <span class="value">${datosBaja.motivo}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Realizado por</span>
+                <span class="value">${datosBaja.realizado_por}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Código del equipo</span>
+                <span class="value">${equipo.codigo_interno}</span>
+              </div>
+              ${datosBaja.observaciones ? `
+              <div class="info-item" style="grid-column: 1 / -1;">
+                <span class="label">Observaciones</span>
+                <span class="value" style="font-size: 9px; font-style: italic;">${datosBaja.observaciones}</span>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Información del equipo -->
+        <div class="section no-break">
+          <div class="section-title">
+            <i class="fas fa-laptop-medical"></i>
+            INFORMACIÓN DEL EQUIPO
+          </div>
+          <div class="section-content">
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="label">Nombre del equipo</span>
+                <span class="value">${equipo.nombre}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Tipo de equipo</span>
+                <span class="value">${equipo.tipo_equipo_nombre || 'No especificado'}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Ubicación</span>
+                <span class="value">${equipo.ubicacion === 'puesto' ? `Puesto: ${equipo.puesto_codigo || 'No especificado'}` : `Área: ${equipo.area_nombre || 'No especificado'}`}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Responsable</span>
+                <span class="value">${equipo.responsable_nombre || 'No asignado'}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Sede</span>
+                <span class="value">${equipo.sede_nombre || 'No especificada'}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Descripción</span>
+                <span class="value">${equipo.descripcion || 'No disponible'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+    `;
+
+    const especificacionesHTML = tieneEspecificaciones ? `
+        <!-- Especificaciones técnicas -->
+        <div class="section no-break">
+          <div class="section-title">
+            <i class="fas fa-cogs"></i>
+            ESPECIFICACIONES TÉCNICAS
+          </div>
+          <div class="section-content">
+            <div class="info-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+              ${Object.entries(equipo.campos_personalizados).slice(0, 12).map(([key, value]) => `
+                <div class="info-item">
+                  <span class="label">${key}</span>
+                  <span class="value">${value || 'No especificado'}</span>
+                </div>
+              `).join('')}
+            </div>
+            ${Object.keys(equipo.campos_personalizados).length > 12 ? `
+              <div style="margin-top: 8px; text-align: center;">
+                <span style="font-size: 8px; color: #64748b;">
+                  + ${Object.keys(equipo.campos_personalizados).length - 12} especificaciones adicionales
+                </span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+    ` : '';
+
+    const historialHTML = tieneHistorial && equipo.historial_mantenimientos.length <= 8 ? `
+        <!-- Historial de mantenimientos -->
+        <div class="section no-break">
+          <div class="section-title">
+            <i class="fas fa-history"></i>
+            HISTORIAL DE MANTENIMIENTOS (${equipo.historial_mantenimientos.length})
+          </div>
+          <div class="section-content">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 20%">Fecha</th>
+                  <th style="width: 25%">Tipo</th>
+                  <th style="width: 40%">Descripción</th>
+                  <th style="width: 15%">Realizado por</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${equipo.historial_mantenimientos.slice(0, 8).map(mant => `
+                  <tr>
+                    <td>${new Date(mant.fecha_realizado).toLocaleDateString()}</td>
+                    <td>${mant.tipo_mantenimiento}</td>
+                    <td>${mant.descripcion || 'Sin descripción'}</td>
+                    <td>${mant.realizado_por || 'No especificado'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            ${equipo.historial_mantenimientos.length > 8 ? `
+              <div style="margin-top: 6px; text-align: center;">
+                <span style="font-size: 8px; color: #64748b;">
+                  + ${equipo.historial_mantenimientos.length - 8} mantenimientos adicionales
+                </span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+    ` : '';
+
+    // Si el contenido es muy corto, agregamos secciones adicionales
+    const totalSecciones = [contenidoBasico, especificacionesHTML, historialHTML].filter(Boolean).length;
+    const seccionesExtra = totalSecciones < 4 ? `
+        <!-- Espacio adicional para asegurar que el footer sea visible -->
+        <div class="section no-break" style="opacity: 0.7;">
+          <div class="section-title">
+            <i class="fas fa-info-circle"></i>
+            INFORMACIÓN ADICIONAL
+          </div>
+          <div class="section-content">
+            <div style="text-align: center; padding: 20px; color: #64748b;">
+              <i class="fas fa-file-contract" style="font-size: 24px; margin-bottom: 10px;"></i>
+              <p style="font-size: 10px;">Acta de baja generada automáticamente por el Sistema de Gestión de Inventarios IPS Progresando</p>
+              <p style="font-size: 9px; margin-top: 8px;">Este documento tiene validez oficial para los registros institucionales</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section no-break" style="opacity: 0.7;">
+          <div class="section-title">
+            <i class="fas fa-shield-alt"></i>
+            VALIDEZ DEL DOCUMENTO
+          </div>
+          <div class="section-content">
+            <div style="text-align: center; padding: 15px; color: #64748b;">
+              <p style="font-size: 9px;">Documento válido para procedimientos administrativos y contables</p>
+              <p style="font-size: 8px; margin-top: 5px;">Generado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}</p>
+            </div>
+          </div>
+        </div>
+    ` : '';
+
     const contenidoPDF = `
       <!DOCTYPE html>
       <html>
@@ -911,13 +1077,8 @@ async function generarPDFBaja(equipoId, datosBaja) {
             padding: 0; 
             background: white;
             color: #1e293b;
-            font-size: 12px;
-            line-height: 1.4;
-          }
-          
-          .page-break {
-            page-break-after: always;
-            break-after: page;
+            font-size: 11px;
+            line-height: 1.3;
           }
           
           .page-container {
@@ -929,39 +1090,44 @@ async function generarPDFBaja(equipoId, datosBaja) {
             position: relative;
           }
           
-          /* Header con gradiente verde */
+          /* Header con gradiente verde - MEJORADO EL CENTRADO */
           .header {
-            background: linear-gradient(135deg, #639A33 0%, #4a7a27 100%);
+            background: #639A33 !important;
             color: white;
             padding: 15px 25px;
             position: relative;
             overflow: hidden;
             border-bottom: 3px solid #4a7a27;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            min-height: 140px; /* Aumenté la altura mínima */
           }
           
           .header-content {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             position: relative;
             z-index: 2;
+            width: 100%;
           }
           
           .logo-container {
             display: flex;
             align-items: center;
             flex-shrink: 0;
+            width: 130px; /* Ancho fijo para el logo */
           }
           
           .logo {
-            width: 80px;
-            height: 80px;
+            width: 130px;
+            height: 100px;
             background: white;
-            border-radius: 10px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             padding: 5px;
           }
           
@@ -975,71 +1141,147 @@ async function generarPDFBaja(equipoId, datosBaja) {
             flex: 1;
             text-align: center;
             padding: 0 20px;
+            margin-top: 20px; /* Aumenté el espacio para mejor centrado */
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%; /* Ancho controlado para mejor centrado */
           }
           
           .title-container h1 {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
-            margin-bottom: 5px;
-            color: white;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            margin-bottom: 4px;
+            color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            line-height: 1.2;
           }
           
           .title-container .subtitle {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 400;
+            color: white !important;
             opacity: 0.95;
-            color: #f0f9ff;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            line-height: 1.2;
           }
           
           .document-info {
             text-align: right;
             background: rgba(255, 255, 255, 0.15);
-            padding: 12px 15px;
-            border-radius: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             flex-shrink: 0;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            margin-top: 15px;
+            max-width: 180px; /* Ancho máximo limitado */
+            margin-left: auto; /* Empuja a la derecha */
           }
           
           .document-info .document-number {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
-            margin-bottom: 4px;
-            color: white;
+            margin-bottom: 3px;
+            color: white !important;
           }
           
           .document-info .document-date {
-            font-size: 11px;
+            font-size: 10px;
+            color: white !important;
             opacity: 0.9;
-            color: #f0f9ff;
           }
           
-          /* Contenido principal - MEJOR DISTRIBUCIÓN */
+          /* CONTENEDOR PARA IMAGEN DEL EQUIPO */
+          .equipo-imagen-container {
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            z-index: 3;
+            text-align: center;
+          }
+          
+          .equipo-imagen {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 6px;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            margin-bottom: 5px;
+          }
+          
+          .equipo-imagen img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+          
+          .equipo-imagen-label {
+            font-size: 8px;
+            color: white;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 500;
+          }
+          
+          /* ESTILO PARA CUANDO NO HAY IMAGEN */
+          .no-imagen {
+            width: 80px;
+            height: 80px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 2px dashed #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            margin-bottom: 5px;
+          }
+          
+          .no-imagen i {
+            font-size: 24px;
+          }
+
+          /* Contenido principal - ESTRUCTURA ORIGINAL */
           .content {
             padding: 20px 25px;
-            min-height: 200mm;
+            min-height: 220mm; /* ALTURA MÍNIMA PARA GARANTIZAR FOOTER VISIBLE */
+          }
+          
+          .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
           }
           
           .section {
             margin-bottom: 15px;
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
             overflow: hidden;
-            page-break-inside: avoid;
             border: 1px solid #e2e8f0;
           }
           
           .section-title {
-            background: linear-gradient(135deg, #639A33 0%, #4a7a27 100%);
-            padding: 12px 15px;
+            background: #639A33 !important;
+            padding: 10px 15px;
             font-weight: 600;
-            color: white;
-            font-size: 13px;
+            color: white !important;
+            font-size: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
             border-left: 4px solid #4a7a27;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           
           .section-content {
@@ -1048,7 +1290,7 @@ async function generarPDFBaja(equipoId, datosBaja) {
           
           .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 10px;
           }
           
@@ -1066,17 +1308,17 @@ async function generarPDFBaja(equipoId, datosBaja) {
           .label {
             font-weight: 600;
             color: #475569;
-            font-size: 10px;
+            font-size: 9px;
             margin-bottom: 2px;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
           }
           
           .value {
             font-weight: 500;
             color: #1e293b;
-            font-size: 11px;
-            line-height: 1.3;
+            font-size: 10px;
+            line-height: 1.2;
           }
           
           /* Tablas compactas */
@@ -1089,14 +1331,16 @@ async function generarPDFBaja(equipoId, datosBaja) {
           }
           
           th {
-            background: #639A33;
-            color: white;
+            background: #639A33 !important;
+            color: white !important;
             padding: 6px 5px;
             text-align: left;
             font-weight: 600;
             font-size: 8px;
             text-transform: uppercase;
             border-right: 1px solid #4a7a27;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           
           th:last-child {
@@ -1134,20 +1378,22 @@ async function generarPDFBaja(equipoId, datosBaja) {
             border: 1px solid #fecaca;
           }
           
-          /* Footer compacto */
+          /* Footer - ESTRUCTURA ORIGINAL PERO GARANTIZADA VISIBLE */
           .footer {
-            margin-top: 20px;
+            margin-top: 30px;
             padding: 15px 25px;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: #f8fafc;
             border-top: 2px solid #639A33;
             text-align: center;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           
           .footer-content {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 12px;
-            margin-bottom: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
           }
           
           .footer-item {
@@ -1155,52 +1401,84 @@ async function generarPDFBaja(equipoId, datosBaja) {
           }
           
           .footer-item .label {
-            font-size: 9px;
+            font-size: 8px;
             color: #64748b;
             margin-bottom: 2px;
           }
           
           .footer-item .value {
-            font-size: 10px;
+            font-size: 9px;
             color: #1e293b;
             font-weight: 600;
           }
           
           .copyright {
-            font-size: 9px;
+            font-size: 8px;
             color: #94a3b8;
-            margin-top: 12px;
-            padding-top: 12px;
+            margin-top: 10px;
+            padding-top: 10px;
             border-top: 1px solid #e2e8f0;
           }
           
-          /* Utilidades para control de páginas */
-          .avoid-break {
+          /* Control para evitar saltos de página */
+          .no-break {
             page-break-inside: avoid;
+            break-inside: avoid;
           }
           
-          .force-break {
-            page-break-before: always;
-          }
-          
-          .compact-section {
-            margin-bottom: 12px;
-          }
-          
-          .two-columns {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-          }
-          
+          /* ESTILOS CRÍTICOS PARA IMPRESIÓN */
           @media print {
+            @page {
+              margin: 0;
+              size: A4;
+            }
+            
             body {
               margin: 0;
               padding: 0;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              height: 100%;
             }
             
             .page-container {
               box-shadow: none;
+              min-height: 100vh;
+              height: 297mm;
+            }
+            
+            .header {
+              background: #639A33 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            .section-title {
+              background: #639A33 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            th {
+              background: #639A33 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            .footer {
+              background: #f8fafc !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            .title-container h1,
+            .title-container .subtitle,
+            .document-info .document-number,
+            .document-info .document-date,
+            .section-title {
+              color: white !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
           }
         </style>
@@ -1221,116 +1499,37 @@ async function generarPDFBaja(equipoId, datosBaja) {
                 <div class="subtitle">Sistema de Gestión de Inventarios - IPS Progresando</div>
               </div>
               
-              <div class="document-info">
-                <div class="document-number">BAJA-${equipo.codigo_interno}</div>
-                <div class="document-date">${new Date().toLocaleDateString()}</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Contenido principal MEJOR DISTRIBUIDO -->
-          <div class="content">
-            <div class="two-columns">
-              <!-- Información de la baja -->
-              <div class="section avoid-break compact-section">
-                <div class="section-title">
-                  <i class="fas fa-file-contract"></i>
-                  INFORMACIÓN DE LA BAJA
-                </div>
-                <div class="section-content">
-                  <div class="info-grid">
-                    <div class="info-item">
-                      <span class="label">Fecha de baja</span>
-                      <span class="value">${new Date(datosBaja.fecha_baja).toLocaleDateString()}</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="label">Motivo de baja</span>
-                      <span class="value">${datosBaja.motivo}</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="label">Realizado por</span>
-                      <span class="value">${datosBaja.realizado_por}</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="label">Código del equipo</span>
-                      <span class="value">${equipo.codigo_interno}</span>
-                    </div>
-                  </div>
-                  ${datosBaja.observaciones ? `
-                  <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
-                    <div class="label">Observaciones</div>
-                    <div class="value" style="font-size: 10px; font-style: italic;">${datosBaja.observaciones}</div>
-                  </div>
-                  ` : ''}
-                </div>
-              </div>
-              
-              <!-- Información del equipo -->
-              <div class="section avoid-break compact-section">
-                <div class="section-title">
-                  <i class="fas fa-laptop-medical"></i>
-                  INFORMACIÓN DEL EQUIPO
-                </div>
-                <div class="section-content">
-                  <div class="info-grid">
-                    <div class="info-item">
-                      <span class="label">Nombre del equipo</span>
-                      <span class="value">${equipo.nombre}</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="label">Tipo de equipo</span>
-                      <span class="value">${equipo.tipo_equipo_nombre || 'No especificado'}</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="label">Ubicación</span>
-                      <span class="value">${equipo.ubicacion === 'puesto' ? `Puesto: ${equipo.puesto_codigo || 'No especificado'}` : `Área: ${equipo.area_nombre || 'No especificado'}`}</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="label">Responsable</span>
-                      <span class="value">${equipo.responsable_nombre || 'No asignado'}</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="label">Sede</span>
-                      <span class="value">${equipo.sede_nombre || 'No especificada'}</span>
-                    </div>
-                    <div class="info-item">
-                      <span class="label">Descripción</span>
-                      <span class="value">${equipo.descripcion || 'No disponible'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
             
-            <!-- Especificaciones técnicas (ocupa ancho completo) -->
-            ${tieneEspecificaciones ? `
-            <div class="section avoid-break" style="margin-top: 15px;">
-              <div class="section-title">
-                <i class="fas fa-cogs"></i>
-                ESPECIFICACIONES TÉCNICAS
-              </div>
-              <div class="section-content">
-                <div class="info-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                  ${Object.entries(equipo.campos_personalizados).slice(0, 8).map(([key, value]) => `
-                    <div class="info-item">
-                      <span class="label">${key}</span>
-                      <span class="value">${value || 'No especificado'}</span>
-                    </div>
-                  `).join('')}
+            <!-- IMAGEN DEL EQUIPO EN LA PARTE SUPERIOR DERECHA -->
+            <div class="equipo-imagen-container">
+              ${imagenEquipo ? `
+                <div class="equipo-imagen">
+                  <img src="${imagenEquipo}" alt="Imagen del equipo ${equipo.codigo_interno}" 
+                       onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'no-imagen\\'><i class=\\'fas fa-camera\\'></i></div><div class=\\'equipo-imagen-label\\'>Sin imagen</div>';" />
                 </div>
-                ${Object.keys(equipo.campos_personalizados).length > 8 ? `
-                  <div style="margin-top: 8px; padding: 6px; background: #f8fafc; border-radius: 4px; text-align: center;">
-                    <span style="font-size: 9px; color: #64748b;">
-                      + ${Object.keys(equipo.campos_personalizados).length - 8} especificaciones adicionales
-                    </span>
-                  </div>
-                ` : ''}
-              </div>
+                <div class="equipo-imagen-label">Equipo</div>
+              ` : `
+                <div class="no-imagen">
+                  <i class="fas fa-camera"></i>
+                </div>
+                <div class="equipo-imagen-label">Sin imagen</div>
+              `}
             </div>
-            ` : ''}
           </div>
           
-          <!-- Footer -->
+          <!-- Contenido principal - ESTRUCTURA ORIGINAL -->
+          <div class="content">
+            <div class="two-columns">
+              ${contenidoBasico}
+            </div>
+            
+            ${especificacionesHTML}
+            ${historialHTML}
+            ${seccionesExtra}
+          </div>
+          
+          <!-- Footer - ESTRUCTURA ORIGINAL -->
           <div class="footer">
             <div class="footer-content">
               <div class="footer-item">
@@ -1351,80 +1550,44 @@ async function generarPDFBaja(equipoId, datosBaja) {
             </div>
           </div>
         </div>
-        
-        <!-- SEGUNDA PÁGINA SOLO SI HAY HISTORIAL -->
-        ${tieneHistorial ? `
-        <div class="page-container force-break">
-          <div class="header">
-            <div class="header-content">
-              <div class="logo-container">
-                <div class="logo">
-                  <img src="../assets/LOGO-IPS-INCONTEC.png" alt="Logo IPS Progresando" />
-                </div>
-              </div>
-              
-              <div class="title-container">
-                <h1>HISTORIAL DE MANTENIMIENTOS</h1>
-                <div class="subtitle">Continuación - Equipo: ${equipo.codigo_interno}</div>
-              </div>
-              
-              <div class="document-info">
-                <div class="document-number">Página 2/2</div>
-                <div class="document-date">${new Date().toLocaleDateString()}</div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="content">
-            <div class="section">
-              <div class="section-title">
-                <i class="fas fa-history"></i>
-                HISTORIAL DE MANTENIMIENTOS (${equipo.historial_mantenimientos.length})
-              </div>
-              <div class="section-content">
-                <table>
-                  <thead>
-                    <tr>
-                      <th style="width: 15%">Fecha</th>
-                      <th style="width: 20%">Tipo</th>
-                      <th style="width: 45%">Descripción</th>
-                      <th style="width: 20%">Realizado por</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${equipo.historial_mantenimientos.map(mant => `
-                      <tr>
-                        <td>${new Date(mant.fecha_realizado).toLocaleDateString()}</td>
-                        <td>${mant.tipo_mantenimiento}</td>
-                        <td>${mant.descripcion || 'Sin descripción'}</td>
-                        <td>${mant.realizado_por || 'No especificado'}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          
-          <div class="footer">
-            <div class="copyright">
-              © ${new Date().getFullYear()} IPS Progresando - Continuación del documento de baja | Página 2 de 2
-            </div>
-          </div>
-        </div>
-        ` : ''}
+
+        <script>
+          // Forzar colores al cargar
+          document.addEventListener('DOMContentLoaded', function() {
+            const greenElements = document.querySelectorAll('.header, .section-title, th');
+            greenElements.forEach(el => {
+              el.style.backgroundColor = '#639A33';
+              el.style.color = 'white';
+            });
+            
+            const whiteTexts = document.querySelectorAll('.title-container h1, .title-container .subtitle, .document-info .document-number, .document-info .document-date');
+            whiteTexts.forEach(el => {
+              el.style.color = 'white';
+            });
+          });
+        </script>
       </body>
       </html>
     `;
 
-    // Crear ventana para imprimir
+    // VOLVER A LA VERSIÓN ORIGINAL QUE FUNCIONABA
     const ventanaPDF = window.open('', '_blank');
+    
+    if (!ventanaPDF) {
+      // Si el navegador bloquea la ventana emergente, mostrar un mensaje
+      mostrarMensaje("⚠️ El navegador bloqueó la ventana emergente. Por favor, permite ventanas emergentes para este sitio.", true);
+      return;
+    }
+    
     ventanaPDF.document.write(contenidoPDF);
     ventanaPDF.document.close();
     
-    // Esperar a que cargue el contenido
+    // ESPERAR A QUE EL PDF SE CARGUE COMPLETAMENTE ANTES DE IMPRIMIR
     setTimeout(() => {
-      ventanaPDF.print();
+      if (ventanaPDF && !ventanaPDF.closed) {
+        ventanaPDF.focus(); // Enfocar la ventana
+        ventanaPDF.print(); // Imprimir
+      }
     }, 1000);
 
   } catch (err) {

@@ -5,6 +5,7 @@ const equipoId = new URLSearchParams(window.location.search).get("id");
 let tiposMantenimiento = [];
 let mantenimientosConfigurados = [];
 let equipoData = null;
+let imagenAEliminar = false;
 
 // Función para mostrar mensajes
 function mostrarMensaje(texto, esError = false) {
@@ -17,13 +18,199 @@ function mostrarMensaje(texto, esError = false) {
     }
 
     mensaje.textContent = texto;
-    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError ? "bg-red-100 text-red-800 border-l-4 border-red-500" : "bg-green-100 text-green-800 border-l-4 border-green-500"
-        }`;
+    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${
+        esError 
+            ? "bg-red-100 text-red-800 border-l-4 border-red-500" 
+            : "bg-green-100 text-green-800 border-l-4 border-green-500"
+    }`;
 
     setTimeout(() => {
         mensaje.textContent = "";
         mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 hidden";
     }, 4000);
+}
+
+// Mostrar imagen actual del equipo
+function mostrarImagenActual() {
+    if (!equipoData) return;
+    
+    const imagenUrl = equipoData.imagen_url;
+    const previewContainer = document.getElementById('preview-imagen-actual');
+    const noImagenMessage = document.getElementById('no-imagen-message');
+    const imagenExistenteContainer = document.getElementById('imagen-existente-container');
+    
+    console.log("🖼️ Imagen actual:", imagenUrl);
+    
+    if (imagenUrl) {
+        // MOSTRAR IMAGEN EXISTENTE
+        if (previewContainer) {
+            previewContainer.src = imagenUrl;
+            previewContainer.style.display = 'block';
+        }
+        if (noImagenMessage) noImagenMessage.style.display = 'none';
+        if (imagenExistenteContainer) imagenExistenteContainer.style.display = 'block';
+    } else {
+        // NO HAY IMAGEN
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (noImagenMessage) noImagenMessage.style.display = 'block';
+        if (imagenExistenteContainer) imagenExistenteContainer.style.display = 'none';
+    }
+}
+
+// Mostrar preview de nueva imagen
+function mostrarPreviewImagen(input, previewElement) {
+    const archivo = input.files[0];
+    if (archivo) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewElement.src = e.target.result;
+        };
+        reader.readAsDataURL(archivo);
+    }
+}
+
+// Configurar preview de imagen
+function configurarPreviewImagen() {
+    const inputImagen = document.getElementById('imagen-equipo');
+    const previewContainer = document.getElementById('preview-container');
+    const previewImagen = document.getElementById('preview-imagen');
+    
+    if (inputImagen && previewImagen && previewContainer) {
+        inputImagen.addEventListener('change', function(e) {
+            const archivo = e.target.files[0];
+            if (archivo) {
+                mostrarPreviewImagen(inputImagen, previewImagen);
+                previewContainer.classList.remove('hidden');
+                
+                // Si se selecciona nueva imagen, cancelar eliminación
+                if (imagenAEliminar) {
+                    imagenAEliminar = false;
+                    const imagenExistenteContainer = document.getElementById('imagen-existente-container');
+                    if (imagenExistenteContainer) {
+                        imagenExistenteContainer.style.opacity = '1';
+                        imagenExistenteContainer.style.border = 'none';
+                    }
+                }
+            } else {
+                previewContainer.classList.add('hidden');
+            }
+        });
+    }
+}
+
+// Eliminar imagen
+function eliminarImagen() {
+    const inputImagen = document.getElementById('imagen-equipo');
+    const previewContainer = document.getElementById('preview-container');
+    
+    // Si hay nueva imagen seleccionada, cancelarla
+    if (inputImagen?.files?.length > 0) {
+        inputImagen.value = '';
+        if (previewContainer) previewContainer.classList.add('hidden');
+        mostrarMensaje('🗑️ Cambio de imagen cancelado');
+    } 
+    // Si hay imagen actual, marcarla para eliminación
+    else if (equipoData?.imagen_url) {
+        imagenAEliminar = true;
+        
+        // Marcar visualmente que se eliminará
+        const imagenExistenteContainer = document.getElementById('imagen-existente-container');
+        if (imagenExistenteContainer) {
+            imagenExistenteContainer.style.opacity = '0.5';
+            imagenExistenteContainer.style.border = '2px solid red';
+        }
+        
+        mostrarMensaje('🗑️ Imagen marcada para eliminación');
+    } else {
+        mostrarMensaje('ℹ️ No hay imagen para eliminar');
+    }
+}
+
+// Subir imagen a Cloudinary
+async function subirImagenCloudinary(archivo) {
+    const formData = new FormData();
+    formData.append('file', archivo);
+    formData.append('upload_preset', 'inventario');
+    formData.append('cloud_name', 'dzkccjhn9');
+
+    const response = await fetch('https://api.cloudinary.com/v1_1/dzkccjhn9/image/upload', {
+        method: 'POST',
+        body: formData
+    });
+    
+    const data = await response.json();
+    
+    if (data.secure_url) {
+        return {
+            url: data.secure_url,
+            public_id: data.public_id
+        };
+    } else {
+        throw new Error(data.error?.message || 'Error al subir imagen');
+    }
+}
+
+// Manejar imagen del equipo
+async function manejarImagenEquipo() {
+    const inputImagen = document.getElementById('imagen-equipo');
+    const archivo = inputImagen?.files[0];
+    
+    // CASO 1: Imagen marcada para eliminación
+    if (imagenAEliminar) {
+        console.log('🗑️ Eliminando imagen existente');
+        return {
+            url: "",
+            public_id: ""
+        };
+    }
+    
+    // CASO 2: Nueva imagen para subir
+    if (archivo && archivo.size > 0) {
+        try {
+            mostrarMensaje('📤 Subiendo nueva imagen...');
+            const imagenData = await subirImagenCloudinary(archivo);
+            mostrarMensaje('✅ Imagen subida correctamente');
+            return imagenData;
+        } catch (error) {
+            console.error('Error subiendo imagen:', error);
+            mostrarMensaje('❌ Error subiendo imagen: ' + error.message, true);
+            throw error;
+        }
+    }
+    
+    // CASO 3: No hay cambios - mantener imagen actual
+    console.log('ℹ️ Sin cambios en la imagen');
+    return null;
+}
+
+// Validar tamaño de imagen
+function validarTamañoImagen(input) {
+    const archivo = input.files[0];
+    const advertencia = document.getElementById('tamaño-advertencia');
+    
+    if (!archivo) {
+        if (advertencia) advertencia.classList.add('hidden');
+        return;
+    }
+    
+    const tamañoMB = archivo.size / 1024 / 1024;
+    
+    if (tamañoMB > 5) {
+        if (advertencia) {
+            advertencia.textContent = `⚠️ Imagen grande (${tamañoMB.toFixed(1)}MB). Se comprimirá automáticamente.`;
+            advertencia.classList.remove('hidden');
+        }
+    } else {
+        if (advertencia) advertencia.classList.add('hidden');
+    }
+    
+    // Mostrar preview
+    const previewImagen = document.getElementById('preview-imagen');
+    const previewContainer = document.getElementById('preview-container');
+    if (previewImagen && previewContainer) {
+        mostrarPreviewImagen(input, previewImagen);
+        previewContainer.classList.remove('hidden');
+    }
 }
 
 // Cargar tipos de mantenimiento
@@ -59,16 +246,23 @@ async function cargarDatosEquipo() {
         const data = await res.json();
         equipoData = data;
         
-        // Cargar mantenimientos existentes asegurándonos de incluir el ID
+        console.log("📥 Datos del equipo cargados:", {
+            id: equipoData.id,
+            nombre: equipoData.nombre,
+            imagen_url: equipoData.imagen_url,
+            tieneImagen: !!equipoData.imagen_url
+        });
+        
+        // Cargar mantenimientos existentes
         mantenimientosConfigurados = equipoData.mantenimientos_configurados ? equipoData.mantenimientos_configurados.map(mant => ({
-            id: mant.id, // ← ESTE ES EL CAMPO IMPORTANTE
+            id: mant.id,
             id_tipo_mantenimiento: mant.id_tipo_mantenimiento,
             tipo_mantenimiento_nombre: mant.tipo_mantenimiento_nombre,
             nombre_personalizado: mant.nombre_personalizado,
             intervalo_dias: mant.intervalo_dias,
             fecha_inicio: mant.fecha_inicio,
             proxima_fecha: mant.proxima_fecha,
-            _eliminar: false // Nueva propiedad para marcar eliminación
+            _eliminar: false
         })) : [];
         
         return true;
@@ -91,7 +285,7 @@ async function cargarTiposEquipo() {
     }
 }
 
-// Cargar ubicaciones (áreas y puestos) con información completa de sede
+// Cargar ubicaciones (áreas y puestos)
 async function cargarUbicaciones() {
     try {
         const [areasRes, puestosRes] = await Promise.all([
@@ -161,7 +355,6 @@ function renderizarSelectUbicaciones(areas, puestos, ubicacionActual = '') {
         html += '</optgroup>';
     });
 
-    // Si no hay datos, mostrar mensaje
     if (areas.length === 0 && puestos.length === 0) {
         html = '<option value="">No hay ubicaciones disponibles</option>';
     }
@@ -191,14 +384,15 @@ async function renderizarFormulario() {
 
     // Determinar ubicación actual
     let ubicacionActual = '';
-    let idUbicacionActual = '';
     if (equipoData.id_puesto) {
         ubicacionActual = `puesto-${equipoData.id_puesto}`;
-        idUbicacionActual = equipoData.id_puesto;
     } else if (equipoData.id_area) {
         ubicacionActual = `area-${equipoData.id_area}`;
-        idUbicacionActual = equipoData.id_area;
     }
+
+    // Detectar si hay imagen
+    const tieneImagen = !!equipoData.imagen_url;
+    const imagenUrl = equipoData.imagen_url;
 
     const formularioHTML = `
         <!-- Nombre y Tipo -->
@@ -224,6 +418,88 @@ async function renderizarFormulario() {
 
         <!-- Campos dinámicos -->
         <div id="campos-especificos" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+
+        <!-- SECCIÓN DE IMAGEN -->
+        <div class="border-2 border-[#0F172A] rounded-lg p-4 bg-gray-50">
+            <h3 class="text-lg font-semibold text-[#0F172A] mb-4">Imagen del Equipo</h3>
+            
+            <div class="space-y-6">
+                <!-- IMAGEN ACTUAL DEL EQUIPO -->
+                <div id="imagen-existente-container">
+                    <h4 class="text-md font-medium text-[#0F172A] mb-3">Imagen Actual del Equipo</h4>
+                    
+                    ${tieneImagen ? `
+                        <div class="flex flex-col md:flex-row items-start gap-6 p-4 bg-white rounded-lg border border-gray-200">
+                            <div class="flex-shrink-0">
+                                <img id="preview-imagen-actual" 
+                                     src="${imagenUrl}" 
+                                     class="max-w-64 max-h-64 rounded-lg border-2 border-gray-300 object-contain"
+                                     alt="Imagen actual del equipo">
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm text-gray-600 mb-4">
+                                    Esta es la imagen actual del equipo.
+                                </p>
+                                <button type="button" onclick="eliminarImagen()" 
+                                        class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors flex items-center gap-2">
+                                    <i class="fas fa-trash"></i> Eliminar esta imagen
+                                </button>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    Al eliminar, la imagen se quitará del equipo.
+                                </p>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="text-center py-8 bg-white rounded-lg border border-gray-200">
+                            <i class="fas fa-image text-4xl text-gray-300 mb-3"></i>
+                            <p class="text-gray-500">Este equipo no tiene imagen actualmente</p>
+                        </div>
+                    `}
+                    
+                    <!-- Mensaje cuando no hay imagen -->
+                    <div id="no-imagen-message" class="text-center py-8 bg-white rounded-lg border border-gray-200" style="display: ${tieneImagen ? 'none' : 'block'}">
+                        <i class="fas fa-image text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500">Este equipo no tiene imagen actualmente</p>
+                    </div>
+                </div>
+
+                <!-- SEPARADOR -->
+                <div class="border-t border-gray-300 pt-6">
+                    <h4 class="text-md font-medium text-[#0F172A] mb-3">Actualizar Imagen</h4>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Si quieres cambiar la imagen, selecciona una nueva:
+                    </p>
+                    
+                    <!-- Input para subir nueva imagen -->
+                    <div class="mb-4">
+                        <input type="file" id="imagen-equipo" accept="image/*" 
+                               class="w-full border-2 border-[#0F172A] rounded px-3 py-2 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-[#0F172A] file:text-white hover:file:bg-[#1e293b]"
+                               onchange="validarTamañoImagen(this)">
+                        <p class="text-xs text-gray-500 mt-1">Formatos: JPG, PNG, WEBP. Máximo: 10MB</p>
+                        <p id="tamaño-advertencia" class="text-xs text-amber-600 mt-1 hidden">
+                            ⚠️ Esta imagen es muy grande. Se comprimirá automáticamente.
+                        </p>
+                    </div>
+                    
+                    <!-- Vista previa de la NUEVA imagen -->
+                    <div id="preview-container" class="hidden">
+                        <label class="block text-sm font-medium mb-2">Vista previa de la nueva imagen:</label>
+                        <div class="flex flex-col md:flex-row items-start gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <img id="preview-imagen" class="max-w-48 max-h-48 rounded border-2 border-blue-300 object-contain">
+                            <div class="flex-1">
+                                <p class="text-sm text-blue-800 mb-2">
+                                    <strong>Nueva imagen seleccionada:</strong> Esta imagen reemplazará a la actual cuando guardes los cambios.
+                                </p>
+                                <button type="button" onclick="eliminarImagen()" 
+                                        class="text-red-600 hover:text-red-800 text-sm flex items-center gap-1">
+                                    <i class="fas fa-times"></i> Cancelar cambio
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Ubicación y Responsable -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -300,6 +576,12 @@ async function renderizarFormulario() {
     formContainer.classList.remove('hidden');
     loadingMessage.classList.add('hidden');
 
+    // Configurar preview de imagen
+    configurarPreviewImagen();
+
+    // Mostrar imagen actual inmediatamente
+    mostrarImagenActual();
+
     // Mostrar campos específicos del tipo de equipo
     await mostrarCamposTipo();
 
@@ -307,7 +589,7 @@ async function renderizarFormulario() {
     configurarEventos();
 }
 
-// FUNCIÓN MODIFICADA - Mostrar mantenimientos marcados para eliminar
+// Mostrar mantenimientos
 function renderizarMantenimientos() {
     if (mantenimientosConfigurados.length === 0) {
         return `
@@ -428,7 +710,6 @@ function configurarEventos() {
                 const data = await res.json();
                 responsableInput.value = data.responsable_nombre || "";
 
-                // Mostrar información adicional en consola
                 const sede = selectedOption.getAttribute('data-sede');
                 console.log(`📍 Ubicación seleccionada: Puesto ${id} en sede ${sede}`);
 
@@ -438,12 +719,9 @@ function configurarEventos() {
                 mostrarMensaje("Error al obtener responsable del puesto", true);
             }
         } else if (tipo === "area") {
-            // Para áreas, limpiar el responsable ya que las áreas no tienen responsable específico
             responsableInput.value = "";
             const sede = selectedOption.getAttribute('data-sede');
             console.log(`📍 Ubicación seleccionada: Área ${id} en sede ${sede}`);
-
-            // Opcional: mostrar mensaje informativo
             mostrarMensaje("ℹ️ Área seleccionada - complete manualmente el responsable");
         } else {
             responsableInput.value = "";
@@ -463,9 +741,20 @@ async function actualizarEquipo() {
     const originalText = submitBtn.innerHTML;
     
     try {
-        // Mostrar estado de carga
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
         submitBtn.disabled = true;
+
+        // Manejar imagen
+        let imagenData = null;
+        try {
+            imagenData = await manejarImagenEquipo();
+        } catch (error) {
+            if (!confirm("❌ Error con la imagen. ¿Continuar sin cambiar la imagen?")) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+        }
 
         const formData = {
             nombre: document.getElementById("nombre").value.trim(),
@@ -476,22 +765,19 @@ async function actualizarEquipo() {
             estado: document.getElementById("estado").value
         };
 
-        // Validaciones básicas
-        if (!formData.nombre || !formData.codigo_interno || !formData.responsable_nombre) {
-            throw new Error("Complete todos los campos obligatorios");
+        // Agregar datos de imagen si hay cambios
+        if (imagenData) {
+            formData.imagen_url = imagenData.url;
+            formData.imagen_public_id = imagenData.public_id;
         }
 
-        // Obtener ubicación
+        // Manejar ubicación
         const ubicacion = document.getElementById("ubicacion").value;
-        if (!ubicacion) {
-            throw new Error("Seleccione una ubicación válida");
-        }
-        
-        const [ubicacion_tipo, id_ubicacion] = ubicacion.split("-");
-        formData.ubicacion_tipo = ubicacion_tipo;
-        formData.id_ubicacion = parseInt(id_ubicacion);
+        const [tipoUbic, idUbic] = ubicacion.split("-");
+        formData.ubicacion_tipo = tipoUbic;
+        formData.id_ubicacion = parseInt(idUbic);
 
-        // Obtener campos personalizados
+        // Campos personalizados
         const camposInputs = document.querySelectorAll("#campos-especificos input");
         const camposPersonalizados = {};
         camposInputs.forEach(inp => {
@@ -502,9 +788,9 @@ async function actualizarEquipo() {
         });
         formData.campos_personalizados = camposPersonalizados;
 
-        console.log("📤 Enviando datos del equipo:", formData);
+        console.log("📤 Enviando datos:", formData);
 
-        // Actualizar equipo principal
+        // Actualizar equipo
         const res = await fetch(`${apiUrl}/equipos/${equipoId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -513,26 +799,13 @@ async function actualizarEquipo() {
 
         if (!res.ok) {
             const errorText = await res.text();
-            let errorMessage = "Error al actualizar equipo";
-            
-            try {
-                const errorJson = JSON.parse(errorText);
-                errorMessage = errorJson.error || errorMessage;
-            } catch {
-                errorMessage = errorText || `Error HTTP: ${res.status}`;
-            }
-            
-            throw new Error(errorMessage);
+            throw new Error(errorText || `Error HTTP: ${res.status}`);
         }
 
-        // Actualizar mantenimientos (esto incluye eliminaciones y creaciones)
-        if (mantenimientosConfigurados.length > 0) {
-            console.log("🔄 Actualizando mantenimientos...");
-            await actualizarMantenimientos(); // Esta función ahora maneja eliminaciones y creaciones
-            console.log("✅ Mantenimientos procesados correctamente");
-        }
+        // Actualizar mantenimientos
+        await actualizarMantenimientos();
 
-        mostrarMensaje("✅ Equipo actualizado correctamente");
+        mostrarMensaje('✅ Equipo actualizado correctamente');
         
         setTimeout(() => {
             window.location.href = "equipos.html";
@@ -542,36 +815,32 @@ async function actualizarEquipo() {
         console.error("Error al actualizar equipo:", err);
         mostrarMensaje("❌ " + err.message, true);
     } finally {
-        // Restaurar botón
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
+        // Resetear variable
+        imagenAEliminar = false;
     }
 }
 
-// FUNCIÓN MODIFICADA - Solo marca para eliminar, no elimina inmediatamente
+// Eliminar mantenimiento
 function eliminarMantenimiento(index) {
     if (index >= 0 && index < mantenimientosConfigurados.length) {
         const mantenimiento = mantenimientosConfigurados[index];
         
-        // Mostrar confirmación
         if (!confirm(`¿Estás seguro de que quieres eliminar el mantenimiento "${mantenimiento.tipo_mantenimiento_nombre}"?`)) {
             return;
         }
 
-        // Marcar el mantenimiento para eliminación
         mantenimientosConfigurados[index]._eliminar = true;
-        
-        // Actualizar la vista para mostrar el estado de eliminación
         document.getElementById('lista-mantenimientos').innerHTML = renderizarMantenimientos();
 
         mostrarMensaje(`🗑️ Mantenimiento "${mantenimiento.tipo_mantenimiento_nombre}" marcado para eliminar (se aplicará al guardar)`);
     }
 }
 
-// NUEVA FUNCIÓN - Procesar las eliminaciones marcadas
+// Procesar eliminaciones de mantenimientos
 async function procesarEliminacionesMantenimientos() {
     try {
-        // Filtrar mantenimientos marcados para eliminar (que tienen ID en la BD)
         const mantenimientosAEliminar = mantenimientosConfigurados.filter(
             mant => mant._eliminar && mant.id
         );
@@ -595,7 +864,6 @@ async function procesarEliminacionesMantenimientos() {
             }
         }
 
-        // Remover todos los mantenimientos marcados para eliminar del array local
         mantenimientosConfigurados = mantenimientosConfigurados.filter(mant => !mant._eliminar);
         
         return mantenimientosAEliminar.length;
@@ -606,13 +874,13 @@ async function procesarEliminacionesMantenimientos() {
     }
 }
 
-// FUNCIÓN MODIFICADA - Ahora procesa eliminaciones y creaciones
+// Actualizar mantenimientos
 async function actualizarMantenimientos() {
     try {
-        // PRIMERO: Procesar eliminaciones
+        // Procesar eliminaciones
         const eliminadosCount = await procesarEliminacionesMantenimientos();
         
-        // LUEGO: Crear nuevos mantenimientos
+        // Crear nuevos mantenimientos
         console.log("🔄 Procesando mantenimientos para AGREGAR...");
         const mantenimientosNuevos = mantenimientosConfigurados.filter(mant => !mant.id && !mant._eliminar);
         
@@ -672,9 +940,8 @@ async function actualizarMantenimientos() {
     }
 }
 
-// MODAL PARA AGREGAR MANTENIMIENTOS
+// Modal para mantenimientos
 function mostrarModalMantenimiento() {
-    // Crear modal si no existe
     let modal = document.getElementById('modal-mantenimiento');
     if (!modal) {
         modal = document.createElement('div');
@@ -730,13 +997,11 @@ function mostrarModalMantenimiento() {
         document.body.appendChild(modal);
     }
 
-    // Configurar fecha mínima como hoy
     const fechaInput = document.getElementById('fecha-inicio-mantenimiento');
     const hoy = new Date().toISOString().split('T')[0];
     fechaInput.min = hoy;
     fechaInput.value = hoy;
 
-    // Mostrar modal
     modal.classList.remove('hidden');
 }
 
@@ -753,7 +1018,6 @@ function agregarMantenimiento() {
     const intervaloInput = document.getElementById('intervalo-mantenimiento');
     const fechaInput = document.getElementById('fecha-inicio-mantenimiento');
 
-    // Validaciones
     if (!tipoSelect.value) {
         mostrarMensaje('❌ Selecciona un tipo de mantenimiento', true);
         return;
@@ -769,19 +1033,16 @@ function agregarMantenimiento() {
         return;
     }
 
-    // Obtener datos
     const idTipoMantenimiento = parseInt(tipoSelect.value);
     const tipoMantenimientoNombre = tiposMantenimiento.find(t => t.id === idTipoMantenimiento)?.nombre;
     const nombrePersonalizado = nombreInput.value.trim() || null;
     const intervaloDias = parseInt(intervaloInput.value);
     const fechaInicio = fechaInput.value;
 
-    // Calcular próxima fecha
     const fechaInicioObj = new Date(fechaInicio);
     const proximaFecha = new Date(fechaInicioObj);
     proximaFecha.setDate(proximaFecha.getDate() + intervaloDias);
 
-    // Crear objeto de mantenimiento
     const nuevoMantenimiento = {
         id_tipo_mantenimiento: idTipoMantenimiento,
         tipo_mantenimiento_nombre: tipoMantenimientoNombre,
@@ -792,7 +1053,6 @@ function agregarMantenimiento() {
         _eliminar: false
     };
 
-    // Verificar si ya existe un mantenimiento del mismo tipo
     const existeMismoTipo = mantenimientosConfigurados.some(
         mant => mant.id_tipo_mantenimiento === idTipoMantenimiento && !mant._eliminar
     );
@@ -802,13 +1062,9 @@ function agregarMantenimiento() {
         return;
     }
 
-    // Agregar a la lista
     mantenimientosConfigurados.push(nuevoMantenimiento);
-
-    // Actualizar la vista
     document.getElementById('lista-mantenimientos').innerHTML = renderizarMantenimientos();
 
-    // Cerrar modal y limpiar campos
     cerrarModalMantenimiento();
     tipoSelect.value = '';
     nombreInput.value = '';
@@ -820,11 +1076,13 @@ function agregarMantenimiento() {
 
 // Inicializar
 async function inicializar() {
+    console.log("🔄 Inicializando edición de equipo...");
     await Promise.all([
         cargarTiposMantenimiento(),
         cargarDatosEquipo()
     ]);
     await renderizarFormulario();
+    console.log("✅ Edición de equipo inicializada correctamente");
 }
 
 // Hacer funciones globales
@@ -833,6 +1091,8 @@ window.cerrarModalMantenimiento = cerrarModalMantenimiento;
 window.agregarMantenimiento = agregarMantenimiento;
 window.eliminarMantenimiento = eliminarMantenimiento;
 window.mostrarCamposTipo = mostrarCamposTipo;
+window.eliminarImagen = eliminarImagen;
+window.validarTamañoImagen = validarTamañoImagen;
 
 // Inicializar cuando esté listo el DOM
 if (document.readyState === 'loading') {

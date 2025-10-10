@@ -178,7 +178,8 @@ function renderizarFilasInactivos(equipos) {
     }
 }
 
-// Función para ver PDF de equipo inactivo
+// Función para ver PDF de equipo inactivo - ACTUALIZADA CON IMAGEN DEL EQUIPO
+// Función para ver PDF de equipo inactivo - COMPLETA CON TODO EL CONTENIDO
 async function verPDFInactivo(equipoId) {
     try {
         const res = await fetch(`${API_EQUIPOS}/${equipoId}/inactivo-completo`);
@@ -186,7 +187,128 @@ async function verPDFInactivo(equipoId) {
         
         const equipo = await res.json();
         
-        // PDF con diseño mejorado y botones de acción
+        // 🆕 VERIFICAR SI EL EQUIPO TIENE IMAGEN
+        const imagenEquipo = equipo.imagen_url || equipo.imagen || equipo.url_imagen;
+        console.log("🖼️ Imagen del equipo inactivo para PDF:", imagenEquipo);
+
+        // CONTENIDO BÁSICO - INFORMACIÓN DEL EQUIPO Y BAJA
+        const contenidoBasico = `
+            <!-- Información del equipo -->
+            <div class="section no-break">
+                <div class="section-title">
+                    <i class="fas fa-laptop-medical"></i>
+                    INFORMACIÓN DEL EQUIPO
+                </div>
+                <div class="section-content">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="label">Código interno</span>
+                            <span class="value">${equipo.codigo_interno}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Nombre del equipo</span>
+                            <span class="value">${equipo.nombre}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Tipo de equipo</span>
+                            <span class="value">${equipo.tipo_equipo_nombre || 'No especificado'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Ubicación</span>
+                            <span class="value">${equipo.ubicacion === 'puesto' ? `Puesto: ${equipo.puesto_codigo || 'No especificado'}` : `Área: ${equipo.area_nombre || 'No especificado'}`}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Responsable</span>
+                            <span class="value">${equipo.responsable_nombre || 'No asignado'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Sede</span>
+                            <span class="value">${equipo.sede_nombre || 'No especificada'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Descripción</span>
+                            <span class="value">${equipo.descripcion || 'No disponible'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Información de la baja -->
+            <div class="section no-break">
+                <div class="section-title">
+                    <i class="fas fa-file-contract"></i>
+                    INFORMACIÓN DE LA BAJA
+                </div>
+                <div class="section-content">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="label">Motivo de baja</span>
+                            <span class="value">${equipo.motivo || 'No especificado'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Fecha de baja</span>
+                            <span class="value">${equipo.fecha_baja ? new Date(equipo.fecha_baja).toLocaleDateString() : 'No especificada'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Realizado por</span>
+                            <span class="value">${equipo.realizado_por || 'No especificado'}</span>
+                        </div>
+                        ${equipo.observaciones ? `
+                        <div class="info-item" style="grid-column: 1 / -1;">
+                            <span class="label">Observaciones</span>
+                            <span class="value" style="font-size: 9px; font-style: italic;">${equipo.observaciones}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // ESPECIFICACIONES TÉCNICAS
+        const especificacionesHTML = Object.keys(equipo.campos_personalizados || {}).length > 0 ? `
+            <!-- Especificaciones técnicas -->
+            <div class="section no-break">
+                <div class="section-title">
+                    <i class="fas fa-cogs"></i>
+                    ESPECIFICACIONES TÉCNICAS
+                </div>
+                <div class="section-content">
+                    <div class="info-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                        ${Object.entries(equipo.campos_personalizados).slice(0, 12).map(([key, value]) => `
+                            <div class="info-item">
+                                <span class="label">${key}</span>
+                                <span class="value">${value || 'No especificado'}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${Object.keys(equipo.campos_personalizados).length > 12 ? `
+                        <div style="margin-top: 8px; text-align: center;">
+                            <span style="font-size: 8px; color: #64748b;">
+                                + ${Object.keys(equipo.campos_personalizados).length - 12} especificaciones adicionales
+                            </span>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        ` : '';
+
+        // SECCIONES EXTRA PARA LLENAR ESPACIO
+        const seccionesExtra = Object.keys(equipo.campos_personalizados || {}).length < 6 ? `
+            <!-- Espacio adicional para asegurar que el footer sea visible -->
+            <div class="section no-break" style="opacity: 0.7;">
+                <div class="section-title">
+                    <i class="fas fa-info"></i>
+                    INFORMACIÓN ADICIONAL
+                </div>
+                <div class="section-content">
+                    <div style="text-align: center; padding: 20px; color: #64748b;">
+                        <i class="fas fa-file-alt" style="font-size: 24px; margin-bottom: 10px;"></i>
+                        <p style="font-size: 10px;">Documento generado por el Sistema de Gestión de Inventarios IPS Progresando</p>
+                    </div>
+                </div>
+            </div>
+        ` : '';
+
         const contenidoPDF = `
             <!DOCTYPE html>
             <html>
@@ -208,47 +330,40 @@ async function verPDFInactivo(equipoId) {
                         padding: 0; 
                         background: white;
                         color: #1e293b;
+                        font-size: 11px;
+                        line-height: 1.3;
                     }
                     
                     .action-buttons {
                         position: fixed;
-                        top: 15px;
-                        right: 15px;
+                        top: 10px;
+                        right: 10px;
                         z-index: 1000;
                         display: flex;
-                        gap: 8px;
+                        gap: 6px;
                     }
                     
                     .action-btn {
-                        background: linear-gradient(135deg, #639A33 0%, #4a7a27 100%);
+                        background: #639A33 !important;
                         color: white;
                         border: none;
-                        padding: 8px 12px;
-                        border-radius: 6px;
+                        padding: 6px 10px;
+                        border-radius: 5px;
                         cursor: pointer;
-                        font-size: 11px;
+                        font-size: 10px;
                         font-weight: 600;
                         display: flex;
                         align-items: center;
-                        gap: 4px;
+                        gap: 3px;
                         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-                        transition: all 0.3s;
                         border: 1px solid #4a7a27;
-                    }
-                    
-                    .action-btn:hover {
-                        background: linear-gradient(135deg, #4a7a27 0%, #3a6a1f 100%);
-                        transform: translateY(-1px);
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25);
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
                     }
                     
                     .action-btn.download {
-                        background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+                        background: #1e40af !important;
                         border: 1px solid #1e3a8a;
-                    }
-                    
-                    .action-btn.download:hover {
-                        background: linear-gradient(135deg, #1e3a8a 0%, #1e2f6d 100%);
                     }
                     
                     .page-container {
@@ -256,103 +371,218 @@ async function verPDFInactivo(equipoId) {
                         min-height: 297mm;
                         margin: 0 auto;
                         background: white;
-                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                        padding: 0;
                         position: relative;
                     }
                     
+                    /* Header con gradiente verde - MEJORADO EL CENTRADO */
                     .header {
-                        background: linear-gradient(135deg, #639A33 0%, #4a7a27 100%);
+                        background: #639A33 !important;
                         color: white;
-                        padding: 20px 30px;
-                        text-align: center;
+                        padding: 15px 25px;
                         position: relative;
                         overflow: hidden;
                         border-bottom: 3px solid #4a7a27;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        min-height: 140px; /* Aumenté la altura mínima */
+                    }
+                    
+                    .header-content {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        position: relative;
+                        z-index: 2;
+                        width: 100%;
                     }
                     
                     .logo-container {
-                        display: inline-block;
-                        background: white;
-                        padding: 10px;
-                        border-radius: 10px;
-                        margin-bottom: 15px;
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+                        display: flex;
+                        align-items: center;
+                        flex-shrink: 0;
+                        width: 130px; /* Ancho fijo para el logo */
                     }
                     
-                    .logo-container img {
-                        width: 90px;
-                        height: 90px;
+                    .logo {
+                        width: 130px;
+                        height: 100px;
+                        background: white;
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                        padding: 5px;
+                    }
+                    
+                    .logo img {
+                        width: 100%;
+                        height: 100%;
                         object-fit: contain;
                     }
                     
-                    .header h1 {
-                        font-size: 26px;
-                        font-weight: 700;
-                        margin-bottom: 8px;
-                        color: white;
-                        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+                    .title-container {
+                        flex: 1;
+                        text-align: center;
+                        padding: 0 20px;
+                        margin-top: 20px; /* Aumenté el espacio para mejor centrado */
+                        position: absolute;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 60%; /* Ancho controlado para mejor centrado */
                     }
                     
-                    .status-badge {
-                        display: inline-block;
-                        background: rgba(220, 38, 38, 0.95);
-                        color: white;
-                        padding: 8px 20px;
-                        border-radius: 20px;
+                    .title-container h1 {
+                        font-size: 20px;
                         font-weight: 700;
-                        font-size: 13px;
-                        margin-top: 8px;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        border: 2px solid rgba(255, 255, 255, 0.3);
-                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        margin-bottom: 4px;
+                        color: white !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        line-height: 1.2;
                     }
                     
+                    .title-container .subtitle {
+                        font-size: 12px;
+                        font-weight: 400;
+                        color: white !important;
+                        opacity: 0.95;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        line-height: 1.2;
+                    }
+                    
+                    .document-info {
+                        text-align: right;
+                        background: rgba(255, 255, 255, 0.15);
+                        padding: 8px 10px;
+                        border-radius: 6px;
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        flex-shrink: 0;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        margin-top: 15px;
+                        max-width: 180px; /* Ancho máximo limitado */
+                        margin-left: auto; /* Empuja a la derecha */
+                    }
+                    
+                    .document-info .document-number {
+                        font-size: 11px;
+                        font-weight: 600;
+                        margin-bottom: 3px;
+                        color: white !important;
+                    }
+                    
+                    .document-info .document-date {
+                        font-size: 10px;
+                        color: white !important;
+                        opacity: 0.9;
+                    }
+                    
+                    /* 🆕 CONTENEDOR PARA IMAGEN DEL EQUIPO - POSICIÓN CORREGIDA */
+                    .equipo-imagen-container {
+                        position: absolute;
+                        top: 15px;
+                        right: 25px;
+                        z-index: 3;
+                        text-align: center;
+                    }
+                    
+                    .equipo-imagen {
+                        width: 80px;
+                        height: 80px;
+                        background: white;
+                        border-radius: 6px;
+                        border: 2px solid white;
+                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                        overflow: hidden;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .equipo-imagen img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                    }
+                    
+                    .equipo-imagen-label {
+                        font-size: 8px;
+                        color: white;
+                        background: rgba(0, 0, 0, 0.3);
+                        padding: 2px 6px;
+                        border-radius: 10px;
+                        font-weight: 500;
+                    }
+                    
+                    /* 🆕 ESTILO PARA CUANDO NO HAY IMAGEN */
+                    .no-imagen {
+                        width: 80px;
+                        height: 80px;
+                        background: #f8fafc;
+                        border-radius: 6px;
+                        border: 2px dashed #cbd5e1;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: #94a3b8;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .no-imagen i {
+                        font-size: 24px;
+                    }
+
+                    /* Contenido principal - ESTRUCTURA ORIGINAL */
                     .content {
-                        padding: 25px 30px;
+                        padding: 20px 25px;
+                        min-height: 220mm;
                     }
                     
                     .two-columns {
                         display: grid;
                         grid-template-columns: 1fr 1fr;
-                        gap: 20px;
+                        gap: 15px;
                         margin-bottom: 20px;
                     }
                     
                     .section {
+                        margin-bottom: 15px;
                         background: white;
-                        border-radius: 10px;
-                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                        border-radius: 6px;
+                        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
                         overflow: hidden;
                         border: 1px solid #e2e8f0;
                     }
                     
                     .section-title {
-                        background: linear-gradient(135deg, #639A33 0%, #4a7a27 100%);
-                        padding: 14px 20px;
+                        background: #639A33 !important;
+                        padding: 10px 15px;
                         font-weight: 600;
-                        color: white;
-                        font-size: 14px;
+                        color: white !important;
+                        font-size: 12px;
                         display: flex;
                         align-items: center;
-                        gap: 10px;
+                        gap: 8px;
                         border-left: 4px solid #4a7a27;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                     
                     .section-content {
-                        padding: 20px;
+                        padding: 15px;
                     }
                     
                     .info-grid {
                         display: grid;
                         grid-template-columns: 1fr;
-                        gap: 12px;
+                        gap: 10px;
                     }
                     
                     .info-item {
                         display: flex;
                         flex-direction: column;
-                        padding: 8px 0;
+                        padding: 6px 0;
                         border-bottom: 1px solid #f8fafc;
                     }
                     
@@ -363,45 +593,132 @@ async function verPDFInactivo(equipoId) {
                     .label {
                         font-weight: 600;
                         color: #475569;
-                        font-size: 11px;
-                        margin-bottom: 4px;
+                        font-size: 9px;
+                        margin-bottom: 2px;
                         text-transform: uppercase;
-                        letter-spacing: 0.3px;
+                        letter-spacing: 0.2px;
                     }
                     
                     .value {
                         font-weight: 500;
                         color: #1e293b;
-                        font-size: 13px;
-                        line-height: 1.4;
+                        font-size: 10px;
+                        line-height: 1.2;
                     }
                     
+                    /* Estados y badges */
+                    .badge {
+                        display: inline-block;
+                        padding: 3px 8px;
+                        border-radius: 12px;
+                        font-size: 9px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                    }
+                    
+                    .badge-inactive {
+                        background: #fef2f2;
+                        color: #dc2626;
+                        border: 1px solid #fecaca;
+                    }
+                    
+                    /* Footer */
                     .footer {
-                        margin-top: 25px;
-                        padding: 20px 30px;
-                        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                        margin-top: 30px;
+                        padding: 15px 25px;
+                        background: #f8fafc;
                         border-top: 2px solid #639A33;
+                        text-align: center;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    .footer-content {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                        gap: 10px;
+                        margin-bottom: 10px;
+                    }
+                    
+                    .footer-item {
                         text-align: center;
                     }
                     
-                    .copyright {
-                        font-size: 11px;
+                    .footer-item .label {
+                        font-size: 8px;
                         color: #64748b;
+                        margin-bottom: 2px;
+                    }
+                    
+                    .footer-item .value {
+                        font-size: 9px;
+                        color: #1e293b;
+                        font-weight: 600;
+                    }
+                    
+                    .copyright {
+                        font-size: 8px;
+                        color: #94a3b8;
                         margin-top: 10px;
+                        padding-top: 10px;
+                        border-top: 1px solid #e2e8f0;
+                    }
+                    
+                    .no-break {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
                     }
                     
                     @media print {
-                        .action-buttons {
-                            display: none !important;
+                        @page {
+                            margin: 0;
+                            size: A4;
                         }
                         
                         body {
                             margin: 0;
                             padding: 0;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                            height: 100%;
                         }
                         
                         .page-container {
                             box-shadow: none;
+                            min-height: 100vh;
+                            height: 297mm;
+                        }
+                        
+                        .action-buttons {
+                            display: none !important;
+                        }
+                        
+                        .header {
+                            background: #639A33 !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        
+                        .section-title {
+                            background: #639A33 !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        
+                        .footer {
+                            background: #f8fafc !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        
+                        .title-container h1,
+                        .title-container .subtitle,
+                        .document-info .document-number,
+                        .document-info .document-date,
+                        .section-title {
+                            color: white !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
                         }
                     }
                 </style>
@@ -418,88 +735,68 @@ async function verPDFInactivo(equipoId) {
                 </div>
             
                 <div class="page-container">
+                    <!-- Header -->
                     <div class="header">
-                        <div class="logo-container">
-                            <img src="../assets/LOGO-IPS-INCONTEC.png" alt="Logo IPS Progresando" />
-                        </div>
-                        <h1>INFORMACIÓN DE EQUIPO INACTIVO</h1>
-                        <div class="status-badge">EQUIPO INACTIVO - DADO DE BAJA</div>
-                    </div>
-                    
-                    <div class="content">
-                        <div class="two-columns">
-                            <!-- Datos generales -->
-                            <div class="section">
-                                <div class="section-title">
-                                    <i class="fas fa-info-circle"></i>
-                                    DATOS GENERALES
-                                </div>
-                                <div class="section-content">
-                                    <div class="info-grid">
-                                        <div class="info-item">
-                                            <span class="label">Código interno</span>
-                                            <span class="value">${equipo.codigo_interno}</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <span class="label">Nombre del equipo</span>
-                                            <span class="value">${equipo.nombre}</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <span class="label">Tipo de equipo</span>
-                                            <span class="value">${equipo.tipo_equipo_nombre || 'No especificado'}</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <span class="label">Ubicación</span>
-                                            <span class="value">${equipo.ubicacion === 'puesto' ? `Puesto: ${equipo.puesto_codigo || 'No especificado'}` : `Área: ${equipo.area_nombre || 'No especificado'}`}</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <span class="label">Sede</span>
-                                            <span class="value">${equipo.sede_nombre || 'No especificada'}</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <span class="label">Descripción</span>
-                                            <span class="value">${equipo.descripcion || 'No disponible'}</span>
-                                        </div>
-                                    </div>
+                        <div class="header-content">
+                            <div class="logo-container">
+                                <div class="logo">
+                                    <img src="../assets/LOGO-IPS-INCONTEC.png" alt="Logo IPS Progresando" />
                                 </div>
                             </div>
                             
-                            <!-- Información de baja -->
-                            <div class="section">
-                                <div class="section-title">
-                                    <i class="fas fa-ban"></i>
-                                    INFORMACIÓN DE LA BAJA
-                                </div>
-                                <div class="section-content">
-                                    <div class="info-grid">
-                                        <div class="info-item">
-                                            <span class="label">Motivo de baja</span>
-                                            <span class="value">${equipo.motivo || 'No especificado'}</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <span class="label">Fecha de baja</span>
-                                            <span class="value">${equipo.fecha_baja ? new Date(equipo.fecha_baja).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'No especificada'}</span>
-                                        </div>
-                                        <div class="info-item">
-                                            <span class="label">Realizado por</span>
-                                            <span class="value">${equipo.realizado_por || 'No especificado'}</span>
-                                        </div>
-                                        ${equipo.observaciones ? `
-                                        <div class="info-item">
-                                            <span class="label">Observaciones</span>
-                                            <span class="value" style="font-style: italic;">${equipo.observaciones}</span>
-                                        </div>
-                                        ` : ''}
-                                    </div>
-                                </div>
+                            <div class="title-container">
+                                <h1>INFORMACIÓN DE EQUIPO INACTIVO</h1>
+                                <div class="subtitle">Sistema de Gestión de Inventarios - IPS Progresando</div>
                             </div>
+                            
+
+                        </div>
+                        
+                        <!-- 🆕 IMAGEN DEL EQUIPO EN LA PARTE SUPERIOR DERECHA -->
+                        <div class="equipo-imagen-container">
+                            ${imagenEquipo ? `
+                                <div class="equipo-imagen">
+                                    <img src="${imagenEquipo}" alt="Imagen del equipo ${equipo.codigo_interno}" 
+                                         onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'no-imagen\\'><i class=\\'fas fa-camera\\'></i></div><div class=\\'equipo-imagen-label\\'>Sin imagen</div>';" />
+                                </div>
+                                <div class="equipo-imagen-label">Equipo</div>
+                            ` : `
+                                <div class="no-imagen">
+                                    <i class="fas fa-camera"></i>
+                                </div>
+                                <div class="equipo-imagen-label">Sin imagen</div>
+                            `}
                         </div>
                     </div>
                     
+                    <!-- Contenido principal -->
+                    <div class="content">
+                        <div class="two-columns">
+                            ${contenidoBasico}
+                        </div>
+                        
+                        ${especificacionesHTML}
+                        ${seccionesExtra}
+                    </div>
+                    
+                    <!-- Footer -->
                     <div class="footer">
+                        <div class="footer-content">
+                            <div class="footer-item">
+                                <div class="label">Estado del equipo</div>
+                                <div class="value"><span class="badge badge-inactive">INACTIVO</span></div>
+                            </div>
+                            <div class="footer-item">
+                                <div class="label">Fecha de generación</div>
+                                <div class="value">${new Date().toLocaleDateString()}</div>
+                            </div>
+                            <div class="footer-item">
+                                <div class="label">Hora de generación</div>
+                                <div class="value">${new Date().toLocaleTimeString()}</div>
+                            </div>
+                        </div>
                         <div class="copyright">
-                            © ${new Date().getFullYear()} IPS Progresando - Sistema de Gestión de Inventarios
-                            <br>Documento generado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}
+                            © ${new Date().getFullYear()} IPS Progresando - Sistema de Gestión de Inventarios | Documento generado automáticamente
                         </div>
                     </div>
                 </div>
@@ -509,17 +806,24 @@ async function verPDFInactivo(equipoId) {
                         window.print();
                     }
                     
-                    // También permitir Ctrl+P para descarga
                     document.addEventListener('keydown', function(e) {
                         if (e.ctrlKey && e.key === 'p') {
                             e.preventDefault();
                             window.print();
                         }
                     });
-                    
-                    // Mejorar la experiencia de impresión
-                    window.addEventListener('beforeprint', function() {
-                        document.title = 'Equipo_Inactivo_${equipo.codigo_interno}';
+
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const greenElements = document.querySelectorAll('.header, .section-title');
+                        greenElements.forEach(el => {
+                            el.style.backgroundColor = '#639A33';
+                            el.style.color = 'white';
+                        });
+                        
+                        const whiteTexts = document.querySelectorAll('.title-container h1, .title-container .subtitle, .document-info .document-number, .document-info .document-date');
+                        whiteTexts.forEach(el => {
+                            el.style.color = 'white';
+                        });
                     });
                 </script>
             </body>
@@ -535,6 +839,11 @@ async function verPDFInactivo(equipoId) {
         mostrarMensaje("❌ Error al generar PDF", true);
     }
 }
+
+// Hacer funciones globales
+window.verPDFInactivo = verPDFInactivo;
+window.filtrarInactivos = filtrarInactivos;
+window.renderizarFilasInactivos = renderizarFilasInactivos;
 
 // Función para mostrar mensajes
 function mostrarMensaje(texto, esError = false) {

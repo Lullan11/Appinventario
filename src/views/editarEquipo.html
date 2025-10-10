@@ -51,6 +51,17 @@
         padding: 0.5rem;
         background: white;
     }
+
+    .preview-imagen {
+      max-width: 300px;
+      max-height: 200px;
+      object-fit: contain;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 
@@ -157,6 +168,7 @@
   </div>
 
   <script src="../js/auth.js"></script>
+  <script src="../js/cloudinary.js"></script>  <!-- ← NUEVA LÍNEA -->
   <script src="../js/editarEquipo.js"></script>
   <script src="../js/navegacion.js"></script>
 </body>

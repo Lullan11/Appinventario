@@ -3,6 +3,8 @@ const apiUrl = "https://inventario-api-gw73.onrender.com";
 // Variables globales
 let tiposMantenimiento = [];
 let mantenimientosConfigurados = [];
+let imagenEquipoData = null;
+let mostrandoCampos = false;
 
 // Función para mostrar mensajes tipo toast
 function mostrarMensajeEquipo(texto, esError = false) {
@@ -15,69 +17,205 @@ function mostrarMensajeEquipo(texto, esError = false) {
     }
 
     mensaje.textContent = texto;
-    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError
-        ? "bg-red-100 text-red-800 border-l-4 border-red-500"
-        : "bg-green-100 text-green-800 border-l-4 border-green-500"
-        }`;
+    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${
+        esError
+            ? "bg-red-100 text-red-800 border-l-4 border-red-500"
+            : "bg-green-100 text-green-800 border-l-4 border-green-500"
+    }`;
 
     setTimeout(() => {
         mensaje.textContent = "";
         mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 hidden";
     }, 4000);
 }
-// Cargar tipos de mantenimiento (EXCLUYENDO Correctivo)
+
+// Función para verificar estado de la imagen
+function verificarEstadoImagen() {
+    const inputImagen = document.getElementById('imagen-equipo');
+    const archivo = inputImagen?.files[0];
+    
+    return {
+        tieneNuevaImagen: !!archivo,
+        archivo: archivo
+    };
+}
+
+// Configuración del preview de imagen - ACTUALIZADA para el nuevo diseño
+function configurarPreviewImagen() {
+    const inputImagen = document.getElementById('imagen-equipo');
+    const dragDropZone = document.getElementById('drag-drop-zone');
+    const previewContainer = document.getElementById('preview-container');
+    const previewImagen = document.getElementById('preview-imagen');
+    const previewNombre = document.getElementById('preview-nombre');
+    
+    // Configurar drag & drop
+    if (dragDropZone) {
+        dragDropZone.addEventListener('click', () => inputImagen?.click());
+        
+        dragDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragDropZone.classList.add('border-blue-400', 'bg-blue-50');
+        });
+        
+        dragDropZone.addEventListener('dragleave', () => {
+            dragDropZone.classList.remove('border-blue-400', 'bg-blue-50');
+        });
+        
+        dragDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragDropZone.classList.remove('border-blue-400', 'bg-blue-50');
+            
+            if (e.dataTransfer.files.length > 0) {
+                inputImagen.files = e.dataTransfer.files;
+                mostrarPreviewImagen(inputImagen, previewImagen, previewNombre);
+                previewContainer?.classList.remove('hidden');
+                imagenEquipoData = null;
+            }
+        });
+    }
+    
+    // Configurar cambio de input
+    if (inputImagen && previewImagen) {
+        inputImagen.addEventListener('change', function(e) {
+            const archivo = e.target.files[0];
+            if (archivo) {
+                mostrarPreviewImagen(inputImagen, previewImagen, previewNombre);
+                previewContainer?.classList.remove('hidden');
+                imagenEquipoData = null;
+            } else {
+                previewContainer?.classList.add('hidden');
+                imagenEquipoData = null;
+            }
+        });
+    }
+}
+
+// Mostrar preview de imagen - ACTUALIZADA
+function mostrarPreviewImagen(input, previewImg, previewName) {
+    const archivo = input.files[0];
+    if (!archivo || !previewImg) return;
+
+    // Mostrar información del archivo
+    if (previewName) {
+        previewName.textContent = archivo.name;
+    }
+
+    // Crear preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        previewImg.src = e.target.result;
+    };
+    reader.readAsDataURL(archivo);
+
+    // Validar tamaño
+    validarTamañoImagen(input);
+}
+
+// Eliminar imagen seleccionada - ACTUALIZADA
+function eliminarImagen() {
+    const inputImagen = document.getElementById('imagen-equipo');
+    const previewContainer = document.getElementById('preview-container');
+    const previewImagen = document.getElementById('preview-imagen');
+    const previewNombre = document.getElementById('preview-nombre');
+    
+    if (inputImagen) inputImagen.value = '';
+    if (previewContainer) previewContainer.classList.add('hidden');
+    if (previewImagen) previewImagen.src = '';
+    if (previewNombre) previewNombre.textContent = '';
+    
+    imagenEquipoData = null;
+    mostrarMensajeEquipo('🗑️ Imagen eliminada');
+}
+
+// Subir imagen a Cloudinary
+async function subirImagenEquipo() {
+    const inputImagen = document.getElementById('imagen-equipo');
+    const archivo = inputImagen?.files[0];
+    
+    if (!archivo) {
+        return null;
+    }
+    
+    try {
+        mostrarMensajeEquipo('📤 Subiendo imagen...');
+        
+        validarArchivo(archivo, ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']);
+        const imagenData = await subirArchivoCloudinary(archivo, 'image');
+        
+        if (!imagenData || !imagenData.url) {
+            throw new Error('No se recibió URL de la imagen desde Cloudinary');
+        }
+        
+        mostrarMensajeEquipo('✅ Imagen subida correctamente');
+        return imagenData;
+        
+    } catch (error) {
+        console.error('❌ Error subiendo imagen:', error);
+        let mensajeError = 'Error subiendo imagen: ' + error.message;
+        if (error.message.includes('File size too large')) {
+            mensajeError = 'La imagen es demasiado grande. Máximo permitido: 10MB';
+        }
+        mostrarMensajeEquipo(`❌ ${mensajeError}`, true);
+        throw error;
+    }
+}
+
+// Validar tamaño de imagen - ACTUALIZADA
+function validarTamañoImagen(input) {
+    const archivo = input.files[0];
+    let advertencia = document.getElementById('tamaño-advertencia');
+    
+    if (!advertencia) {
+        advertencia = document.createElement('div');
+        advertencia.id = 'tamaño-advertencia';
+        advertencia.className = 'text-sm mt-1';
+        input.parentNode.appendChild(advertencia);
+    }
+    
+    if (!archivo) {
+        advertencia.classList.add('hidden');
+        return;
+    }
+    
+    const tamañoMB = archivo.size / 1024 / 1024;
+    
+    if (tamañoMB > 5) {
+        advertencia.textContent = `⚠️ Imagen grande (${tamañoMB.toFixed(1)}MB). Se comprimirá automáticamente.`;
+        advertencia.className = 'text-sm mt-1 text-amber-600 font-medium';
+        advertencia.classList.remove('hidden');
+    } else {
+        advertencia.classList.add('hidden');
+    }
+}
+
+// Cargar tipos de mantenimiento
 async function cargarTiposMantenimiento() {
     try {
-        console.log("Cargando tipos de mantenimiento...");
         const res = await fetch(`${apiUrl}/tipos-mantenimiento`);
-
-        if (!res.ok) {
-            throw new Error(`Error HTTP: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
 
         const data = await res.json();
-        console.log("Tipos de mantenimiento cargados:", data);
+        tiposMantenimiento = data.filter(tipo => !tipo.nombre.toLowerCase().includes('correctivo'));
 
-        if (Array.isArray(data)) {
-            // 🚫 FILTRAR PARA EXCLUIR CORRECTIVO
-            tiposMantenimiento = data.filter(tipo =>
-                !tipo.nombre.toLowerCase().includes('correctivo')
-            );
-
-            // Si después de filtrar no hay tipos, usar valores por defecto sin Correctivo
-            if (tiposMantenimiento.length === 0) {
-                tiposMantenimiento = [
-                    { id: 1, nombre: "Preventivo" },
-                    { id: 3, nombre: "Calibración" }
-                ];
-                console.log("Usando tipos por defecto (sin Correctivo):", tiposMantenimiento);
-            }
-
-            return true;
-        } else {
-            throw new Error("Formato de respuesta inválido");
+        if (tiposMantenimiento.length === 0) {
+            tiposMantenimiento = [
+                { id: 1, nombre: "Preventivo" },
+                { id: 3, nombre: "Calibración" }
+            ];
         }
     } catch (err) {
         console.error("Error al cargar tipos de mantenimiento:", err);
-
-        // Si falla, usar valores por defecto SIN Correctivo
         tiposMantenimiento = [
             { id: 1, nombre: "Preventivo" },
             { id: 3, nombre: "Calibración" }
         ];
-
-        mostrarMensajeEquipo("⚠️ Usando tipos de mantenimiento por defecto", true);
-        return false;
     }
 }
 
-// Cargar tipos de equipo al iniciar
+// Cargar tipos de equipo
 async function cargarTiposEquipo() {
     const selectTipo = document.getElementById("tipoEquipo");
-    if (!selectTipo) {
-        console.error("No se encontró el elemento tipoEquipo");
-        return;
-    }
+    if (!selectTipo) return;
 
     selectTipo.innerHTML = '<option value="">Selecciona un tipo...</option>';
 
@@ -86,8 +224,6 @@ async function cargarTiposEquipo() {
         if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
 
         const tipos = await res.json();
-        console.log("Tipos de equipo cargados:", tipos);
-
         tipos.forEach(tipo => {
             const option = document.createElement("option");
             option.value = tipo.id;
@@ -102,17 +238,24 @@ async function cargarTiposEquipo() {
 
 // Mostrar campos específicos según tipo de equipo
 async function mostrarCamposTipo() {
+    if (mostrandoCampos) return;
+    mostrandoCampos = true;
+
     const tipoId = document.getElementById("tipoEquipo").value;
     const container = document.getElementById("campos-especificos");
 
     if (!container) {
-        console.error("No se encontró el contenedor campos-especificos");
+        mostrandoCampos = false;
         return;
     }
 
+    // Limpiar completamente el contenedor
     container.innerHTML = "";
 
-    if (!tipoId) return;
+    if (!tipoId) {
+        mostrandoCampos = false;
+        return;
+    }
 
     try {
         const res = await fetch(`${apiUrl}/tipos-equipo`);
@@ -121,174 +264,136 @@ async function mostrarCamposTipo() {
         const tipos = await res.json();
         const tipo = tipos.find(t => t.id == tipoId);
 
-        if (!tipo || !tipo.campos) return;
+        if (!tipo || !tipo.campos || tipo.campos.length === 0) {
+            mostrandoCampos = false;
+            return;
+        }
 
-        tipo.campos.forEach(campo => {
+        // Crear todos los campos en una sola operación
+        const camposHTML = tipo.campos.map(campo => {
             const nombre = campo.nombre_campo || "Campo";
             let inputType = "text";
             if (campo.tipo_dato === "numero") inputType = "number";
             if (campo.tipo_dato === "fecha") inputType = "date";
 
-            const div = document.createElement("div");
-            div.innerHTML = `
-                <label class="block text-[#0F172A] font-medium mb-1">${nombre}</label>
-                <input type="${inputType}" name="${nombre}" class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" />
+            return `
+                <div class="mb-4">
+                    <label class="block text-[#0F172A] font-medium mb-2">${nombre}</label>
+                    <input type="${inputType}" name="${nombre}" 
+                           class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]" 
+                           placeholder="Ingrese ${nombre.toLowerCase()}" />
+                </div>
             `;
-            container.appendChild(div);
-        });
+        }).join('');
+
+        container.innerHTML = camposHTML;
+
     } catch (err) {
         console.error("Error al mostrar campos específicos:", err);
-        mostrarMensajeEquipo("Error al mostrar campos específicos", true);
+        mostrarMensajeEquipo("Error al cargar campos personalizados", true);
     }
+    
+    mostrandoCampos = false;
 }
 
-
-// Cargar ubicaciones (áreas y puestos) con información completa de sede
+// Cargar ubicaciones
 async function cargarUbicaciones() {
     const select = document.getElementById("ubicacion");
-    if (!select) {
-        console.error("No se encontró el elemento ubicacion");
-        return;
-    }
+    if (!select) return;
 
     select.innerHTML = '<option value="">Selecciona una ubicación...</option>';
 
     try {
         const areasRes = await fetch(`${apiUrl}/areas`);
         if (!areasRes.ok) throw new Error(`Error HTTP en áreas: ${areasRes.status}`);
-
         const areas = await areasRes.json();
-        console.log("Áreas cargadas:", areas);
 
-        // Agrupar áreas por sede para mejor organización
+        const puestosRes = await fetch(`${apiUrl}/puestos`);
+        if (!puestosRes.ok) throw new Error(`Error HTTP en puestos: ${puestosRes.status}`);
+        const puestos = await puestosRes.json();
+
+        // Agrupar áreas por sede
         const areasPorSede = {};
         areas.forEach(area => {
             const sedeNombre = area.sede_nombre || 'Sin sede';
-            if (!areasPorSede[sedeNombre]) {
-                areasPorSede[sedeNombre] = [];
-            }
+            if (!areasPorSede[sedeNombre]) areasPorSede[sedeNombre] = [];
             areasPorSede[sedeNombre].push(area);
         });
 
-        // Crear optgroups para áreas por sede
         Object.keys(areasPorSede).forEach(sedeNombre => {
             const optgroup = document.createElement('optgroup');
             optgroup.label = `📍 ${sedeNombre} - Áreas`;
-
             areasPorSede[sedeNombre].forEach(area => {
                 const option = document.createElement("option");
                 option.value = `area-${area.id}`;
                 option.textContent = `🏢 ${area.nombre} (Sede: ${sedeNombre})`;
                 option.setAttribute('data-tipo', 'area');
-                option.setAttribute('data-sede', sedeNombre);
                 optgroup.appendChild(option);
             });
-
             select.appendChild(optgroup);
         });
-
-        const puestosRes = await fetch(`${apiUrl}/puestos`);
-        if (!puestosRes.ok) throw new Error(`Error HTTP en puestos: ${puestosRes.status}`);
-
-        const puestos = await puestosRes.json();
-        console.log("Puestos cargados:", puestos);
 
         // Agrupar puestos por sede
         const puestosPorSede = {};
         puestos.forEach(puesto => {
             const sedeNombre = puesto.sede_nombre || 'Sin sede';
-            if (!puestosPorSede[sedeNombre]) {
-                puestosPorSede[sedeNombre] = [];
-            }
+            if (!puestosPorSede[sedeNombre]) puestosPorSede[sedeNombre] = [];
             puestosPorSede[sedeNombre].push(puesto);
         });
 
-        // Crear optgroups para puestos por sede
         Object.keys(puestosPorSede).forEach(sedeNombre => {
             const optgroup = document.createElement('optgroup');
             optgroup.label = `👤 ${sedeNombre} - Puestos`;
-
             puestosPorSede[sedeNombre].forEach(puesto => {
                 const option = document.createElement("option");
                 option.value = `puesto-${puesto.id}`;
-                option.textContent = `💼 ${puesto.codigo} - ${puesto.responsable_nombre} (Área: ${puesto.area_nombre}, Sede: ${sedeNombre})`;
+                option.textContent = `💼 ${puesto.codigo} - ${puesto.responsable_nombre} (Área: ${puesto.area_nombre})`;
                 option.setAttribute('data-tipo', 'puesto');
-                option.setAttribute('data-sede', sedeNombre);
                 optgroup.appendChild(option);
             });
-
             select.appendChild(optgroup);
         });
-
-        // Si no hay datos, mostrar mensaje
-        if (areas.length === 0 && puestos.length === 0) {
-            select.innerHTML = '<option value="">No hay ubicaciones disponibles</option>';
-        }
 
     } catch (err) {
         console.error("Error al cargar ubicaciones:", err);
         mostrarMensajeEquipo("Error al cargar ubicaciones", true);
-
-        // Opción de respaldo
-        select.innerHTML = `
-            <option value="">Error al cargar ubicaciones</option>
-            <option value="area-1">Área: Administración (Sede: Principal)</option>
-            <option value="puesto-1">Puesto: A001 - Juan Pérez (Área: Administración, Sede: Principal)</option>
-        `;
     }
 }
 
-
-// Autocompletar responsable al cambiar ubicación (mejorada)
-document.getElementById("ubicacion")?.addEventListener("change", async (e) => {
-    const value = e.target.value;
+// Autocompletar responsable
+function configurarAutocompletarResponsable() {
+    const ubicacionSelect = document.getElementById("ubicacion");
     const responsableInput = document.getElementById("responsable");
-    const selectedOption = e.target.options[e.target.selectedIndex];
 
-    if (!value || !responsableInput) {
-        if (responsableInput) responsableInput.value = "";
-        return;
-    }
+    if (!ubicacionSelect || !responsableInput) return;
 
-    const [tipo, id] = value.split("-");
-
-    if (tipo === "puesto") {
-        try {
-            const res = await fetch(`${apiUrl}/ubicacion/${tipo}/${id}`);
-            if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-
-            const data = await res.json();
-            responsableInput.value = data.responsable_nombre || "";
-            
-            // Mostrar información adicional en consola
-            const sede = selectedOption.getAttribute('data-sede');
-            console.log(`📍 Ubicación seleccionada: Puesto ${id} en sede ${sede}`);
-            
-        } catch (err) {
-            console.error("Error al obtener información de puesto:", err);
+    ubicacionSelect.addEventListener("change", async (e) => {
+        const value = e.target.value;
+        if (!value) {
             responsableInput.value = "";
-            mostrarMensajeEquipo("Error al obtener responsable del puesto", true);
+            return;
         }
-    } else if (tipo === "area") {
-        // Para áreas, limpiar el responsable ya que las áreas no tienen responsable específico
-        responsableInput.value = "";
-        const sede = selectedOption.getAttribute('data-sede');
-        console.log(`📍 Ubicación seleccionada: Área ${id} en sede ${sede}`);
-        
-        // Opcional: mostrar mensaje informativo
-        mostrarMensajeEquipo("ℹ️ Área seleccionada - complete manualmente el responsable");
-    } else {
-        responsableInput.value = "";
-    }
-});
 
+        const [tipo, id] = value.split("-");
 
-// 🆕 FUNCIONES PARA MANEJAR MANTENIMIENTOS
+        if (tipo === "puesto") {
+            try {
+                const res = await fetch(`${apiUrl}/ubicacion/${tipo}/${id}`);
+                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                const data = await res.json();
+                responsableInput.value = data.responsable_nombre || "";
+            } catch (err) {
+                console.error("Error al obtener información de puesto:", err);
+                responsableInput.value = "";
+            }
+        } else {
+            responsableInput.value = "";
+        }
+    });
+}
 
-
-// Mostrar modal para agregar mantenimiento
+// Funciones para mantenimientos
 function mostrarModalMantenimiento() {
-    // Verificar que tenemos tipos de mantenimiento
     if (tiposMantenimiento.length === 0) {
         mostrarMensajeEquipo("⚠️ No se pudieron cargar los tipos de mantenimiento", true);
         return;
@@ -298,81 +403,57 @@ function mostrarModalMantenimiento() {
         <div id="modal-mantenimiento" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
                 <h3 class="text-xl font-semibold mb-4">Agregar Mantenimiento Programado</h3>
-                
                 <form id="form-mantenimiento">
                     <div class="mb-4">
                         <label class="block text-sm font-medium mb-1">Tipo de Mantenimiento *</label>
                         <select id="tipo-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300" required>
                             <option value="">Seleccionar...</option>
-                            ${tiposMantenimiento.map(tipo =>
-        `<option value="${tipo.id}">${tipo.nombre}</option>`
-    ).join('')}
+                            ${tiposMantenimiento.map(tipo => `<option value="${tipo.id}">${tipo.nombre}</option>`).join('')}
                         </select>
                     </div>
-                    
                     <div class="mb-4">
                         <label class="block text-sm font-medium mb-1">Nombre personalizado (opcional)</label>
-                        <input type="text" id="nombre-personalizado" 
-                               class="w-full border rounded px-3 py-2 border-gray-300"
-                               placeholder="Ej: Mantenimiento mensual, Calibración trimestral">
-                        <p class="text-xs text-gray-500 mt-1">Útil para identificar múltiples mantenimientos del mismo tipo</p>
+                        <input type="text" id="nombre-personalizado" class="w-full border rounded px-3 py-2 border-gray-300" placeholder="Ej: Mantenimiento mensual">
                     </div>
-                    
                     <div class="mb-4">
                         <label class="block text-sm font-medium mb-1">Intervalo (días) *</label>
-                        <input type="number" id="intervalo-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300" 
-                               min="1" value="30" required>
+                        <input type="number" id="intervalo-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300" min="1" value="30" required>
                     </div>
-                    
                     <div class="mb-4">
                         <label class="block text-sm font-medium mb-1">Fecha de Inicio *</label>
                         <input type="date" id="fecha-inicio-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300" required>
                     </div>
-                    
                     <div class="flex justify-end gap-2 mt-6">
-                        <button type="button" onclick="cerrarModalMantenimiento()" 
-                                class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">
-                            Cancelar
-                        </button>
-                        <button type="submit" 
-                                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                            Agregar
-                        </button>
+                        <button type="button" onclick="cerrarModalMantenimiento()" class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">Cancelar</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Agregar</button>
                     </div>
                 </form>
             </div>
         </div>
     `;
 
-
-    // Evitar duplicados
     if (document.getElementById('modal-mantenimiento')) {
         document.getElementById('modal-mantenimiento').remove();
     }
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-    // Establecer fecha actual por defecto
     const fechaInput = document.getElementById('fecha-inicio-mantenimiento');
     if (fechaInput) {
         fechaInput.valueAsDate = new Date();
     }
 
-    // Configurar el formulario
     const form = document.getElementById('form-mantenimiento');
     if (form) {
         form.addEventListener('submit', agregarMantenimiento);
     }
 }
 
-// Cerrar modal de mantenimiento
 function cerrarModalMantenimiento() {
     const modal = document.getElementById('modal-mantenimiento');
-    if (modal) {
-        modal.remove();
-    }
+    if (modal) modal.remove();
 }
-// Agregar mantenimiento a la lista
+
 function agregarMantenimiento(e) {
     e.preventDefault();
 
@@ -381,10 +462,7 @@ function agregarMantenimiento(e) {
     const intervaloInput = document.getElementById('intervalo-mantenimiento');
     const fechaInput = document.getElementById('fecha-inicio-mantenimiento');
 
-    if (!tipoSelect || !intervaloInput || !fechaInput) {
-        mostrarMensajeEquipo("⚠️ Error al procesar el formulario", true);
-        return;
-    }
+    if (!tipoSelect || !intervaloInput || !fechaInput) return;
 
     const tipoId = tipoSelect.value;
     const nombrePersonalizado = nombreInput?.value.trim() || '';
@@ -397,10 +475,7 @@ function agregarMantenimiento(e) {
     }
 
     const tipo = tiposMantenimiento.find(t => t.id == tipoId);
-    if (!tipo) {
-        mostrarMensajeEquipo("⚠️ Tipo de mantenimiento no válido", true);
-        return;
-    }
+    if (!tipo) return;
 
     const proximaFecha = new Date(fechaInicio);
     proximaFecha.setDate(proximaFecha.getDate() + intervalo);
@@ -414,41 +489,21 @@ function agregarMantenimiento(e) {
         proxima_fecha: proximaFecha.toISOString().split('T')[0]
     };
 
-    // 🆕 PERMITIR MÚLTIPLES MANTENIMIENTOS SIN RESTRICCIONES
-    // Solo mostramos advertencia si es exactamente igual, pero permitimos agregar
-    const existeIdentico = mantenimientosConfigurados.find(m =>
-        m.id_tipo === mantenimiento.id_tipo &&
-        m.nombre_personalizado === mantenimiento.nombre_personalizado &&
-        m.intervalo_dias === mantenimiento.intervalo_dias &&
-        m.fecha_inicio === mantenimiento.fecha_inicio
-    );
-
-    if (existeIdentico) {
-        if (!confirm("⚠️ Ya existe un mantenimiento idéntico. ¿Estás seguro de que quieres agregarlo?")) {
-            return;
-        }
-    }
-
     mantenimientosConfigurados.push(mantenimiento);
     actualizarListaMantenimientos();
     cerrarModalMantenimiento();
-
     mostrarMensajeEquipo("✅ Mantenimiento agregado correctamente");
 }
-// Actualizar lista visual de mantenimientos
+
 function actualizarListaMantenimientos() {
     const container = document.getElementById('lista-mantenimientos');
-    if (!container) {
-        console.error("No se encontró el contenedor lista-mantenimientos");
-        return;
-    }
+    if (!container) return;
 
     if (mantenimientosConfigurados.length === 0) {
         container.innerHTML = `
             <div class="text-center py-4 text-gray-500 border-2 border-dashed border-gray-300 rounded">
                 <i class="fas fa-tools text-2xl mb-2"></i>
                 <p>No hay mantenimientos configurados</p>
-                <p class="text-sm">Haz clic en "Agregar Mantenimiento" para configurar</p>
             </div>
         `;
         return;
@@ -463,23 +518,15 @@ function actualizarListaMantenimientos() {
                         <strong class="text-gray-800">${mant.tipo_nombre}</strong>
                     </div>
                     <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                        <div>
-                            <span class="font-medium">Intervalo:</span> ${mant.intervalo_dias} días
-                        </div>
-                        <div>
-                            <span class="font-medium">Inicio:</span> ${new Date(mant.fecha_inicio).toLocaleDateString()}
-                        </div>
+                        <div><span class="font-medium">Intervalo:</span> ${mant.intervalo_dias} días</div>
+                        <div><span class="font-medium">Inicio:</span> ${new Date(mant.fecha_inicio).toLocaleDateString()}</div>
                         <div class="col-span-2">
                             <span class="font-medium">Próxima:</span> 
-                            <span class="font-semibold text-green-600">
-                                ${new Date(mant.proxima_fecha).toLocaleDateString()}
-                            </span>
+                            <span class="font-semibold text-green-600">${new Date(mant.proxima_fecha).toLocaleDateString()}</span>
                         </div>
                     </div>
                 </div>
-                <button onclick="eliminarMantenimiento(${index})" 
-                        class="text-red-500 hover:text-red-700 p-1 ml-2"
-                        title="Eliminar mantenimiento">
+                <button onclick="eliminarMantenimiento(${index})" class="text-red-500 hover:text-red-700 p-1 ml-2" title="Eliminar mantenimiento">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -487,18 +534,16 @@ function actualizarListaMantenimientos() {
     `).join('');
 }
 
-// Eliminar mantenimiento de la lista
-// Hacer la función eliminarMantenimiento disponible globalmente
-window.eliminarMantenimiento = function (index) {
+function eliminarMantenimiento(index) {
     if (index >= 0 && index < mantenimientosConfigurados.length) {
-        const eliminado = mantenimientosConfigurados.splice(index, 1)[0];
+        mantenimientosConfigurados.splice(index, 1);
         actualizarListaMantenimientos();
-        mostrarMensajeEquipo(`Mantenimiento "${eliminado.tipo_nombre}" eliminado`);
+        mostrarMensajeEquipo("Mantenimiento eliminado");
     }
-};
+}
 
-// Enviar formulario con mantenimientos
-document.getElementById("form-equipo")?.addEventListener("submit", async (e) => {
+// Función principal para enviar formulario
+async function enviarFormularioEquipo(e) {
     e.preventDefault();
 
     const tipoId = document.getElementById("tipoEquipo")?.value;
@@ -512,29 +557,49 @@ document.getElementById("form-equipo")?.addEventListener("submit", async (e) => 
         return;
     }
 
-    const [tipoUbic, idUbic] = ubicacion.split("-");
-    const camposInputs = document.querySelectorAll("#campos-especificos input");
-    const camposPersonalizados = {};
-    camposInputs.forEach(inp => {
-        camposPersonalizados[inp.name] = inp.value;
-    });
-
-    const equipo = {
-        nombre,
-        descripcion: document.getElementById("descripcion")?.value || "",
-        codigo_interno: codigo,
-        ubicacion_tipo: tipoUbic,
-        id_ubicacion: parseInt(idUbic),
-        responsable_nombre: responsable,
-        responsable_documento: "N/A",
-        id_tipo_equipo: parseInt(tipoId),
-        campos_personalizados: camposPersonalizados,
-        mantenimientos: mantenimientosConfigurados
-    };
-
-    console.log("Enviando equipo:", equipo);
-
     try {
+        mostrarMensajeEquipo("⏳ Procesando equipo...");
+
+        const estadoImagen = verificarEstadoImagen();
+        let imagenData = null;
+        
+        if (estadoImagen.tieneNuevaImagen) {
+            try {
+                imagenData = await subirImagenEquipo();
+            } catch (error) {
+                const continuar = confirm("❌ Error subiendo imagen. ¿Deseas continuar sin imagen?");
+                if (!continuar) {
+                    mostrarMensajeEquipo("❌ Creación cancelada por error en imagen", true);
+                    return;
+                }
+            }
+        }
+
+        const [tipoUbic, idUbic] = ubicacion.split("-");
+        const camposInputs = document.querySelectorAll("#campos-especificos input");
+        const camposPersonalizados = {};
+        
+        camposInputs.forEach(inp => {
+            if (inp.value.trim()) {
+                camposPersonalizados[inp.name] = inp.value.trim();
+            }
+        });
+
+        const equipo = {
+            nombre,
+            descripcion: document.getElementById("descripcion")?.value || "",
+            codigo_interno: codigo,
+            ubicacion_tipo: tipoUbic,
+            id_ubicacion: parseInt(idUbic),
+            responsable_nombre: responsable,
+            responsable_documento: "N/A",
+            id_tipo_equipo: parseInt(tipoId),
+            campos_personalizados: camposPersonalizados,
+            mantenimientos: mantenimientosConfigurados,
+            imagen_url: imagenData?.url || "",
+            imagen_public_id: imagenData?.public_id || ""
+        };
+
         const res = await fetch(`${apiUrl}/equipos`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -544,35 +609,66 @@ document.getElementById("form-equipo")?.addEventListener("submit", async (e) => 
         const data = await res.json();
 
         if (!res.ok) {
-            console.error("Error del servidor:", data);
             mostrarMensajeEquipo(data.msg || data.error || "⚠️ Error al crear equipo", true);
             return;
         }
 
-        mostrarMensajeEquipo("✅ Equipo creado correctamente.");
+        const mensajeImagen = imagenData ? "con imagen" : "sin imagen";
+        mostrarMensajeEquipo(`✅ Equipo creado correctamente ${mensajeImagen}`);
+        
         setTimeout(() => {
             window.location.href = "equipos.html";
         }, 2000);
 
     } catch (err) {
-        console.error("Error al comunicarse con la API:", err);
+        console.error("❌ Error al comunicarse con la API:", err);
         mostrarMensajeEquipo("❌ Error de conexión con el servidor", true);
     }
-});
+}
+
+// Configurar event listeners
+function configurarEventListeners() {
+    const formEquipo = document.getElementById("form-equipo");
+    const tipoEquipoSelect = document.getElementById("tipoEquipo");
+    
+    if (formEquipo) {
+        formEquipo.addEventListener("submit", enviarFormularioEquipo);
+    }
+    
+    if (tipoEquipoSelect) {
+        tipoEquipoSelect.addEventListener("change", mostrarCamposTipo);
+    }
+    
+    configurarAutocompletarResponsable();
+}
 
 // Inicializar página
 async function inicializar() {
-    console.log("Inicializando página...");
+    console.log("Inicializando página de creación...");
 
-    // Cargar tipos de mantenimiento primero
-    await cargarTiposMantenimiento();
-
-    // Luego cargar el resto
-    cargarTiposEquipo();
-    cargarUbicaciones();
-
-    console.log("Página inicializada correctamente");
+    try {
+        configurarPreviewImagen();
+        configurarEventListeners();
+        
+        await cargarTiposMantenimiento();
+        await cargarTiposEquipo();
+        await cargarUbicaciones();
+        
+        console.log("✅ Página de creación inicializada correctamente");
+    } catch (error) {
+        console.error("❌ Error en inicialización:", error);
+        mostrarMensajeEquipo("Error al inicializar la página", true);
+    }
 }
+
+// Hacer funciones globales
+window.mostrarModalMantenimiento = mostrarModalMantenimiento;
+window.cerrarModalMantenimiento = cerrarModalMantenimiento;
+window.agregarMantenimiento = agregarMantenimiento;
+window.eliminarMantenimiento = eliminarMantenimiento;
+window.mostrarCamposTipo = mostrarCamposTipo;
+window.eliminarImagen = eliminarImagen;
+window.validarTamañoImagen = validarTamañoImagen;
 
 // Inicializar cuando el DOM esté listo
 if (document.readyState === 'loading') {
