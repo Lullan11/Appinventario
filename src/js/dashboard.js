@@ -94,6 +94,8 @@ async function cargarStats() {
         // Calcular estadísticas de equipos
         const totalEquipos = equiposActivosData.length + equiposInactivosData.length;
 
+        console.log(`🔢 Datos básicos - Equipos activos: ${equiposActivosData.length}, Inactivos: ${equiposInactivosData.length}, Sedes: ${sedesData.length}, Áreas: ${areasData.length}, Puestos: ${puestosData.length}`);
+
         // Calcular mantenimientos para TODOS los equipos activos
         const mantenimientosData = await calcularMantenimientosManualmente(equiposActivosData, tiposMantenimientoData);
 
@@ -420,6 +422,7 @@ function crearSeccionVencidosEspecificos() {
 }
 
 // Función para calcular mantenimientos manualmente (ACTUALIZADA con vencidos específicos)
+// Función para calcular mantenimientos manualmente (ACTUALIZADA para contar correctivos realizados)
 async function calcularMantenimientosManualmente(equiposData, tiposMantenimientoData) {
     try {
         let vencidos = 0;
@@ -432,8 +435,8 @@ async function calcularMantenimientosManualmente(equiposData, tiposMantenimiento
         let correctivos = 0;
         let proximosMantenimiento = 0;
         let proximosCalibracion = 0;
-        let vencidosPreventivos = 0;    // ✅ NUEVO
-        let vencidosCalibraciones = 0;  // ✅ NUEVO
+        let vencidosPreventivos = 0;
+        let vencidosCalibraciones = 0;
 
         const hoy = new Date();
         
@@ -441,8 +444,28 @@ async function calcularMantenimientosManualmente(equiposData, tiposMantenimiento
         const tipoPreventivo = tiposMantenimientoData.find(t => t.nombre.toLowerCase().includes('preventivo'));
         const tipoCalibracion = tiposMantenimientoData.find(t => t.nombre.toLowerCase().includes('calibración') || t.nombre.toLowerCase().includes('calibracion'));
         const tipoCorrectivo = tiposMantenimientoData.find(t => t.nombre.toLowerCase().includes('correctivo'));
+
+        // ✅ NUEVO: Contar correctivos realizados de todos los equipos
+        let totalCorrectivosRealizados = 0;
+        try {
+            const mantenimientosRealizadosRes = await fetch(`${API_URL}/mantenimientos/todos`);
+            if (mantenimientosRealizadosRes.ok) {
+                const todosMantenimientos = await mantenimientosRealizadosRes.json();
+                
+                // Filtrar solo los correctivos realizados
+                const correctivosRealizados = todosMantenimientos.filter(mant => {
+                    const tipoMantenimiento = tiposMantenimientoData.find(t => t.id === mant.id_tipo);
+                    return tipoMantenimiento?.nombre?.toLowerCase().includes('correctivo');
+                });
+                
+                totalCorrectivosRealizados = correctivosRealizados.length;
+                console.log("✅ Correctivos realizados encontrados:", totalCorrectivosRealizados);
+            }
+        } catch (error) {
+            console.warn("⚠️ No se pudieron cargar los correctivos realizados:", error);
+        }
         
-        // Procesar TODOS los equipos activos
+        // Procesar TODOS los equipos activos para mantenimientos programados
         for (const equipo of equiposData) {
             try {
                 // Obtener datos completos del equipo para ver mantenimientos
@@ -469,14 +492,13 @@ async function calcularMantenimientosManualmente(equiposData, tiposMantenimiento
                             tieneMantenimientos = true;
                             totalMantenimientos++;
                             
-                            // Contar por tipo de mantenimiento
+                            // Contar por tipo de mantenimiento (solo programados)
                             if (tipoPreventivo && mant.id_tipo_mantenimiento === tipoPreventivo.id) {
                                 preventivos++;
                             } else if (tipoCalibracion && mant.id_tipo_mantenimiento === tipoCalibracion.id) {
                                 calibraciones++;
-                            } else if (tipoCorrectivo && mant.id_tipo_mantenimiento === tipoCorrectivo.id) {
-                                correctivos++;
                             }
+                            // NOTA: Los correctivos no se cuentan aquí porque no son programados
                             
                             const proxima = new Date(mant.proxima_fecha);
                             const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
@@ -490,7 +512,7 @@ async function calcularMantenimientosManualmente(equiposData, tiposMantenimiento
                                 }
                             }
                             
-                            // ✅ NUEVO: Verificar vencidos específicos
+                            // Verificar vencidos específicos
                             if (diffDias <= 0) {
                                 if (tipoPreventivo && mant.id_tipo_mantenimiento === tipoPreventivo.id) {
                                     equipoVencidoPreventivo = true;
@@ -517,7 +539,7 @@ async function calcularMantenimientosManualmente(equiposData, tiposMantenimiento
                     if (equipoProximoMantenimiento) proximosMantenimiento++;
                     if (equipoProximoCalibracion) proximosCalibracion++;
 
-                    // ✅ Contar equipos vencidos por tipo
+                    // Contar equipos vencidos por tipo
                     if (equipoVencidoPreventivo) vencidosPreventivos++;
                     if (equipoVencidoCalibracion) vencidosCalibraciones++;
 
@@ -540,19 +562,22 @@ async function calcularMantenimientosManualmente(equiposData, tiposMantenimiento
             }
         }
 
+        // ✅ CORREGIDO: Usar los correctivos realizados en lugar de los programados
+        correctivos = totalCorrectivosRealizados;
+
         return { 
             vencidos, 
             proximos, 
             alDia, 
             sinConfiguracion,
-            total: totalMantenimientos,
+            total: totalMantenimientos + totalCorrectivosRealizados, // Incluir correctivos en el total
             preventivos,
             calibraciones,
-            correctivos,
+            correctivos, // ✅ Ahora muestra los correctivos realizados
             proximosMantenimiento,
             proximosCalibracion,
-            vencidosPreventivos,    // ✅ NUEVO
-            vencidosCalibraciones   // ✅ NUEVO
+            vencidosPreventivos,
+            vencidosCalibraciones
         };
         
     } catch (error) {
@@ -568,8 +593,8 @@ async function calcularMantenimientosManualmente(equiposData, tiposMantenimiento
             correctivos: 0,
             proximosMantenimiento: 0,
             proximosCalibracion: 0,
-            vencidosPreventivos: 0,    // ✅ NUEVO
-            vencidosCalibraciones: 0   // ✅ NUEVO
+            vencidosPreventivos: 0,
+            vencidosCalibraciones: 0
         };
     }
 }
@@ -589,7 +614,7 @@ function actualizarInterfaz() {
         domElements.totalPuestos.textContent = dashboardData.puestos;
     }
 
-    // Actualizar tarjetas de mantenimientos
+    // Actualizar tarjetas de mantenimientos (ESTADOS DE EQUIPOS)
     if (domElements.totalVencidos) {
         domElements.totalVencidos.textContent = dashboardData.mantenimientos.vencidos || 0;
     }
@@ -611,7 +636,7 @@ function actualizarInterfaz() {
         domElements.totalEquiposGeneral.textContent = dashboardData.equipos.total || 0;
     }
 
-    // Actualizar tarjetas de tipos de mantenimiento
+    // Actualizar tarjetas de tipos de mantenimiento (TOTALES COMBINADOS)
     if (domElements.totalMantenimientos) {
         domElements.totalMantenimientos.textContent = dashboardData.mantenimientos.total || 0;
     }
@@ -623,9 +648,10 @@ function actualizarInterfaz() {
     }
     if (domElements.totalCorrectivos) {
         domElements.totalCorrectivos.textContent = dashboardData.mantenimientos.correctivos || 0;
+        console.log("🛠️ Correctivos mostrados:", dashboardData.mantenimientos.correctivos);
     }
     
-    // Actualizar tarjetas de próximos
+    // Actualizar tarjetas de próximos (POR EQUIPO)
     if (domElements.proximosMantenimiento) {
         domElements.proximosMantenimiento.textContent = dashboardData.mantenimientos.proximosMantenimiento || 0;
     }
@@ -633,7 +659,7 @@ function actualizarInterfaz() {
         domElements.proximosCalibracion.textContent = dashboardData.mantenimientos.proximosCalibracion || 0;
     }
     
-    // ✅ Actualizar tarjetas de vencidos específicos
+    // Actualizar tarjetas de vencidos específicos (POR EQUIPO)
     if (domElements.vencidosPreventivos) {
         domElements.vencidosPreventivos.textContent = dashboardData.mantenimientos.vencidosPreventivos || 0;
     }

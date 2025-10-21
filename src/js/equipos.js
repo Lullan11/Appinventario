@@ -135,6 +135,7 @@ function detenerMonitoreoNotificaciones() {
 }
 
 // ✅ FUNCIÓN CORREGIDA: Determinar estado real del mantenimiento
+// ✅ FUNCIÓN CORREGIDA: Determinar estado real del mantenimiento
 function determinarEstadoMantenimientoReal(equipo) {
     // Si no tiene mantenimientos configurados, es "SIN_DATOS"
     if (!equipo.mantenimientos_configurados || equipo.mantenimientos_configurados.length === 0) {
@@ -168,14 +169,14 @@ function determinarEstadoMantenimientoReal(equipo) {
     if (diasMasUrgente < 0) {
         // Si hay días negativos, está VENCIDO
         estado = "VENCIDO";
-    } else if (diasMasUrgente <= 10) {
-        // Si está entre 0 y 10 días, está PRÓXIMO
+    } else if (diasMasUrgente <= 30) {
+        // ✅ MODIFICADO: Si está entre 0 y 30 días, está PRÓXIMO (1 mes)
         estado = "PRÓXIMO";
     } else if (diasMasUrgente === Infinity) {
         // Si no se encontraron mantenimientos con fechas
         estado = "SIN_DATOS";
     }
-    // Si está más de 10 días en el futuro, se mantiene como "OK"
+    // Si está más de 30 días en el futuro, se mantiene como "OK"
 
     return estado;
 }
@@ -489,6 +490,7 @@ function actualizarContador() {
 }
 
 // ✅ FUNCIÓN CORREGIDA: Mostrar alertas de mantenimiento en la página
+// ✅ FUNCIÓN CORREGIDA: Mostrar alertas de mantenimiento en la página
 function mostrarAlertasMantenimiento(equipos) {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -536,7 +538,8 @@ function mostrarAlertasMantenimiento(equipos) {
                     proxima.setHours(0, 0, 0, 0);
                     const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
                     
-                    if (diffDias >= 0 && diffDias <= 10 && diffDias < diasMasCercano) {
+                    // ✅ MODIFICADO: Cambiado de 10 a 30 días
+                    if (diffDias >= 0 && diffDias <= 30 && diffDias < diasMasCercano) {
                         mantenimientoMasCercano = mant;
                         diasMasCercano = diffDias;
                     }
@@ -959,11 +962,11 @@ async function generarPDFBaja(equipoId, datosBaja) {
     `;
 
     const especificacionesHTML = tieneEspecificaciones ? `
-        <!-- Especificaciones técnicas -->
+        <!-- Especificaciones -->
         <div class="section no-break">
           <div class="section-title">
             <i class="fas fa-cogs"></i>
-            ESPECIFICACIONES TÉCNICAS
+            ESPECIFICACIONES
           </div>
           <div class="section-content">
             <div class="info-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">

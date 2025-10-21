@@ -7,46 +7,74 @@
   <title>Ver Equipo - Inventario</title>
   <link rel="stylesheet" href="../../dist/output.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Fuente moderna (Google Fonts) -->
+  <!-- Librería QRCode -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* Aplicar Poppins a todos los elementos */
     * {
       font-family: 'Poppins', sans-serif;
     }
 
-    body {
-      font-family: 'Poppins', sans-serif;
+    .preview-imagen {
+      max-width: 300px;
+      max-height: 200px;
+      object-fit: contain;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
     }
 
-    /* Asegurar que elementos específicos usen Poppins */
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6,
-    p,
-    span,
-    a,
-    button,
-    input,
-    textarea,
-    select,
-    table,
-    th,
-    td,
-    label,
-    strong,
-    .sidebar-title,
-    .sidebar-subtitle {
-      font-family: 'Poppins', sans-serif;
+    .hidden {
+      display: none;
     }
 
-    /* Estilos específicos para botones */
-    button {
-      font-family: 'Poppins', sans-serif !important;
+    /* Estilos para los tabs activos */
+    .tab-active {
+      background: #0F172A !important;
+      color: white !important;
+    }
+
+    /* Estilos para mantenimientos vencidos */
+    .mantenimiento-vencido {
+      background-color: #fef2f2 !important;
+      border-left: 4px solid #ef4444 !important;
+    }
+
+    .mantenimiento-proximo {
+      background-color: #fffbeb !important;
+      border-left: 4px solid #f59e0b !important;
+    }
+
+    .mantenimiento-al-dia {
+      background-color: #f0fdf4 !important;
+      border-left: 4px solid #22c55e !important;
+    }
+
+    .estado-vencido {
+      color: #ef4444;
+      font-weight: bold;
+    }
+
+    .estado-proximo {
+      color: #f59e0b;
+      font-weight: bold;
+    }
+
+    .estado-al-dia {
+      color: #22c55e;
+      font-weight: bold;
+    }
+
+    #qr-code canvas {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px;
+      background: white;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    #modal-qr {
+      backdrop-filter: blur(5px);
     }
   </style>
 </head>
@@ -61,8 +89,8 @@
             <i class="fas fa-boxes-stacked text-white text-lg"></i>
           </div>
           <div>
-            <h1 class="sidebar-title font-bold text-[#639A33]">Inventario IPS</h1>
-            <p class="sidebar-subtitle text-white/70">Sistema de gestión</p>
+            <h1 class="font-bold text-[#639A33]">Inventario IPS</h1>
+            <p class="text-white/70">Sistema de gestión</p>
           </div>
         </div>
         <nav class="space-y-2">
@@ -128,107 +156,345 @@
           <img src="../assets/logo_coop.png" class="h-20 w-20 object-contain" alt="Logo Cooperativa" />
         </div>
       </header>
+
       <!-- Información del equipo -->
       <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-8">
         <h2 class="text-2xl font-semibold text-[#0F172A] mb-4">Información General</h2>
         <div id="info-equipo" class="space-y-2">
           <!-- JS rellenará todos estos campos -->
-          <p><strong>Código:</strong> -</p>
-          <p><strong>Nombre:</strong> -</p>
-          <p><strong>Descripción:</strong> -</p>
-          <p><strong>Responsable:</strong> -</p>
-          <p><strong>Ubicación:</strong> -</p>
+        </div>
 
-          <h3 class="mt-3 font-semibold">📌 Información de Mantenimiento</h3>
-          <p><strong>Tipo de equipo:</strong> -</p>
-          <p><strong>Fecha inicio mantenimiento:</strong> -</p>
-          <p><strong>Próximo mantenimiento:</strong> -</p>
-          <p><strong>Intervalo:</strong> -</p>
+        <div class="mt-6 flex gap-4 flex-wrap">
+          <button id="editar-btn"
+            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition flex items-center gap-2">
+            <i class="fas fa-edit"></i> Editar Equipo
+          </button>
+          <button onclick="window.location.href='equipos.html'"
+            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition flex items-center gap-2">
+            <i class="fas fa-arrow-left"></i> Volver al Listado
+          </button>
+        </div>
+      </section>
 
-          <div id="campos-personalizados" class="mt-4">
-            <h3 class="font-semibold">Campos Personalizados:</h3>
-            <p>No hay información adicional</p>
+      <!-- Botones de Acción Rápidos -->
+      <div class="flex gap-4 mb-6 flex-wrap">
+        <button id="btn-hoja-vida"
+          class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition flex items-center gap-2">
+          <i class="fas fa-file-pdf"></i> Hoja de Vida PDF
+        </button>
+        <button id="btn-generar-qr"
+          class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition flex items-center gap-2">
+          <i class="fas fa-qrcode"></i> Generar QR
+        </button>
+        <button onclick="mostrarModalMantenimiento('correctivo')"
+          class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition flex items-center gap-2">
+          <i class="fas fa-wrench"></i> Agregar Correctivo
+        </button>
+      </div>
+
+      <!-- Resumen de Mantenimientos -->
+      <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-8">
+        <h2 class="text-2xl font-semibold text-[#0F172A] mb-6">Resumen de Mantenimientos</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h3 class="font-semibold text-blue-800">Preventivos Realizados</h3>
+            <p id="contador-preventivos" class="text-2xl font-bold text-blue-600">0</p>
+          </div>
+          <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+            <h3 class="font-semibold text-yellow-800">Calibraciones Realizadas</h3>
+            <p id="contador-calibraciones" class="text-2xl font-bold text-yellow-600">0</p>
+          </div>
+          <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+            <h3 class="font-semibold text-red-800">Correctivos Realizados</h3>
+            <p id="contador-correctivos" class="text-2xl font-bold text-red-600">0</p>
+          </div>
+          <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+            <h3 class="font-semibold text-green-800">Total Mantenimientos</h3>
+            <p id="contador-total" class="text-2xl font-bold text-green-600">0</p>
           </div>
         </div>
 
-        <div class="mt-6 flex gap-4">
-          <button id="editar-btn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
-            Editar Equipo
-          </button>
-          <button onclick="window.location.href='equipos.html'"
-            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
-            Volver
-          </button>
+        <!-- Próximos Mantenimientos -->
+        <div class="mb-6">
+          <h3 class="text-xl font-semibold text-[#0F172A] mb-4">Próximos Mantenimientos</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="border border-blue-200 rounded p-4 bg-blue-50">
+              <h4 class="font-semibold text-blue-800 mb-2"><i class="fas fa-shield-alt mr-2"></i>Próximo Preventivo</h4>
+              <div id="proximo-preventivo-detalle" class="text-lg">
+                <div class="text-gray-500">Cargando preventivos programados...</div>
+              </div>
+            </div>
+            <div class="border border-yellow-200 rounded p-4 bg-yellow-50">
+              <h4 class="font-semibold text-yellow-800 mb-2"><i class="fas fa-ruler-combined mr-2"></i>Próxima
+                Calibración</h4>
+              <div id="proxima-calibracion-detalle" class="text-lg">
+                <div class="text-gray-500">Cargando calibraciones programadas...</div>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
 
+        <!-- Input hidden para el mantenimiento programado -->
+        <input type="hidden" id="id-mantenimiento-programado" value="">
 
-      <!-- Mantenimientos Preventivos -->
-      <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-8">
-        <h2 class="text-2xl font-semibold text-[#0F172A] mb-6">Mantenimientos Preventivos</h2>
+        <!-- Tabs para diferentes tipos de mantenimiento -->
+        <div class="mb-6">
+          <div class="flex border-b border-gray-200">
+            <button
+              class="tab-button px-4 py-2 border-none bg-[#f1f5f9] text-[#64748b] cursor-pointer rounded-t-lg mr-1 tab-active"
+              data-tab="preventivo">
+              <i class="fas fa-shield-alt mr-2"></i>Historial Preventivos
+            </button>
+            <button
+              class="tab-button px-4 py-2 border-none bg-[#f1f5f9] text-[#64748b] cursor-pointer rounded-t-lg mr-1"
+              data-tab="calibracion">
+              <i class="fas fa-ruler-combined mr-2"></i>Historial Calibraciones
+            </button>
+            <button
+              class="tab-button px-4 py-2 border-none bg-[#f1f5f9] text-[#64748b] cursor-pointer rounded-t-lg mr-1"
+              data-tab="correctivo">
+              <i class="fas fa-wrench mr-2"></i>Historial Correctivos
+            </button>
+          </div>
 
-        <p><strong class="text-[#0F172A]">Próximo Mantenimiento:</strong>
-          <span id="proximo-preventivo">Cargando...</span>
-        </p>
+          <!-- Tab de Preventivos - ACTUALIZADA -->
+          <div id="tab-preventivo" class="tab-content p-5 border-2 border-[#0F172A] border-t-0 rounded-b-lg">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-left border">
+                <thead class="bg-blue-600 text-white">
+                  <tr>
+                    <th class="px-4 py-3 border text-center">Nombre Mantenimiento</th>
+                    <th class="px-4 py-3 border text-center">Fecha Realizado</th>
+                    <th class="px-4 py-3 border text-center">Descripción</th>
+                    <th class="px-4 py-3 border text-center">Realizado por</th>
+                    <th class="px-4 py-3 border text-center">Observaciones</th>
+                    <th class="px-4 py-3 border text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tabla-preventivos">
+                  <tr>
+                    <td colspan="6" class="text-center py-4 text-gray-500">
+                      Cargando mantenimientos preventivos...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-        <table class="min-w-full text-left border mt-4">
-          <thead class="bg-[#0F172A] text-white">
-            <tr>
-              <th class="px-4 py-2 border">Fecha</th>
-              <th class="px-4 py-2 border">Realizado por</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-preventivos">
-            <!-- JS llena aquí -->
-          </tbody>
-        </table>
+          <!-- Tab de Calibraciones - ACTUALIZADA -->
+          <div id="tab-calibracion" class="tab-content p-5 border-2 border-[#0F172A] border-t-0 rounded-b-lg hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-left border">
+                <thead class="bg-yellow-600 text-white">
+                  <tr>
+                    <th class="px-4 py-3 border text-center">Nombre Mantenimiento</th>
+                    <th class="px-4 py-3 border text-center">Fecha Realizado</th>
+                    <th class="px-4 py-3 border text-center">Descripción</th>
+                    <th class="px-4 py-3 border text-center">Realizado por</th>
+                    <th class="px-4 py-3 border text-center">Observaciones</th>
+                    <th class="px-4 py-3 border text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tabla-calibraciones">
+                  <tr>
+                    <td colspan="6" class="text-center py-4 text-gray-500">
+                      Cargando calibraciones...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-        <div class="mt-6">
-          <button id="btn-validar-preventivo"
-            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
-            Validar Mantenimiento Preventivo
-          </button>
-        </div>
-      </section>
+          <!-- Tab de Correctivos - ACTUALIZADA -->
+          <div id="tab-correctivo" class="tab-content p-5 border-2 border-[#0F172A] border-t-0 rounded-b-lg hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-left border">
+                <thead class="bg-red-600 text-white">
+                  <tr>
+                    <th class="px-4 py-3 border text-center">Nombre Mantenimiento</th>
+                    <th class="px-4 py-3 border text-center">Fecha Realizado</th>
+                    <th class="px-4 py-3 border text-center">Descripción</th>
+                    <th class="px-4 py-3 border text-center">Realizado por</th>
+                    <th class="px-4 py-3 border text-center">Observaciones</th>
+                    <th class="px-4 py-3 border text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tabla-correctivos">
+                  <tr>
+                    <td colspan="6" class="text-center py-4 text-gray-500">
+                      Cargando mantenimientos correctivos...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-      <!-- Mantenimientos Correctivos -->
-      <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-8">
-        <h2 class="text-2xl font-semibold text-[#0F172A] mb-6">Mantenimientos Correctivos</h2>
-
-        <table class="min-w-full text-left border">
-          <thead class="bg-[#0F172A] text-white">
-            <tr>
-              <th class="px-4 py-2 border">Fecha</th>
-              <th class="px-4 py-2 border">Descripción</th>
-              <th class="px-4 py-2 border">Realizado por</th>
-              <th class="px-4 py-2 border">Observaciones</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-correctivos">
-            <!-- JS llena aquí -->
-          </tbody>
-        </table>
-
-        <div class="mt-6">
-          <button id="btn-agregar-correctivo"
-            class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">
-            Agregar Mantenimiento Correctivo
-          </button>
-        </div>
-      </section>
-
-      <footer class="text-center mt-6 py-4 border-t border-gray-200">
-        <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos - Ver Detalles</p>
-      </footer>
+          <footer class="text-center mt-6 py-4 border-t border-gray-200">
+            <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos - Ver Detalles</p>
+          </footer>
     </main>
   </div>
+
+  <!-- Modal para Mantenimiento - ACTUALIZADO -->
+  <div id="modal-mantenimiento"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="border-b border-gray-200 px-6 py-4">
+        <h3 id="modal-titulo" class="text-lg font-semibold text-[#0F172A]">Validar Mantenimiento</h3>
+      </div>
+      <div class="px-6 py-4 space-y-4">
+        <form id="form-mantenimiento">
+          <input type="hidden" id="mantenimiento-id">
+          <input type="hidden" id="mantenimiento-tipo">
+          <input type="hidden" id="id-mantenimiento-programado">
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Mantenimiento</label>
+            <input type="text" id="tipo-mantenimiento"
+              class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 bg-gray-100" readonly>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Realización *</label>
+            <input type="date" id="fecha-realizado"
+              class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+              required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+            <textarea id="descripcion-mantenimiento" rows="3"
+              class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+              required></textarea>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por *</label>
+              <input type="text" id="realizado-por"
+                class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"
+                required>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+            <textarea id="observaciones-mantenimiento" rows="2"
+              class="w-full rounded-md border-2 border-[#0F172A] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F2B705]"></textarea>
+          </div>
+
+          <!-- Documento PDF -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Documento (PDF)</label>
+            <input type="file" id="documento-mantenimiento" accept=".pdf"
+              class="w-full border-2 border-[#0F172A] rounded px-3 py-2 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-[#0F172A] file:text-white hover:file:bg-[#1e293b]">
+            <p class="text-xs text-gray-500 mt-1">Formatos: PDF. Máximo: 10MB</p>
+          </div>
+        </form>
+      </div>
+      <div class="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+        <button type="button" onclick="cerrarModalMantenimiento()"
+          class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">
+          Cancelar
+        </button>
+        <button type="button" onclick="guardarMantenimiento()"
+          class="px-4 py-2 bg-[#0F172A] text-white rounded hover:bg-[#1e293b] transition-colors">
+          <span id="texto-boton-guardar">Guardar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- OPCIÓN MINIMALISTA -->
+  <div id="modal-qr" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-white rounded-xl p-6 w-full max-w-3xl mx-auto overflow-hidden shadow-2xl">
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold text-[#0F172A]">Código QR del Equipo</h3>
+        <button onclick="cerrarModalQR()" class="text-gray-400 hover:text-gray-600 transition-colors text-xl">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <!-- QR -->
+        <div class="xl:col-span-1 text-center space-y-4">
+          <div id="qr-code" class="bg-white p-4 rounded-lg border-2 border-gray-100">
+            <div class="text-gray-500 py-8">Generando QR...</div>
+          </div>
+          <div class="flex gap-2 justify-center">
+            <button onclick="descargarQR()"
+              class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded flex items-center gap-2 transition-all text-sm font-medium">
+              <i class="fas fa-download"></i>
+              Descargar
+            </button>
+            <button onclick="cerrarModalQR()"
+              class="border border-gray-300 hover:bg-gray-50 text-gray-700 py-2 px-4 rounded transition-all text-sm font-medium">
+              Cerrar
+            </button>
+          </div>
+        </div>
+
+        <!-- Información -->
+        <div class="xl:col-span-2 space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-500">Código</label>
+                <p id="qr-codigo" class="text-sm font-semibold">-</p>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500">Nombre</label>
+                <p id="qr-nombre" class="text-sm font-semibold">-</p>
+              </div>
+            </div>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-500">Responsable</label>
+                <p id="qr-responsable" class="text-sm font-semibold">-</p>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500">Ubicación</label>
+                <p id="qr-ubicacion" class="text-sm font-semibold">-</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Enlace -->
+          <div class="pt-4 border-t">
+            <label class="text-xs font-medium text-gray-500 block mb-2">Enlace Público</label>
+            <div id="github-link-container" class="text-xs text-blue-600 break-all bg-blue-50 p-3 rounded border"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
 
   <!-- Contenedor mensajes flotantes -->
   <div id="mensaje-equipo" class="hidden"></div>
 
+
+  <!-- Agrega esto después de cloudinary.js y antes de verEquipo.js -->
+  <script>
+    // Polyfill para asegurar compatibilidad
+    if (typeof qrcode === 'undefined') {
+      console.log('🔧 qrcode no está disponible, usando fallback');
+    }
+  </script>
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://accounts.google.com/gsi/client"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/navegacion.js"></script>
+  <script src="../js/cloudinary.js"></script>
   <script src="../js/verEquipo.js"></script>
+
 </body>
 
 </html>

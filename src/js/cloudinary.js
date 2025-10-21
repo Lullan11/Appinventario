@@ -1,4 +1,4 @@
-// js/cloudinary.js - VERSIÓN CORREGIDA Y OPTIMIZADA
+// js/cloudinary.js - VERSIÓN MEJORADA CON FUNCIONALIDADES DE MANTENIMIENTO
 const CLOUDINARY_CONFIG = {
     cloudName: 'dzkccjhn9',
     uploadPreset: 'inventario'
@@ -272,6 +272,274 @@ function validarArchivo(archivo, tiposPermitidos = ['image/jpeg', 'image/png', '
     return true;
 }
 
+// ========================= NUEVAS FUNCIONES ESPECÍFICAS PARA MANTENIMIENTOS =========================
+
+/**
+ * ✅ FUNCIÓN ESPECIALIZADA PARA SUBIR DOCUMENTOS DE MANTENIMIENTO
+ * Optimizada específicamente para PDFs de mantenimientos
+ */
+async function subirDocumentoMantenimiento(archivo, codigoEquipo = '') {
+    try {
+        console.log('📄 Subiendo documento de mantenimiento...', {
+            equipo: codigoEquipo,
+            archivo: archivo.name,
+            tamaño: `${(archivo.size / 1024 / 1024).toFixed(2)} MB`
+        });
+
+        // Validar que sea PDF
+        if (archivo.type !== 'application/pdf') {
+            throw new Error('Solo se permiten archivos PDF para documentos de mantenimiento');
+        }
+
+        // Validar tamaño (15MB máximo para documentos)
+        const maxSize = 15 * 1024 * 1024;
+        if (archivo.size > maxSize) {
+            throw new Error(`El documento es demasiado grande: ${(archivo.size / 1024 / 1024).toFixed(2)}MB. Máximo permitido: 15MB`);
+        }
+
+        // Configurar parámetros específicos para documentos
+        const formData = new FormData();
+        formData.append('file', archivo);
+        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+        formData.append('resource_type', 'raw');
+        
+        // Agregar contexto para mejor organización en Cloudinary
+        if (codigoEquipo) {
+            formData.append('context', `equipo=${codigoEquipo}|tipo=documento_mantenimiento`);
+        }
+
+        const response = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/raw/upload`,
+            {
+                method: 'POST',
+                body: formData
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error al subir documento: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        console.log('✅ Documento de mantenimiento subido exitosamente:', {
+            url: data.secure_url,
+            public_id: data.public_id,
+            equipo: codigoEquipo
+        });
+
+        return {
+            url: data.secure_url,
+            public_id: data.public_id,
+            resource_type: 'raw',
+            bytes: data.bytes
+        };
+
+    } catch (error) {
+        console.error('❌ Error subiendo documento de mantenimiento:', error);
+        throw new Error(`Error al subir documento: ${error.message}`);
+    }
+}
+
+/**
+ * ✅ FUNCIÓN PARA DESCARGAR DOCUMENTO DE MANTENIMIENTO
+ * Con nombre personalizado según el equipo y fecha
+ */
+function descargarDocumentoMantenimiento(url, nombreEquipo = '', tipoMantenimiento = '', fecha = '') {
+    if (!url) {
+        console.warn('❌ No hay URL para descargar');
+        return false;
+    }
+
+    try {
+        // Generar nombre del archivo
+        let nombreArchivo = 'documento_mantenimiento';
+        
+        if (nombreEquipo) {
+            nombreArchivo += `_${nombreEquipo}`;
+        }
+        if (tipoMantenimiento) {
+            nombreArchivo += `_${tipoMantenimiento}`;
+        }
+        if (fecha) {
+            // Formatear fecha para nombre de archivo
+            const fechaFormateada = fecha.replace(/-/g, '');
+            nombreArchivo += `_${fechaFormateada}`;
+        } else {
+            nombreArchivo += `_${new Date().toISOString().split('T')[0].replace(/-/g, '')}`;
+        }
+        
+        nombreArchivo += '.pdf';
+
+        console.log('📥 Descargando documento:', {
+            nombre: nombreArchivo,
+            url: url
+        });
+
+        // Crear enlace de descarga
+        const link = document.createElement('a');
+        link.href = generarUrlDescarga(url);
+        link.download = nombreArchivo;
+        link.target = '_blank';
+        
+        // Agregar al DOM, hacer click y remover
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log('✅ Documento descargado:', nombreArchivo);
+        return true;
+
+    } catch (error) {
+        console.error('❌ Error al descargar documento:', error);
+        
+        // Fallback: abrir en nueva pestaña
+        window.open(url, '_blank');
+        return false;
+    }
+}
+
+/**
+ * ✅ FUNCIÓN PARA ELIMINAR ARCHIVO DE CLOUDINARY
+ * Útil para cuando se reemplaza un documento
+ */
+async function eliminarArchivoCloudinary(publicId, resourceType = 'image') {
+    try {
+        if (!publicId) {
+            console.warn('⚠️ No se proporcionó public_id para eliminar');
+            return false;
+        }
+
+        console.log('🗑️ Eliminando archivo de Cloudinary:', publicId);
+
+        const formData = new FormData();
+        formData.append('public_id', publicId);
+        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+
+        const response = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/${resourceType}/destroy`,
+            {
+                method: 'POST',
+                body: formData
+            }
+        );
+
+        if (!response.ok) {
+            console.warn('⚠️ No se pudo eliminar archivo de Cloudinary');
+            return false;
+        }
+
+        const result = await response.json();
+        console.log('✅ Archivo eliminado de Cloudinary:', result);
+        return result.result === 'ok';
+
+    } catch (error) {
+        console.error('❌ Error eliminando archivo de Cloudinary:', error);
+        return false;
+    }
+}
+
+/**
+ * ✅ FUNCIÓN PARA VALIDAR Y PREPARAR DOCUMENTO DE MANTENIMIENTO
+ * Incluye validaciones específicas para mantenimientos
+ */
+function validarDocumentoMantenimiento(archivo) {
+    const tiposPermitidos = ['application/pdf'];
+    const maxSize = 15 * 1024 * 1024; // 15MB para documentos
+
+    if (!archivo) {
+        throw new Error('Por favor seleccione un documento PDF');
+    }
+
+    if (!tiposPermitidos.includes(archivo.type)) {
+        throw new Error('Solo se permiten archivos PDF para documentos de mantenimiento');
+    }
+
+    if (archivo.size > maxSize) {
+        throw new Error(`El documento es demasiado grande: ${(archivo.size / 1024 / 1024).toFixed(2)}MB. Máximo permitido: 15MB`);
+    }
+
+    // Validar nombre del archivo (evitar caracteres especiales)
+    const nombreValido = /^[a-zA-Z0-9_\-\s\.]+$/.test(archivo.name);
+    if (!nombreValido) {
+        throw new Error('El nombre del archivo contiene caracteres no permitidos. Use solo letras, números, guiones y puntos.');
+    }
+
+    return true;
+}
+
+/**
+ * ✅ FUNCIÓN PARA MOSTRAR PREVIEW DE DOCUMENTO PDF
+ * Muestra información del documento seleccionado
+ */
+function mostrarPreviewDocumento(inputElement, previewContainer) {
+    const archivo = inputElement.files[0];
+    if (!archivo) {
+        previewContainer.innerHTML = '';
+        return;
+    }
+
+    try {
+        validarDocumentoMantenimiento(archivo);
+        
+        const infoHTML = `
+            <div class="documento-preview bg-blue-50 border border-blue-200 rounded p-3 mt-2">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-file-pdf text-red-500 text-xl"></i>
+                    <div class="flex-1">
+                        <p class="font-medium text-blue-800">${archivo.name}</p>
+                        <p class="text-sm text-blue-600">${(archivo.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                    <span class="text-green-500 text-sm">
+                        <i class="fas fa-check-circle"></i> Válido
+                    </span>
+                </div>
+            </div>
+        `;
+        
+        previewContainer.innerHTML = infoHTML;
+
+    } catch (error) {
+        const errorHTML = `
+            <div class="documento-preview bg-red-50 border border-red-200 rounded p-3 mt-2">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                    <div class="flex-1">
+                        <p class="font-medium text-red-800">${archivo.name}</p>
+                        <p class="text-sm text-red-600">${error.message}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        previewContainer.innerHTML = errorHTML;
+        inputElement.value = ''; // Limpiar input
+    }
+}
+
+// Agrega esta función a tu cloudinary.js
+function generarUrlDescargaCloudinary(url, nombreArchivo = '') {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  
+  let downloadUrl = url;
+  
+  // Aplicar transformaciones para forzar descarga
+  if (url.includes('/image/upload/')) {
+    downloadUrl = url.replace('/image/upload/', '/image/upload/fl_attachment/');
+  } else if (url.includes('/raw/upload/')) {
+    downloadUrl = url.replace('/raw/upload/', '/raw/upload/fl_attachment/');
+  }
+  
+  // Agregar nombre de archivo si se proporciona
+  if (nombreArchivo && downloadUrl.includes('/upload/')) {
+    const encodedName = encodeURIComponent(nombreArchivo);
+    downloadUrl = downloadUrl.replace('/upload/', `/upload/${encodedName}/`);
+  }
+  
+  return downloadUrl;
+}
+
 // ✅ EXPORTAR FUNCIONES PARA USO GLOBAL
 if (typeof window !== 'undefined') {
     window.CLOUDINARY_CONFIG = CLOUDINARY_CONFIG;
@@ -282,4 +550,13 @@ if (typeof window !== 'undefined') {
     window.generarUrlMiniatura = generarUrlMiniatura;
     window.mostrarPreviewImagen = mostrarPreviewImagen;
     window.validarArchivo = validarArchivo;
+    
+    // Nuevas funciones específicas para mantenimientos
+    window.subirDocumentoMantenimiento = subirDocumentoMantenimiento;
+    window.descargarDocumentoMantenimiento = descargarDocumentoMantenimiento;
+    window.eliminarArchivoCloudinary = eliminarArchivoCloudinary;
+    window.validarDocumentoMantenimiento = validarDocumentoMantenimiento;
+    window.mostrarPreviewDocumento = mostrarPreviewDocumento;
 }
+
+console.log('✅ Cloudinary.js cargado correctamente con funciones de mantenimiento');

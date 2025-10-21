@@ -266,11 +266,11 @@ async function verPDFInactivo(equipoId) {
 
         // ESPECIFICACIONES TÉCNICAS
         const especificacionesHTML = Object.keys(equipo.campos_personalizados || {}).length > 0 ? `
-            <!-- Especificaciones técnicas -->
+            <!-- Especificaciones -->
             <div class="section no-break">
                 <div class="section-title">
                     <i class="fas fa-cogs"></i>
-                    ESPECIFICACIONES TÉCNICAS
+                    ESPECIFICACIONES
                 </div>
                 <div class="section-content">
                     <div class="info-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">

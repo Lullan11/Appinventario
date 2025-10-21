@@ -483,11 +483,13 @@ function agregarMantenimiento(e) {
     const mantenimiento = {
         id_tipo: parseInt(tipoId),
         tipo_nombre: tipo.nombre,
-        nombre_personalizado: nombrePersonalizado,
+        nombre_personalizado: nombrePersonalizado, // Asegurar que siempre se envía
         intervalo_dias: intervalo,
         fecha_inicio: fechaInicio,
         proxima_fecha: proximaFecha.toISOString().split('T')[0]
     };
+
+    console.log('➕ Mantenimiento a agregar:', mantenimiento); // DEBUG
 
     mantenimientosConfigurados.push(mantenimiento);
     actualizarListaMantenimientos();
@@ -509,13 +511,19 @@ function actualizarListaMantenimientos() {
         return;
     }
 
-    container.innerHTML = mantenimientosConfigurados.map((mant, index) => `
+    container.innerHTML = mantenimientosConfigurados.map((mant, index) => {
+        // Mostrar nombre personalizado o nombre por defecto
+        const nombreDisplay = mant.nombre_personalizado 
+            ? `${mant.tipo_nombre}: ${mant.nombre_personalizado}`
+            : mant.tipo_nombre;
+
+        return `
         <div class="border border-gray-300 rounded p-3 mb-2 bg-white shadow-sm">
             <div class="flex justify-between items-start">
                 <div class="flex-1">
                     <div class="flex items-center gap-2 mb-2">
                         <i class="fas fa-tools text-blue-600"></i>
-                        <strong class="text-gray-800">${mant.tipo_nombre}</strong>
+                        <strong class="text-gray-800">${nombreDisplay}</strong>
                     </div>
                     <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
                         <div><span class="font-medium">Intervalo:</span> ${mant.intervalo_dias} días</div>
@@ -531,7 +539,7 @@ function actualizarListaMantenimientos() {
                 </button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function eliminarMantenimiento(index) {
