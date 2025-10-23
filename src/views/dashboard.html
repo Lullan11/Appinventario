@@ -142,70 +142,72 @@
         </div>
 
         <!-- Tarjetas estadísticas -->
-        <a href="sedes.html">
-          <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="stat-card bg-white rounded-lg p-4 shadow border border-blue-500 cursor-pointer"
-              onclick="navigateToView('sedes')">
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div class="stat-card bg-white rounded-lg p-4 shadow border border-blue-500 cursor-pointer"
+            onclick="navigateToView('sedes')">
+            <a href="sedes.html"></a>
+            <div class="flex items-center justify-between mb-3">
+              <div class="bg-blue-100 p-2 rounded-md">
+                <i class="fas fa-building text-blue-600 text-lg"></i>
+              </div>
+              <i class="fas fa-external-link-alt text-gray-400"></i>
+            </div>
+            <h3 class="text-base font-semibold text-[#0F172A] mb-2">Sedes</h3>
+            <p id="total-sedes" class="text-3xl font-bold text-blue-500">0</p>
+            <p class="text-sm text-gray-600 mt-1">Sedes activas</p>
+            </a>
+          </div>
+
+
+          <a href="areas.html">
+            <div class="stat-card bg-white rounded-lg p-4 shadow border border-green-600 cursor-pointer"
+              onclick="navigateToView('areas')">
               <div class="flex items-center justify-between mb-3">
-                <div class="bg-blue-100 p-2 rounded-md">
-                  <i class="fas fa-building text-blue-600 text-lg"></i>
+                <div class="bg-green-100 p-2 rounded-md">
+                  <i class="fas fa-map-marker-alt text-[#639A33] text-lg"></i>
                 </div>
                 <i class="fas fa-external-link-alt text-gray-400"></i>
               </div>
-              <h3 class="text-base font-semibold text-[#0F172A] mb-2">Sedes</h3>
-              <p id="total-sedes" class="text-3xl font-bold text-blue-500">0</p>
-              <p class="text-sm text-gray-600 mt-1">Sedes activas</p>
+              <h3 class="text-base font-semibold text-[#0F172A] mb-2">Áreas</h3>
+              <p id="total-oficinas" class="text-3xl font-bold text-green-600">0</p>
+              <p class="text-sm text-gray-600 mt-1">Áreas activas</p>
             </div>
-        </a>
+          </a>
 
-        <a href="areas.html">
-          <div class="stat-card bg-white rounded-lg p-4 shadow border border-green-600 cursor-pointer"
-            onclick="navigateToView('areas')">
-            <div class="flex items-center justify-between mb-3">
-              <div class="bg-green-100 p-2 rounded-md">
-                <i class="fas fa-map-marker-alt text-[#639A33] text-lg"></i>
+          <a href="puestos.html">
+            <div class="stat-card bg-white rounded-lg p-4 shadow border border-purple-600 cursor-pointer"
+              onclick="navigateToView('puestos')">
+              <div class="flex items-center justify-between mb-3">
+                <div class="bg-purple-100 p-2 rounded-md">
+                  <i class="fas fa-briefcase text-purple-600 text-lg"></i>
+                </div>
+                <i class="fas fa-external-link-alt text-gray-400"></i>
               </div>
-              <i class="fas fa-external-link-alt text-gray-400"></i>
+              <h3 class="text-base font-semibold text-[#0F172A] mb-2">Puestos</h3>
+              <p id="total-puestos" class="text-3xl font-bold text-purple-600">0</p>
+              <p class="text-sm text-gray-600 mt-1">Puestos activos</p>
             </div>
-            <h3 class="text-base font-semibold text-[#0F172A] mb-2">Áreas</h3>
-            <p id="total-oficinas" class="text-3xl font-bold text-green-600">0</p>
-            <p class="text-sm text-gray-600 mt-1">Áreas activas</p>
-          </div>
-        </a>
+          </a>
 
-        <a href="puestos.html">
-          <div class="stat-card bg-white rounded-lg p-4 shadow border border-purple-600 cursor-pointer"
-            onclick="navigateToView('puestos')">
-            <div class="flex items-center justify-between mb-3">
-              <div class="bg-purple-100 p-2 rounded-md">
-                <i class="fas fa-briefcase text-purple-600 text-lg"></i>
+          <a href="equipos.html">
+            <div class="stat-card bg-white rounded-lg p-4 shadow border border-orange-500 cursor-pointer"
+              onclick="navigateToView('equipos')">
+              <div class="flex items-center justify-between mb-3">
+                <div class="bg-orange-100 p-2 rounded-md">
+                  <i class="fas fa-laptop text-orange-600 text-lg"></i>
+                </div>
+                <i class="fas fa-external-link-alt text-gray-400"></i>
               </div>
-              <i class="fas fa-external-link-alt text-gray-400"></i>
+              <h3 class="text-base font-semibold text-[#0F172A] mb-2">Equipos</h3>
+              <p id="total-equipos" class="text-3xl font-bold text-orange-500">0</p>
+              <p class="text-sm text-gray-600 mt-1">Equipos activos</p>
             </div>
-            <h3 class="text-base font-semibold text-[#0F172A] mb-2">Puestos</h3>
-            <p id="total-puestos" class="text-3xl font-bold text-purple-600">0</p>
-            <p class="text-sm text-gray-600 mt-1">Puestos activos</p>
-          </div>
-        </a>
-
-        <a href="equipos.html">
-          <div class="stat-card bg-white rounded-lg p-4 shadow border border-orange-500 cursor-pointer"
-            onclick="navigateToView('equipos')">
-            <div class="flex items-center justify-between mb-3">
-              <div class="bg-orange-100 p-2 rounded-md">
-                <i class="fas fa-laptop text-orange-600 text-lg"></i>
-              </div>
-              <i class="fas fa-external-link-alt text-gray-400"></i>
-            </div>
-            <h3 class="text-base font-semibold text-[#0F172A] mb-2">Equipos</h3>
-            <p id="total-equipos" class="text-3xl font-bold text-orange-500">0</p>
-            <p class="text-sm text-gray-600 mt-1">Equipos activos</p>
-          </div>
-        </a>
+          </a>
         </section>
 
 
         <!-- Gráficas -->
+        <!-- En tu HTML, corrige esta parte -->
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Barras -->
           <div class="bg-white border rounded-lg p-6 shadow">
@@ -215,7 +217,7 @@
 
           <!-- Circular -->
           <div class="bg-white border rounded-lg p-6 shadow">
-            <h3 class="text-lg font-semibold text-[#0F172A] mb-4">Proporción General</h3>
+            <h3 class="text-lg font-semibold text-[#0F172A] mb-4">Estado de Mantenimientos</h3>
             <canvas id="pieChart"></canvas>
           </div>
         </section>
