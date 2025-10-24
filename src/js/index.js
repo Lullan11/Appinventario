@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("currentUser", JSON.stringify(data.usuario));
         localStorage.setItem("token", data.token);
         mostrarMensaje("✅ Login exitoso, redirigiendo...");
-        setTimeout(() => window.location.href = "./dashboard.html", 1500);
+        setTimeout(() => window.location.href = "/src/views/dashboard.html", 1500);
       } else {
         mostrarMensaje(data.error || "Error al iniciar sesión", true);
       }

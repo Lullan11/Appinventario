@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Si no hay usuario logueado, redirige al login
   if (!currentUser || !currentUser.nombre) {
-    window.location.href = 'index.html';
+    window.location.href = '/index.html';
     return;
   }
 
@@ -29,5 +29,5 @@ document.addEventListener('DOMContentLoaded', () => {
 function logout() {
   localStorage.removeItem('currentUser');
   localStorage.removeItem('token');
-  window.location.href = 'index.html';
+  window.location.href = '/index.html';
 }
