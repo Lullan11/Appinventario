@@ -1,4 +1,4 @@
-// exportar.js - Sistema COMPLETO de exportación Excel
+// exportar.js - Sistema COMPLETO de exportación Excel - MEJORADO
 
 // Configuración API
 const API_URL = "https://inventario-api-gw73.onrender.com";
@@ -15,6 +15,7 @@ const API_EQUIPOS_INACTIVOS = `${API_URL}/equipos/inactivos`;
 // Variables globales
 let sedes = [];
 let areas = [];
+let puestos = [];
 let tiposEquipo = [];
 let tiposMantenimiento = [];
 let equiposData = [];
@@ -78,6 +79,13 @@ async function cargarDatosIniciales() {
             cargarFiltroAreas();
         }
 
+        // Cargar puestos de trabajo
+        const puestosResponse = await fetch(API_PUESTOS);
+        if (puestosResponse.ok) {
+            puestos = await puestosResponse.json();
+            cargarFiltroPuestos();
+        }
+
         // Cargar tipos de equipo
         const tiposResponse = await fetch(API_TIPOS_EQUIPO);
         if (tiposResponse.ok) {
@@ -85,16 +93,24 @@ async function cargarDatosIniciales() {
             cargarFiltroTiposEquipo();
         }
 
-        // Cargar tipos de mantenimiento
+        // Cargar tipos de mantenimiento y filtrar para quitar "CORRECTIVOS"
         const tiposMantResponse = await fetch(API_TIPOS_MANTENIMIENTO);
         if (tiposMantResponse.ok) {
             tiposMantenimiento = await tiposMantResponse.json();
+            // Filtrar para quitar "CORRECTIVOS"
+            tiposMantenimiento = tiposMantenimiento.filter(tipo => 
+                !tipo.nombre.toLowerCase().includes('correctivo')
+            );
             cargarFiltroTiposMantenimiento();
         }
+
+        // Cargar equipos para el filtro de equipos
+        await cargarFiltroEquipos();
 
         console.log('✅ Datos cargados:', {
             sedes: sedes.length,
             areas: areas.length,
+            puestos: puestos.length,
             tiposEquipo: tiposEquipo.length,
             tiposMantenimiento: tiposMantenimiento.length
         });
@@ -122,7 +138,17 @@ function cargarFiltroAreas() {
 
     select.innerHTML = '<option value="">Todas las áreas</option>';
     areas.forEach(area => {
-        select.innerHTML += `<option value="${area.id}">${area.nombre} - ${area.sede_nombre}</option>`;
+        select.innerHTML += `<option value="${area.id}" data-sede="${area.id_sede}">${area.nombre} - ${area.sede_nombre}</option>`;
+    });
+}
+
+function cargarFiltroPuestos() {
+    const select = document.getElementById('filtro-puesto');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Todos los puestos</option>';
+    puestos.forEach(puesto => {
+        select.innerHTML += `<option value="${puesto.id}" data-area="${puesto.id_area}">${puesto.codigo} - ${puesto.nombre}</option>`;
     });
 }
 
@@ -134,6 +160,24 @@ function cargarFiltroTiposEquipo() {
     tiposEquipo.forEach(tipo => {
         select.innerHTML += `<option value="${tipo.id}">${tipo.nombre}</option>`;
     });
+}
+
+async function cargarFiltroEquipos() {
+    const select = document.getElementById('filtro-equipo');
+    if (!select) return;
+
+    try {
+        const response = await fetch(API_EQUIPOS);
+        if (response.ok) {
+            const equipos = await response.json();
+            select.innerHTML = '<option value="">Todos los equipos</option>';
+            equipos.forEach(equipo => {
+                select.innerHTML += `<option value="${equipo.id}" data-puesto="${equipo.id_puesto}" data-area="${equipo.id_area}" data-sede="${equipo.id_sede}">${equipo.codigo_interno} - ${equipo.nombre}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error cargando equipos para filtro:', error);
+    }
 }
 
 function cargarFiltroTiposMantenimiento() {
@@ -158,7 +202,17 @@ function configurarEventos() {
     // Eventos para filtros en cascada
     const filtroSede = document.getElementById('filtro-sede');
     if (filtroSede) {
-        filtroSede.addEventListener('change', actualizarFiltroAreas);
+        filtroSede.addEventListener('change', actualizarFiltroAreasPorSede);
+    }
+
+    const filtroArea = document.getElementById('filtro-area');
+    if (filtroArea) {
+        filtroArea.addEventListener('change', actualizarFiltroPuestosPorArea);
+    }
+
+    const filtroPuesto = document.getElementById('filtro-puesto');
+    if (filtroPuesto) {
+        filtroPuesto.addEventListener('change', actualizarFiltroEquiposPorPuesto);
     }
 
     // Botones de exportación
@@ -205,7 +259,7 @@ function configurarEventos() {
 
 // ========================= FUNCIONES PRINCIPALES DE EXPORTACIÓN =========================
 
-// 1. Exportar Equipos CON CAMPOS PERSONALIZADOS
+// 1. Exportar Equipos CON CAMPOS PERSONALIZADOS Y PUESTOS DE TRABAJO
 async function generarExcelEquipos() {
     const btn = document.getElementById('btn-exportar-equipos');
     if (!btn) return;
@@ -220,19 +274,23 @@ async function generarExcelEquipos() {
         mostrarMensaje('🔄 Generando reporte de equipos...', false);
 
         const filtros = obtenerFiltrosEquipos();
-        const datos = await obtenerEquiposFiltrados(filtros);
+        // Obtener tanto equipos activos como inactivos
+        const datosActivos = await obtenerEquiposFiltrados(filtros);
+        const datosInactivos = await obtenerEquiposInactivosFiltrados(filtros);
+        
+        const datos = [...datosActivos, ...datosInactivos];
         
         if (!datos || datos.length === 0) {
             mostrarMensaje('❌ No hay equipos para exportar con los filtros seleccionados', true);
             return;
         }
 
-        console.log(`📊 Equipos obtenidos: ${datos.length} registros`);
+        console.log(`📊 Equipos obtenidos: ${datos.length} registros (${datosActivos.length} activos, ${datosInactivos.length} inactivos)`);
 
         // Generar Excel con múltiples hojas
         const wb = XLSX.utils.book_new();
         
-        // Hoja 1: Equipos detallados CON CAMPOS PERSONALIZADOS
+        // Hoja 1: Equipos detallados CON CAMPOS PERSONALIZADOS Y PUESTOS
         const wsEquipos = generarHojaEquiposDetallados(datos);
         XLSX.utils.book_append_sheet(wb, wsEquipos, "Equipos Detallados");
         
@@ -246,12 +304,16 @@ async function generarExcelEquipos() {
             XLSX.utils.book_append_sheet(wb, wsMantenimientos, "Mantenimientos Programados");
         }
 
+        // Hoja 4: Especificaciones técnicas
+        const wsEspecificaciones = generarHojaEspecificacionesTecnicas(datos);
+        XLSX.utils.book_append_sheet(wb, wsEspecificaciones, "Especificaciones Técnicas");
+
         // Exportar archivo
         const fecha = new Date().toISOString().split('T')[0];
         const nombreArchivo = `Equipos_IPS_${fecha}.xlsx`;
         XLSX.writeFile(wb, nombreArchivo);
         
-        mostrarMensaje('✅ Reporte de equipos generado correctamente', false);
+        mostrarMensaje(`✅ Reporte de equipos generado correctamente (${datos.length} equipos)`, false);
         console.log('✅ Excel de equipos generado:', nombreArchivo);
 
     } catch (error) {
@@ -263,7 +325,7 @@ async function generarExcelEquipos() {
     }
 }
 
-// 2. Exportar Mantenimientos Programados
+// 2. Exportar Mantenimientos Programados (SIN CORRECTIVOS)
 async function generarExcelMantenimientosProgramados() {
     const btn = document.getElementById('btn-exportar-mantenimientos-programados');
     if (!btn) return;
@@ -278,7 +340,13 @@ async function generarExcelMantenimientosProgramados() {
         mostrarMensaje('🔄 Generando reporte de mantenimientos programados...', false);
 
         const filtros = obtenerFiltrosMantenimientosProgramados();
-        const datos = await obtenerMantenimientosProgramadosFiltrados(filtros);
+        let datos = await obtenerMantenimientosProgramadosFiltrados(filtros);
+        
+        // Filtrar para quitar mantenimientos correctivos
+        datos = datos.filter(mant => {
+            const tipoNombre = mant.tipo_mantenimiento_nombre?.toLowerCase() || '';
+            return !tipoNombre.includes('correctivo');
+        });
         
         if (!datos || datos.length === 0) {
             mostrarMensaje('❌ No hay mantenimientos programados para exportar', true);
@@ -359,7 +427,7 @@ async function generarExcelHistorialMantenimientos() {
 
 // ========================= FUNCIONES DE GENERACIÓN DE HOJAS EXCEL =========================
 
-// Generar hoja de equipos detallados CON CAMPOS PERSONALIZADOS
+// Generar hoja de equipos detallados CON CAMPOS PERSONALIZADOS Y PUESTOS
 function generarHojaEquiposDetallados(datos) {
     // Obtener todos los campos personalizados únicos de todos los equipos
     const todosCamposPersonalizados = new Set();
@@ -375,20 +443,36 @@ function generarHojaEquiposDetallados(datos) {
 
     // Preparar datos para Excel
     const datosExcel = datos.map(equipo => {
+        // Buscar información del puesto si existe
+        let puestoNombre = '';
+        let puestoCodigo = '';
+        
+        if (equipo.id_puesto && puestos.length > 0) {
+            const puesto = puestos.find(p => p.id == equipo.id_puesto);
+            if (puesto) {
+                puestoNombre = puesto.nombre || '';
+                puestoCodigo = puesto.codigo || '';
+            }
+        }
+
         const row = {
             'Código': equipo.codigo_interno || '',
             'Nombre': equipo.nombre || '',
             'Descripción': equipo.descripcion || '',
             'Tipo de Equipo': equipo.tipo_equipo_nombre || '',
-            'Estado': equipo.estado || '',
+            'Estado': equipo.estado || (equipo.fecha_baja ? 'INACTIVO' : 'ACTIVO'),
             'Sede': equipo.sede_nombre || '',
             'Área': equipo.area_nombre || '',
+            'Puesto Código': puestoCodigo,
+            'Puesto Nombre': puestoNombre,
             'Ubicación': equipo.ubicacion || '',
-            'Puesto': equipo.puesto_codigo || '',
             'Responsable': equipo.responsable_nombre || '',
             'Documento Responsable': equipo.responsable_documento || '',
             'Estado Mantenimiento': equipo.estado_mantenimiento || 'SIN_DATOS',
-            'Tiene Imagen': equipo.imagen_url ? 'Sí' : 'No'
+            'Tiene Imagen': equipo.imagen_url ? 'Sí' : 'No',
+            'Fecha Baja': equipo.fecha_baja ? new Date(equipo.fecha_baja).toLocaleDateString() : '',
+            'Motivo Baja': equipo.motivo || '',
+            'Observaciones Baja': equipo.observaciones || ''
         };
         
         // Agregar campos personalizados
@@ -411,12 +495,16 @@ function generarHojaEquiposDetallados(datos) {
         { wch: 12 }, // Estado
         { wch: 20 }, // Sede
         { wch: 20 }, // Área
+        { wch: 15 }, // Puesto Código
+        { wch: 20 }, // Puesto Nombre
         { wch: 15 }, // Ubicación
-        { wch: 15 }, // Puesto
         { wch: 20 }, // Responsable
         { wch: 20 }, // Doc Responsable
         { wch: 18 }, // Estado Mant
-        { wch: 12 }  // Tiene Imagen
+        { wch: 12 }, // Tiene Imagen
+        { wch: 12 }, // Fecha Baja
+        { wch: 20 }, // Motivo Baja
+        { wch: 30 }  // Observaciones Baja
     ];
     
     // Agregar anchos para campos personalizados
@@ -426,6 +514,62 @@ function generarHojaEquiposDetallados(datos) {
     
     ws['!cols'] = columnWidths;
     
+    return ws;
+}
+
+// Generar hoja de especificaciones técnicas
+function generarHojaEspecificacionesTecnicas(datos) {
+    const datosExcel = datos.map(equipo => {
+        // Buscar información del puesto si existe
+        let puestoNombre = '';
+        let puestoCodigo = '';
+        
+        if (equipo.id_puesto && puestos.length > 0) {
+            const puesto = puestos.find(p => p.id == equipo.id_puesto);
+            if (puesto) {
+                puestoNombre = puesto.nombre || '';
+                puestoCodigo = puesto.codigo || '';
+            }
+        }
+
+        return {
+            'Código': equipo.codigo_interno || '',
+            'Nombre': equipo.nombre || '',
+            'Tipo de Equipo': equipo.tipo_equipo_nombre || '',
+            'Sede': equipo.sede_nombre || '',
+            'Área': equipo.area_nombre || '',
+            'Puesto': `${puestoCodigo} - ${puestoNombre}`,
+            'Estado': equipo.estado || (equipo.fecha_baja ? 'INACTIVO' : 'ACTIVO'),
+            'Marca': equipo.marca || 'No especificada',
+            'Modelo': equipo.modelo || 'No especificado',
+            'Número de Serie': equipo.numero_serie || 'No especificado',
+            'Procesador': equipo.procesador || 'No especificado',
+            'RAM': equipo.ram || 'No especificado',
+            'Almacenamiento': equipo.almacenamiento || 'No especificado',
+            'Sistema Operativo': equipo.sistema_operativo || 'No especificado',
+            'IP': equipo.ip || 'No asignada',
+            'MAC': equipo.mac || 'No especificada',
+            'Características Especiales': equipo.caracteristicas_especiales || 'Ninguna',
+            'Fecha de Adquisición': equipo.fecha_adquisicion ? new Date(equipo.fecha_adquisicion).toLocaleDateString() : 'No especificada',
+            'Garantía': equipo.garantia || 'No especificada',
+            'Proveedor': equipo.proveedor || 'No especificado',
+            'Valor': equipo.valor ? `$${parseFloat(equipo.valor).toLocaleString()}` : 'No especificado',
+            'Observaciones': equipo.observaciones || 'Ninguna'
+        };
+    });
+    
+    const ws = XLSX.utils.json_to_sheet(datosExcel);
+    
+    const columnWidths = [
+        { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 20 }, 
+        { wch: 20 }, { wch: 25 }, { wch: 12 }, { wch: 15 }, 
+        { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, 
+        { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, 
+        { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, 
+        { wch: 30 }
+    ];
+    
+    ws['!cols'] = columnWidths;
     return ws;
 }
 
@@ -447,7 +591,7 @@ function generarHojaResumenEquipos(datos, filtros) {
         resumenTipos[tipo] = (resumenTipos[tipo] || 0) + 1;
         
         // Por estado
-        const estado = equipo.estado || 'Sin Estado';
+        const estado = equipo.estado || (equipo.fecha_baja ? 'INACTIVO' : 'ACTIVO');
         resumenEstados[estado] = (resumenEstados[estado] || 0) + 1;
         
         // Por estado de mantenimiento
@@ -462,6 +606,8 @@ function generarHojaResumenEquipos(datos, filtros) {
         ['Fecha de generación:', new Date().toLocaleDateString()],
         ['Hora de generación:', new Date().toLocaleTimeString()],
         ['Total de equipos:', datos.length],
+        ['Equipos activos:', datos.filter(e => !e.fecha_baja).length],
+        ['Equipos inactivos:', datos.filter(e => e.fecha_baja).length],
         ['Filtros aplicados:', obtenerTextoFiltrosEquipos(filtros)],
         [],
         ['RESUMEN POR SEDE'],
@@ -518,6 +664,10 @@ async function generarHojaMantenimientosPorEquipo(datos) {
         for (const equipo of datos) {
             if (equipo.mantenimientos_configurados && equipo.mantenimientos_configurados.length > 0) {
                 equipo.mantenimientos_configurados.forEach(mant => {
+                    // Filtrar mantenimientos correctivos
+                    const tipoNombre = mant.tipo_mantenimiento_nombre?.toLowerCase() || '';
+                    if (tipoNombre.includes('correctivo')) return;
+                    
                     const hoy = new Date();
                     const proxima = new Date(mant.proxima_fecha);
                     const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
@@ -697,7 +847,10 @@ async function generarReporteEstadoMantenimiento() {
     try {
         mostrarMensaje('🔄 Generando reporte de estado de mantenimiento...', false);
         
-        const equipos = await obtenerTodosLosEquipos();
+        const equiposActivos = await obtenerTodosLosEquipos();
+        const equiposInactivos = await obtenerEquiposInactivos();
+        const equipos = [...equiposActivos, ...equiposInactivos];
+        
         const wb = XLSX.utils.book_new();
         
         // Agrupar equipos por estado de mantenimiento
@@ -719,6 +872,10 @@ async function generarReporteEstadoMantenimiento() {
         // Hoja de resumen general
         const wsResumen = generarHojaResumenEstadoMantenimiento(equiposPorEstado);
         XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen General");
+
+        // Hoja de especificaciones técnicas por estado
+        const wsEspecificaciones = generarHojaEspecificacionesPorEstado(equiposPorEstado);
+        XLSX.utils.book_append_sheet(wb, wsEspecificaciones, "Especificaciones por Estado");
         
         const fecha = new Date().toISOString().split('T')[0];
         XLSX.writeFile(wb, `Reporte_Estado_Mantenimiento_${fecha}.xlsx`);
@@ -753,16 +910,70 @@ function generarHojaResumenEstadoMantenimiento(equiposPorEstado) {
     return XLSX.utils.aoa_to_sheet(datosResumen);
 }
 
+function generarHojaEspecificacionesPorEstado(equiposPorEstado) {
+    const datosExcel = [];
+    
+    Object.entries(equiposPorEstado).forEach(([estado, equipos]) => {
+        if (equipos.length > 0) {
+            // Agregar encabezado del estado
+            datosExcel.push([`EQUIPOS CON ESTADO: ${estado}`]);
+            datosExcel.push(['Código', 'Nombre', 'Tipo', 'Sede', 'Área', 'Puesto', 'Marca', 'Modelo', 'Serie', 'Procesador', 'RAM', 'Almacenamiento']);
+            
+            // Agregar equipos de este estado
+            equipos.forEach(equipo => {
+                // Buscar información del puesto si existe
+                let puestoNombre = '';
+                let puestoCodigo = '';
+                
+                if (equipo.id_puesto && puestos.length > 0) {
+                    const puesto = puestos.find(p => p.id == equipo.id_puesto);
+                    if (puesto) {
+                        puestoNombre = puesto.nombre || '';
+                        puestoCodigo = puesto.codigo || '';
+                    }
+                }
+
+                datosExcel.push([
+                    equipo.codigo_interno || '',
+                    equipo.nombre || '',
+                    equipo.tipo_equipo_nombre || '',
+                    equipo.sede_nombre || '',
+                    equipo.area_nombre || '',
+                    `${puestoCodigo} - ${puestoNombre}`,
+                    equipo.marca || 'No especificada',
+                    equipo.modelo || 'No especificado',
+                    equipo.numero_serie || 'No especificado',
+                    equipo.procesador || 'No especificado',
+                    equipo.ram || 'No especificado',
+                    equipo.almacenamiento || 'No especificado'
+                ]);
+            });
+            
+            // Agregar espacio entre estados
+            datosExcel.push([]);
+            datosExcel.push([]);
+        }
+    });
+    
+    return XLSX.utils.aoa_to_sheet(datosExcel);
+}
+
 async function generarReporteMantenimientosSede() {
     try {
         mostrarMensaje('🔄 Generando reporte por sede...', false);
         
         const mantenimientos = await obtenerMantenimientosProgramadosCompletos();
+        // Filtrar correctivos
+        const mantenimientosFiltrados = mantenimientos.filter(mant => {
+            const tipoNombre = mant.tipo_mantenimiento_nombre?.toLowerCase() || '';
+            return !tipoNombre.includes('correctivo');
+        });
+        
         const wb = XLSX.utils.book_new();
         
         // Agrupar por sede
         const mantenimientosPorSede = {};
-        mantenimientos.forEach(mant => {
+        mantenimientosFiltrados.forEach(mant => {
             const sedeNombre = mant.sede_nombre || 'Sin Sede';
             if (!mantenimientosPorSede[sedeNombre]) {
                 mantenimientosPorSede[sedeNombre] = [];
@@ -793,11 +1004,13 @@ async function generarReporteEstadisticas() {
     try {
         mostrarMensaje('🔄 Generando reporte de estadísticas...', false);
         
-        const [equipos, mantenimientos] = await Promise.all([
+        const [equiposActivos, equiposInactivos, mantenimientos] = await Promise.all([
             obtenerTodosLosEquipos(),
+            obtenerEquiposInactivos(),
             obtenerMantenimientosProgramadosCompletos()
         ]);
         
+        const equipos = [...equiposActivos, ...equiposInactivos];
         const wb = XLSX.utils.book_new();
         
         // Hoja de estadísticas generales
@@ -817,17 +1030,24 @@ async function generarReporteEstadisticas() {
 
 function generarHojaEstadisticasGenerales(equipos, mantenimientos) {
     const totalEquipos = equipos.length;
-    const equiposActivos = equipos.filter(e => e.estado === 'activo').length;
-    const equiposInactivos = equipos.filter(e => e.estado === 'inactivo').length;
-    const totalMantenimientos = mantenimientos.length;
+    const equiposActivos = equipos.filter(e => !e.fecha_baja).length;
+    const equiposInactivos = equipos.filter(e => e.fecha_baja).length;
     
-    const mantenimientosVencidos = mantenimientos.filter(m => {
+    // Filtrar mantenimientos correctivos
+    const mantenimientosFiltrados = mantenimientos.filter(mant => {
+        const tipoNombre = mant.tipo_mantenimiento_nombre?.toLowerCase() || '';
+        return !tipoNombre.includes('correctivo');
+    });
+    
+    const totalMantenimientos = mantenimientosFiltrados.length;
+    
+    const mantenimientosVencidos = mantenimientosFiltrados.filter(m => {
         const hoy = new Date();
         const proxima = new Date(m.proxima_fecha);
         return Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24)) <= 0;
     }).length;
     
-    const mantenimientosProximos = mantenimientos.filter(m => {
+    const mantenimientosProximos = mantenimientosFiltrados.filter(m => {
         const hoy = new Date();
         const proxima = new Date(m.proxima_fecha);
         const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
@@ -875,11 +1095,14 @@ async function generarReporteInactivos() {
         
         const wsInactivos = generarHojaEquiposInactivos(equiposInactivos);
         XLSX.utils.book_append_sheet(wb, wsInactivos, "Equipos Inactivos");
+
+        const wsEspecificacionesInactivos = generarHojaEspecificacionesTecnicas(equiposInactivos);
+        XLSX.utils.book_append_sheet(wb, wsEspecificacionesInactivos, "Especificaciones Inactivos");
         
         const fecha = new Date().toISOString().split('T')[0];
         XLSX.writeFile(wb, `Reporte_Equipos_Inactivos_${fecha}.xlsx`);
         
-        mostrarMensaje('✅ Reporte de equipos inactivos generado', false);
+        mostrarMensaje(`✅ Reporte de equipos inactivos generado (${equiposInactivos.length} equipos)`, false);
         
     } catch (error) {
         console.error('❌ Error generando reporte inactivos:', error);
@@ -889,6 +1112,18 @@ async function generarReporteInactivos() {
 
 function generarHojaEquiposInactivos(datos) {
     const datosExcel = datos.map(equipo => {
+        // Buscar información del puesto si existe
+        let puestoNombre = '';
+        let puestoCodigo = '';
+        
+        if (equipo.id_puesto && puestos.length > 0) {
+            const puesto = puestos.find(p => p.id == equipo.id_puesto);
+            if (puesto) {
+                puestoNombre = puesto.nombre || '';
+                puestoCodigo = puesto.codigo || '';
+            }
+        }
+
         return {
             'Código': equipo.codigo_interno || '',
             'Nombre': equipo.nombre || '',
@@ -896,6 +1131,8 @@ function generarHojaEquiposInactivos(datos) {
             'Tipo de Equipo': equipo.tipo_equipo_nombre || '',
             'Sede': equipo.sede_nombre || '',
             'Área': equipo.area_nombre || '',
+            'Puesto Código': puestoCodigo,
+            'Puesto Nombre': puestoNombre,
             'Ubicación': equipo.ubicacion || '',
             'Responsable': equipo.responsable_nombre || '',
             'Motivo Baja': equipo.motivo || '',
@@ -910,7 +1147,8 @@ function generarHojaEquiposInactivos(datos) {
     const columnWidths = [
         { wch: 15 }, { wch: 25 }, { wch: 30 }, { wch: 20 }, 
         { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, 
-        { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 20 }
+        { wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 30 }, 
+        { wch: 15 }, { wch: 20 }
     ];
     
     ws['!cols'] = columnWidths;
@@ -924,6 +1162,8 @@ function obtenerFiltrosEquipos() {
     return {
         sede: document.getElementById('filtro-sede')?.value || '',
         area: document.getElementById('filtro-area')?.value || '',
+        puesto: document.getElementById('filtro-puesto')?.value || '',
+        equipo: document.getElementById('filtro-equipo')?.value || '',
         tipo: document.getElementById('filtro-tipo')?.value || '',
         estado: document.getElementById('filtro-estado')?.value || '',
         estadoMantenimiento: document.getElementById('filtro-estado-mantenimiento')?.value || '',
@@ -953,13 +1193,15 @@ function obtenerFiltrosHistorialMantenimientos() {
 async function obtenerEquiposFiltrados(filtros) {
     try {
         const response = await fetch(API_EQUIPOS);
-        if (!response.ok) throw new Error('Error obteniendo equipos');
+        if (!response.ok) throw new Error('Error obteniendo equipos activos');
         let equipos = await response.json();
         
         // Aplicar filtros
         return equipos.filter(equipo => {
             if (filtros.sede && equipo.id_sede != filtros.sede) return false;
             if (filtros.area && equipo.id_area != filtros.area) return false;
+            if (filtros.puesto && equipo.id_puesto != filtros.puesto) return false;
+            if (filtros.equipo && equipo.id != filtros.equipo) return false;
             if (filtros.tipo && equipo.id_tipo_equipo != filtros.tipo) return false;
             if (filtros.estado && equipo.estado !== filtros.estado) return false;
             if (filtros.estadoMantenimiento && equipo.estado_mantenimiento !== filtros.estadoMantenimiento) return false;
@@ -969,7 +1211,30 @@ async function obtenerEquiposFiltrados(filtros) {
             return true;
         });
     } catch (error) {
-        console.error('Error obteniendo equipos:', error);
+        console.error('Error obteniendo equipos activos:', error);
+        throw error;
+    }
+}
+
+async function obtenerEquiposInactivosFiltrados(filtros) {
+    try {
+        const response = await fetch(API_EQUIPOS_INACTIVOS);
+        if (!response.ok) throw new Error('Error obteniendo equipos inactivos');
+        let equipos = await response.json();
+        
+        // Aplicar filtros a equipos inactivos
+        return equipos.filter(equipo => {
+            if (filtros.sede && equipo.id_sede != filtros.sede) return false;
+            if (filtros.area && equipo.id_area != filtros.area) return false;
+            if (filtros.puesto && equipo.id_puesto != filtros.puesto) return false;
+            if (filtros.equipo && equipo.id != filtros.equipo) return false;
+            if (filtros.tipo && equipo.id_tipo_equipo != filtros.tipo) return false;
+            // Para equipos inactivos, el filtro de estado siempre debe coincidir con "inactivo"
+            if (filtros.estado && filtros.estado !== 'inactivo') return false;
+            return true;
+        });
+    } catch (error) {
+        console.error('Error obteniendo equipos inactivos:', error);
         throw error;
     }
 }
@@ -1126,6 +1391,21 @@ function obtenerTextoFiltrosEquipos(filtros) {
         if (area) textos.push(`Área: ${area.nombre}`);
     }
     
+    if (filtros.puesto) {
+        const puesto = puestos.find(p => p.id == filtros.puesto);
+        if (puesto) textos.push(`Puesto: ${puesto.codigo} - ${puesto.nombre}`);
+    }
+    
+    if (filtros.equipo) {
+        const equipoSelect = document.getElementById('filtro-equipo');
+        if (equipoSelect) {
+            const selectedOption = equipoSelect.options[equipoSelect.selectedIndex];
+            if (selectedOption && selectedOption.text) {
+                textos.push(`Equipo: ${selectedOption.text}`);
+            }
+        }
+    }
+    
     if (filtros.tipo) {
         const tipo = tiposEquipo.find(t => t.id == filtros.tipo);
         if (tipo) textos.push(`Tipo: ${tipo.nombre}`);
@@ -1160,6 +1440,17 @@ function actualizarInfoFiltros() {
                     if (key === 'area' && value) {
                         const area = areas.find(a => a.id == value);
                         return area ? `Área: ${area.nombre}` : '';
+                    }
+                    if (key === 'puesto' && value) {
+                        const puesto = puestos.find(p => p.id == value);
+                        return puesto ? `Puesto: ${puesto.codigo}` : '';
+                    }
+                    if (key === 'equipo' && value) {
+                        const equipoSelect = document.getElementById('filtro-equipo');
+                        if (equipoSelect) {
+                            const selectedOption = equipoSelect.options[equipoSelect.selectedIndex];
+                            return selectedOption ? `Equipo: ${selectedOption.text.split(' - ')[0]}` : '';
+                        }
                     }
                     if (key === 'tipo' && value) {
                         const tipo = tiposEquipo.find(t => t.id == value);
@@ -1202,9 +1493,11 @@ function limpiarFiltros() {
 }
 
 // Actualizar áreas según sede
-function actualizarFiltroAreas() {
+function actualizarFiltroAreasPorSede() {
     const sedeId = document.getElementById('filtro-sede').value;
     const areaSelect = document.getElementById('filtro-area');
+    const puestoSelect = document.getElementById('filtro-puesto');
+    const equipoSelect = document.getElementById('filtro-equipo');
     
     if (!areaSelect) return;
 
@@ -1218,6 +1511,74 @@ function actualizarFiltroAreas() {
     } else {
         areas.forEach(area => {
             areaSelect.innerHTML += `<option value="${area.id}">${area.nombre} - ${area.sede_nombre}</option>`;
+        });
+    }
+    
+    // Limpiar puestos y equipos cuando cambia la sede
+    if (puestoSelect) {
+        puestoSelect.innerHTML = '<option value="">Todos los puestos</option>';
+    }
+    if (equipoSelect) {
+        actualizarFiltroEquiposPorPuesto();
+    }
+}
+
+// Actualizar puestos según área
+function actualizarFiltroPuestosPorArea() {
+    const areaId = document.getElementById('filtro-area').value;
+    const puestoSelect = document.getElementById('filtro-puesto');
+    const equipoSelect = document.getElementById('filtro-equipo');
+    
+    if (!puestoSelect) return;
+
+    puestoSelect.innerHTML = '<option value="">Todos los puestos</option>';
+    
+    if (areaId) {
+        const puestosFiltrados = puestos.filter(puesto => puesto.id_area == areaId);
+        puestosFiltrados.forEach(puesto => {
+            puestoSelect.innerHTML += `<option value="${puesto.id}">${puesto.codigo} - ${puesto.nombre}</option>`;
+        });
+    } else {
+        puestos.forEach(puesto => {
+            puestoSelect.innerHTML += `<option value="${puesto.id}">${puesto.codigo} - ${puesto.nombre}</option>`;
+        });
+    }
+    
+    // Actualizar equipos cuando cambia el área
+    if (equipoSelect) {
+        actualizarFiltroEquiposPorPuesto();
+    }
+}
+
+// Actualizar equipos según puesto
+function actualizarFiltroEquiposPorPuesto() {
+    const puestoId = document.getElementById('filtro-puesto').value;
+    const equipoSelect = document.getElementById('filtro-equipo');
+    
+    if (!equipoSelect) return;
+
+    // Si hay un puesto seleccionado, filtrar equipos por ese puesto
+    if (puestoId) {
+        const options = Array.from(equipoSelect.options);
+        options.forEach(option => {
+            if (option.value === "") {
+                option.style.display = ''; // Mostrar "Todos los equipos"
+            } else {
+                const dataPuesto = option.getAttribute('data-puesto');
+                if (dataPuesto == puestoId) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            }
+        });
+        // Seleccionar "Todos los equipos" por defecto
+        equipoSelect.selectedIndex = 0;
+    } else {
+        // Mostrar todos los equipos
+        const options = Array.from(equipoSelect.options);
+        options.forEach(option => {
+            option.style.display = '';
         });
     }
 }
