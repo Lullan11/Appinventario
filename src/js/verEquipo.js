@@ -856,7 +856,7 @@ function obtenerUrlPublica() {
   try {
     // Puedes cambiar esto por tu dominio real cuando lo tengas
     const baseUrl = window.location.origin;
-    return `${baseUrl}https://lullan11.github.io/Appinventario/src/views/ver-equipo-publico.html?id=${currentEquipo.id}`;
+    return `${baseUrl}/Appinventario/src/views/ver-equipo-publico.html?id=${currentEquipo.id}`;
   } catch (error) {
     console.warn('Error obteniendo URL pública:', error);
     return null;

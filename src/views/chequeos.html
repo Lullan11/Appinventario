@@ -14,6 +14,8 @@
     <!-- Incluir jsPDF para generación de PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- Agregar esta línea después de jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 
     <!-- Fuente moderna (Google Fonts - Poppins) -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -66,6 +68,20 @@
             background-color: #f7fee7;
         }
 
+        .tipo-informe-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .tipo-informe-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .tipo-informe-card.selected {
+            border-color: #3B82F6;
+            background-color: #EFF6FF;
+        }
+
         /* Indicador de navegación activa */
         .nav-indicator {
             position: absolute;
@@ -93,6 +109,41 @@
 
         .pdf-actions button:hover {
             transform: translateY(-1px);
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: black;
         }
     </style>
 </head>
@@ -477,8 +528,7 @@
                                                         <input type="checkbox" id="equipo-organos"
                                                             class="h-5 w-5 text-[#01983B] focus:ring-[#01983B] rounded">
                                                         <label for="equipo-organos"
-                                                            class="text-gray-700 font-medium">Equipo de Órganos de los
-                                                            Sentidos</label>
+                                                            class="text-gray-700 font-medium">Equipo de Órganos</label>
                                                     </div>
                                                     <div class="flex space-x-2">
                                                         <select
@@ -632,6 +682,75 @@
                     <!-- Tab: Historial de Chequeos - ACTUALIZADO CON NUEVAS ACCIONES -->
                     <div id="tab-historial-chequeos" class="tab-panel hidden">
                         <section class="space-y-6">
+
+                            <!-- AGREGAR ESTO DENTRO DEL TAB HISTORIAL-CHEQUEOS, DESPUÉS DEL FORMULARIO EXISTENTE -->
+                            <div class="bg-gray-50 border border-blue-500 p-6 rounded-xl shadow mt-6">
+                                <h3 class="text-xl font-semibold text-blue-600 mb-4">
+                                    <i class="fas fa-file-alt mr-2"></i>Generar Informes Mensuales Completos
+                                </h3>
+
+                                <div class="space-y-6">
+                                    <!-- Selección de tipo de informe completo -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-3">Tipo de Informe
+                                            Completo</label>
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div class="tipo-informe-card bg-white p-4 rounded-lg border border-gray-200 text-center cursor-pointer"
+                                                data-tipo="todos-consultorios">
+                                                <i class="fas fa-door-closed text-3xl text-blue-500 mb-2"></i>
+                                                <h4 class="font-semibold text-gray-800">Todos los Consultorios</h4>
+                                                <p class="text-gray-600 text-sm mt-1">Incluye todos los consultorios del
+                                                    mes</p>
+                                            </div>
+                                            <div class="tipo-informe-card bg-white p-4 rounded-lg border border-gray-200 text-center cursor-pointer"
+                                                data-tipo="todas-areas">
+                                                <i class="fas fa-microscope text-3xl text-green-500 mb-2"></i>
+                                                <h4 class="font-semibold text-gray-800">Todas las Áreas</h4>
+                                                <p class="text-gray-600 text-sm mt-1">Incluye todas las áreas especiales
+                                                    del mes</p>
+                                            </div>
+                                            <div class="tipo-informe-card bg-white p-4 rounded-lg border border-gray-200 text-center cursor-pointer selected"
+                                                data-tipo="completo">
+                                                <i class="fas fa-clipboard-list text-3xl text-purple-500 mb-2"></i>
+                                                <h4 class="font-semibold text-gray-800">Informe Completo</h4>
+                                                <p class="text-gray-600 text-sm mt-1">Consultorios + Áreas del mes</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Filtros de fecha para informes completos -->
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Mes</label>
+                                            <select id="select-mes-informe-completo"
+                                                class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Año</label>
+                                            <select id="select-anio-informe-completo"
+                                                class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Información del informe seleccionado -->
+                                    <div id="info-informe-completo"
+                                        class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <h4 class="font-semibold text-blue-800 mb-2" id="titulo-informe-completo"></h4>
+                                        <p class="text-blue-600 text-sm" id="descripcion-informe-completo"></p>
+                                    </div>
+                                </div>
+
+                                <div class="mt-6 flex justify-end">
+                                    <button onclick="generarInformeMensualCompleto()"
+                                        class="bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2">
+                                        <i class="fas fa-download mr-2"></i>Generar Informe Completo PDF
+                                    </button>
+                                </div>
+                            </div>
+
+
                             <!-- Formulario para generar informes mensuales -->
                             <div class="bg-gray-50 border border-purple-500 p-6 rounded-xl shadow">
                                 <h3 class="text-xl font-semibold text-purple-600 mb-4">
@@ -643,7 +762,8 @@
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
                                         <div class="flex space-x-4">
                                             <label class="flex items-center">
-                                                <input type="radio" name="tipo-informe" value="consultorio" class="mr-2" checked>
+                                                <input type="radio" name="tipo-informe" value="consultorio" class="mr-2"
+                                                    checked>
                                                 Consultorio
                                             </label>
                                             <label class="flex items-center">
@@ -661,17 +781,26 @@
                                     </div>
 
                                     <div id="area-informe-container" class="hidden">
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Área Especial</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Área
+                                            Especial</label>
                                         <select id="select-area-informe"
                                             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
                                         </select>
                                     </div>
 
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Mes</label>
-                                        <select id="select-mes-informe"
-                                            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
-                                        </select>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Mes</label>
+                                            <select id="select-mes-informe"
+                                                class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Año</label>
+                                            <select id="select-anio-informe"
+                                                class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -718,6 +847,15 @@
             </footer>
         </main>
     </div>
+
+    <!-- Modal para previsualizar PDF -->
+    <div id="pdfModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <iframe id="pdfViewer" style="width:100%; height:600px; border:none;"></iframe>
+        </div>
+    </div>
+
 
     <script src="../js/auth.js"></script>
     <script src="../js/navegacion.js"></script>
