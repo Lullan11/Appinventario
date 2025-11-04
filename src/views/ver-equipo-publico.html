@@ -104,11 +104,55 @@
         // Obtener ID de la URL
         const urlParams = new URLSearchParams(window.location.search);
         const equipoId = urlParams.get('id');
+        
+        // Variable global para tipos de equipo
+        let tiposEquipo = [];
 
         if (equipoId) {
-            cargarInformacionEquipo(equipoId);
+            cargarTiposEquipo().then(() => {
+                cargarInformacionEquipo(equipoId);
+            });
         } else {
             mostrarError('No se proporcionó un ID de equipo válido.');
+        }
+
+        // Cargar tipos de equipo primero
+        async function cargarTiposEquipo() {
+            try {
+                const response = await fetch('https://inventario-api-gw73.onrender.com/tipos-equipo');
+                if (response.ok) {
+                    tiposEquipo = await response.json();
+                    console.log('✅ Tipos de equipo cargados:', tiposEquipo);
+                } else {
+                    console.warn('No se pudieron cargar los tipos de equipo');
+                }
+            } catch (error) {
+                console.warn('Error cargando tipos de equipo:', error);
+            }
+        }
+
+        // Obtener nombre del tipo de equipo
+        function obtenerNombreTipoEquipo(equipo) {
+            // Primero intentar con el campo directo
+            if (equipo.tipo_equipo_nombre) {
+                return equipo.tipo_equipo_nombre;
+            }
+            
+            // Luego buscar en los tipos cargados
+            if (equipo.id_tipo_equipo && tiposEquipo.length > 0) {
+                const tipo = tiposEquipo.find(t => t.id == equipo.id_tipo_equipo);
+                if (tipo) {
+                    return tipo.nombre;
+                }
+            }
+            
+            // Finalmente usar tipo_nombre si existe
+            if (equipo.tipo_nombre) {
+                return equipo.tipo_nombre;
+            }
+            
+            // Si no hay nada, mostrar ID o mensaje
+            return equipo.id_tipo_equipo ? `ID ${equipo.id_tipo_equipo}` : 'No especificado';
         }
 
         async function cargarInformacionEquipo(id) {
@@ -117,6 +161,7 @@
                 if (!response.ok) throw new Error('No se pudo cargar el equipo');
                 
                 const equipo = await response.json();
+                console.log('📊 Datos del equipo recibidos:', equipo); // Para debugging
                 mostrarInformacionEquipo(equipo);
             } catch (error) {
                 mostrarError('No se pudo cargar la información del equipo: ' + error.message);
@@ -133,6 +178,9 @@
                 '<div class="imagen-section" style="text-align: center; color: #888; padding: 20px;">📷 Sin imagen disponible</div>';
 
             const ubicacionCompleta = construirUbicacionCompleta(equipo);
+            
+            // Obtener el tipo de equipo - USANDO LA MISMA LÓGICA QUE TU OTRO CÓDIGO
+            const tipoNombre = obtenerNombreTipoEquipo(equipo);
 
             document.getElementById('equipo-content').innerHTML = `
                 ${imagenHTML}
@@ -157,6 +205,10 @@
                             <span class="etiqueta">👤 Responsable:</span>
                             <span class="valor">${equipo.responsable_nombre || 'No asignado'}</span>
                         </div>
+                        <div class="campo">
+                            <span class="etiqueta">📄 Documento:</span>
+                            <span class="valor">${equipo.responsable_documento || 'No asignado'}</span>
+                        </div>
                     </div>
                     
                     <div class="info-card">
@@ -168,7 +220,7 @@
                         </div>
                         <div class="campo">
                             <span class="etiqueta">📊 Tipo:</span>
-                            <span class="valor">${equipo.tipoNombre || 'No especificado'}</span>
+                            <span class="valor">${tipoNombre}</span>
                         </div>
                         <div class="campo">
                             <span class="etiqueta">⚡ Estado:</span>
@@ -180,6 +232,8 @@
                         </div>
                     </div>
                 </div>
+
+                ${mostrarEspecificacionesTecnicas(equipo)}
 
                 <div class="footer">
                     <p>🕐 Generado el: ${new Date().toLocaleDateString('es-ES')}</p>
@@ -195,20 +249,60 @@
         function construirUbicacionCompleta(equipo) {
             if (!equipo) return "-";
             
-            if (equipo.ubicacion === "puesto") {
-                const partes = [];
-                if (equipo.puesto_codigo) partes.push(`Puesto: ${equipo.puesto_codigo}`);
-                if (equipo.area_nombre) partes.push(`Área: ${equipo.area_nombre}`);
-                if (equipo.sede_nombre) partes.push(`Sede: ${equipo.sede_nombre}`);
-                return partes.length > 0 ? partes.join(' - ') : 'Puesto (sin detalles)';
-            } else if (equipo.ubicacion === "area") {
-                const partes = ['Área'];
-                if (equipo.area_nombre) partes.push(equipo.area_nombre);
-                if (equipo.sede_nombre) partes.push(`Sede: ${equipo.sede_nombre}`);
-                return partes.length > 1 ? partes.join(' - ') : 'Área (sin detalles)';
-            } else {
-                return equipo.ubicacion || "-";
+            const partes = [];
+            
+            // Agregar información de sede
+            if (equipo.sede_nombre) {
+                partes.push(`Sede: ${equipo.sede_nombre}`);
             }
+            
+            // Agregar información de área
+            if (equipo.area_nombre) {
+                partes.push(`Área: ${equipo.area_nombre}`);
+            }
+            
+            // Agregar información de puesto si existe
+            if (equipo.ubicacion === "puesto" && equipo.puesto_codigo) {
+                partes.push(`Puesto: ${equipo.puesto_codigo}`);
+                if (equipo.puesto_nombre) {
+                    partes[partes.length - 1] += ` (${equipo.puesto_nombre})`;
+                }
+            }
+            
+            // Si no hay información específica, mostrar el tipo de ubicación
+            if (partes.length === 0) {
+                return equipo.ubicacion ? `${equipo.ubicacion.charAt(0).toUpperCase() + equipo.ubicacion.slice(1)} (sin detalles)` : 'No especificada';
+            }
+            
+            return partes.join(' - ');
+        }
+
+        function mostrarEspecificacionesTecnicas(equipo) {
+            const camposPersonalizados = equipo.campos_personalizados || {};
+            const camposArray = Object.entries(camposPersonalizados);
+            
+            if (camposArray.length === 0) {
+                return '';
+            }
+            
+            const especificacionesHTML = camposArray.map(([clave, valor]) => {
+                if (!valor) return '';
+                return `
+                    <div class="campo">
+                        <span class="etiqueta">🔧 ${clave}:</span>
+                        <span class="valor">${valor}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            if (!especificacionesHTML) return '';
+            
+            return `
+                <div class="info-card">
+                    <h3 style="margin-bottom: 15px; color: #2d3748; border-bottom: 2px solid #639A33; padding-bottom: 8px;">⚙️ Especificaciones Técnicas</h3>
+                    ${especificacionesHTML}
+                </div>
+            `;
         }
 
         function mostrarError(mensaje) {

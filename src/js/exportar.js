@@ -148,17 +148,21 @@ function cargarFiltroPuestos() {
 
     select.innerHTML = '<option value="">Todos los puestos</option>';
     puestos.forEach(puesto => {
-        select.innerHTML += `<option value="${puesto.id}" data-area="${puesto.id_area}">${puesto.codigo} - ${puesto.nombre}</option>`;
-    });
-}
-
-function cargarFiltroTiposEquipo() {
-    const select = document.getElementById('filtro-tipo');
-    if (!select) return;
-
-    select.innerHTML = '<option value="">Todos los tipos</option>';
-    tiposEquipo.forEach(tipo => {
-        select.innerHTML += `<option value="${tipo.id}">${tipo.nombre}</option>`;
+        // Buscar información del área del puesto
+        const area = areas.find(a => a.id == puesto.id_area);
+        
+        if (area) {
+            // Usar la información del área que ya tiene sede_nombre
+            const sedeNombre = area.sede_nombre || 'Sin Sede';
+            const areaNombre = area.nombre || 'Sin Área';
+            
+            const ubicacionCompleta = `${sedeNombre} > ${areaNombre}`;
+            
+            select.innerHTML += `<option value="${puesto.id}" data-area="${puesto.id_area}" data-sede="${area.id_sede}">${puesto.codigo} (${ubicacionCompleta})</option>`;
+        } else {
+            // Si no se encuentra el área, mostrar información básica
+            select.innerHTML += `<option value="${puesto.id}" data-area="${puesto.id_area}">${puesto.codigo} (Sin Área)</option>`;
+        }
     });
 }
 
@@ -172,12 +176,40 @@ async function cargarFiltroEquipos() {
             const equipos = await response.json();
             select.innerHTML = '<option value="">Todos los equipos</option>';
             equipos.forEach(equipo => {
-                select.innerHTML += `<option value="${equipo.id}" data-puesto="${equipo.id_puesto}" data-area="${equipo.id_area}" data-sede="${equipo.id_sede}">${equipo.codigo_interno} - ${equipo.nombre}</option>`;
+                // Usar directamente la información del equipo que ya tiene sede_nombre y area_nombre
+                const sedeNombre = equipo.sede_nombre || 'Sin Sede';
+                const areaNombre = equipo.area_nombre || 'Sin Área';
+                
+                // Buscar información del puesto
+                let puestoInfo = '';
+                if (equipo.id_puesto && puestos.length > 0) {
+                    const puesto = puestos.find(p => p.id == equipo.id_puesto);
+                    if (puesto) {
+                        puestoInfo = `${puesto.codigo}`;
+                    }
+                }
+                
+                const ubicacionCompleta = `${sedeNombre} > ${areaNombre}`;
+                const textoCompleto = puestoInfo 
+                    ? `${equipo.codigo_interno} - ${equipo.nombre} (${puestoInfo} | ${ubicacionCompleta})`
+                    : `${equipo.codigo_interno} - ${equipo.nombre} (${ubicacionCompleta})`;
+                
+                select.innerHTML += `<option value="${equipo.id}" data-puesto="${equipo.id_puesto}" data-area="${equipo.id_area}" data-sede="${equipo.id_sede}">${textoCompleto}</option>`;
             });
         }
     } catch (error) {
         console.error('Error cargando equipos para filtro:', error);
     }
+}
+
+function cargarFiltroTiposEquipo() {
+    const select = document.getElementById('filtro-tipo');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Todos los tipos</option>';
+    tiposEquipo.forEach(tipo => {
+        select.innerHTML += `<option value="${tipo.id}">${tipo.nombre}</option>`;
+    });
 }
 
 function cargarFiltroTiposMantenimiento() {
@@ -1443,7 +1475,7 @@ function actualizarInfoFiltros() {
                     }
                     if (key === 'puesto' && value) {
                         const puesto = puestos.find(p => p.id == value);
-                        return puesto ? `Puesto: ${puesto.codigo}` : '';
+                        return puesto ? `Puesto: ${puesto.codigo} - ${puesto.nombre}` : '';
                     }
                     if (key === 'equipo' && value) {
                         const equipoSelect = document.getElementById('filtro-equipo');
@@ -1488,6 +1520,9 @@ function limpiarFiltros() {
             input.value = '';
         }
     });
+    // Recargar los filtros para restaurar la ubicación completa
+    cargarFiltroPuestos();
+    cargarFiltroEquipos();
     actualizarInfoFiltros();
     mostrarMensaje('✅ Filtros limpiados', false);
 }
@@ -1504,25 +1539,33 @@ function actualizarFiltroAreasPorSede() {
     areaSelect.innerHTML = '<option value="">Todas las áreas</option>';
     
     if (sedeId) {
+        // Filtrar áreas que pertenecen a la sede seleccionada
         const areasFiltradas = areas.filter(area => area.id_sede == sedeId);
         areasFiltradas.forEach(area => {
-            areaSelect.innerHTML += `<option value="${area.id}">${area.nombre}</option>`;
+            areaSelect.innerHTML += `<option value="${area.id}">${area.nombre} - ${area.sede_nombre}</option>`;
         });
+        
+        console.log(`📍 Áreas filtradas para sede ${sedeId}:`, areasFiltradas.length);
     } else {
+        // Mostrar todas las áreas con información de sede
         areas.forEach(area => {
             areaSelect.innerHTML += `<option value="${area.id}">${area.nombre} - ${area.sede_nombre}</option>`;
         });
     }
     
-    // Limpiar puestos y equipos cuando cambia la sede
+    // Limpiar y actualizar puestos y equipos
     if (puestoSelect) {
-        puestoSelect.innerHTML = '<option value="">Todos los puestos</option>';
+        actualizarFiltroPuestosPorArea(); // Llamar para actualizar puestos
     }
+    
     if (equipoSelect) {
-        actualizarFiltroEquiposPorPuesto();
+        actualizarFiltroEquiposPorPuesto(); // Llamar para actualizar equipos
     }
+    
+    actualizarInfoFiltros();
 }
 
+// Actualizar puestos según área
 // Actualizar puestos según área
 function actualizarFiltroPuestosPorArea() {
     const areaId = document.getElementById('filtro-area').value;
@@ -1536,11 +1579,29 @@ function actualizarFiltroPuestosPorArea() {
     if (areaId) {
         const puestosFiltrados = puestos.filter(puesto => puesto.id_area == areaId);
         puestosFiltrados.forEach(puesto => {
-            puestoSelect.innerHTML += `<option value="${puesto.id}">${puesto.codigo} - ${puesto.nombre}</option>`;
+            // Buscar información del área del puesto
+            const area = areas.find(a => a.id == puesto.id_area);
+            if (area) {
+                const sedeNombre = area.sede_nombre || 'Sin Sede';
+                const areaNombre = area.nombre || 'Sin Área';
+                const ubicacionCompleta = `${sedeNombre} > ${areaNombre}`;
+                puestoSelect.innerHTML += `<option value="${puesto.id}" data-area="${puesto.id_area}" data-sede="${area.id_sede}">${puesto.codigo} (${ubicacionCompleta})</option>`;
+            } else {
+                puestoSelect.innerHTML += `<option value="${puesto.id}" data-area="${puesto.id_area}">${puesto.codigo} (Sin Área)</option>`;
+            }
         });
     } else {
+        // Mostrar todos los puestos con ubicación completa
         puestos.forEach(puesto => {
-            puestoSelect.innerHTML += `<option value="${puesto.id}">${puesto.codigo} - ${puesto.nombre}</option>`;
+            const area = areas.find(a => a.id == puesto.id_area);
+            if (area) {
+                const sedeNombre = area.sede_nombre || 'Sin Sede';
+                const areaNombre = area.nombre || 'Sin Área';
+                const ubicacionCompleta = `${sedeNombre} > ${areaNombre}`;
+                puestoSelect.innerHTML += `<option value="${puesto.id}" data-area="${puesto.id_area}" data-sede="${area.id_sede}">${puesto.codigo} (${ubicacionCompleta})</option>`;
+            } else {
+                puestoSelect.innerHTML += `<option value="${puesto.id}" data-area="${puesto.id_area}">${puesto.codigo} (Sin Área)</option>`;
+            }
         });
     }
     
