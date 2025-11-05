@@ -1,0 +1,71 @@
+.kardex-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.kardex-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+.kardex-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.kardex-form input,
+.kardex-form select {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.kardex-form button {
+  background: #639a33;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+.kardex-form button:hover {
+  background: #4e7b2a;
+}
+
+.kardex-subtitle {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: #0f172a;
+}
+
+#tabla-kardex {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#tabla-kardex th,
+#tabla-kardex td {
+  border: 1px solid #e5e7eb;
+  text-align: center;
+  padding: 8px;
+}
+
+#tabla-kardex th {
+  background-color: #0f172a;
+  color: white;
+}
+
+#tabla-kardex tr:nth-child(even) {
+  background-color: #f9fafb;
+}

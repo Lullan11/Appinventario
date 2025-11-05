@@ -477,19 +477,42 @@ function agregarMantenimiento(e) {
     const tipo = tiposMantenimiento.find(t => t.id == tipoId);
     if (!tipo) return;
 
-    const proximaFecha = new Date(fechaInicio);
-    proximaFecha.setDate(proximaFecha.getDate() + intervalo);
+    // ✅ CORRECCIÓN: Calcular próxima fecha CONTANDO DESDE EL MISMO DÍA
+    // Si intervalo es 90 días, debe ser: fecha_inicio + 89 días (porque cuenta el día 1 como el día que ingresaste)
+    const [year, month, day] = fechaInicio.split('-').map(Number);
+    
+    // Crear fecha local (sin problemas de UTC)
+    const fechaBase = new Date(year, month - 1, day);
+    
+    // ✅ CORRECCIÓN IMPORTANTE: Restar 1 día al intervalo porque el primer día YA CUENTA
+    // Ejemplo: Si pones 11/02/2026 y 90 días, la próxima será 11/02/2026 + 89 días = 11/05/2026
+    const diasReales = intervalo - 1;
+    
+    // Calcular próxima fecha sumando los días reales
+    const proximaFecha = new Date(fechaBase);
+    proximaFecha.setDate(proximaFecha.getDate() + diasReales);
+    
+    // Formatear a YYYY-MM-DD sin cambios de huso horario
+    const proximaYear = proximaFecha.getFullYear();
+    const proximaMonth = String(proximaFecha.getMonth() + 1).padStart(2, '0');
+    const proximaDay = String(proximaFecha.getDate()).padStart(2, '0');
+    const proximaFechaStr = `${proximaYear}-${proximaMonth}-${proximaDay}`;
 
     const mantenimiento = {
         id_tipo: parseInt(tipoId),
         tipo_nombre: tipo.nombre,
-        nombre_personalizado: nombrePersonalizado, // Asegurar que siempre se envía
+        nombre_personalizado: nombrePersonalizado,
         intervalo_dias: intervalo,
-        fecha_inicio: fechaInicio,
-        proxima_fecha: proximaFecha.toISOString().split('T')[0]
+        fecha_inicio: fechaInicio, // ✅ Fecha exacta del usuario
+        proxima_fecha: proximaFechaStr // ✅ Próxima fecha calculada CORRECTAMENTE
     };
 
-    console.log('➕ Mantenimiento a agregar:', mantenimiento); // DEBUG
+    console.log('➕ Mantenimiento a agregar:', {
+        fechaInicioUsuario: fechaInicio,
+        intervaloDias: intervalo,
+        diasRealesCalculados: diasReales,
+        proximaFechaCalculada: proximaFechaStr
+    });
 
     mantenimientosConfigurados.push(mantenimiento);
     actualizarListaMantenimientos();
@@ -517,6 +540,10 @@ function actualizarListaMantenimientos() {
             ? `${mant.tipo_nombre}: ${mant.nombre_personalizado}`
             : mant.tipo_nombre;
 
+        // ✅ CORRECCIÓN: Mostrar fechas EXACTAMENTE como se ingresaron
+        const fechaInicioDisplay = formatearFechaLocal(mant.fecha_inicio);
+        const proximaFechaDisplay = formatearFechaLocal(mant.proxima_fecha);
+
         return `
         <div class="border border-gray-300 rounded p-3 mb-2 bg-white shadow-sm">
             <div class="flex justify-between items-start">
@@ -527,10 +554,10 @@ function actualizarListaMantenimientos() {
                     </div>
                     <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
                         <div><span class="font-medium">Intervalo:</span> ${mant.intervalo_dias} días</div>
-                        <div><span class="font-medium">Inicio:</span> ${new Date(mant.fecha_inicio).toLocaleDateString()}</div>
+                        <div><span class="font-medium">Inicio:</span> ${fechaInicioDisplay}</div>
                         <div class="col-span-2">
                             <span class="font-medium">Próxima:</span> 
-                            <span class="font-semibold text-green-600">${new Date(mant.proxima_fecha).toLocaleDateString()}</span>
+                            <span class="font-semibold text-green-600">${proximaFechaDisplay}</span>
                         </div>
                     </div>
                 </div>
@@ -539,7 +566,21 @@ function actualizarListaMantenimientos() {
                 </button>
             </div>
         </div>
-    `}).join('');
+        `;
+    }).join('');
+}
+
+// ✅ FUNCIÓN NUEVA: Formatear fecha sin cambios de huso horario
+function formatearFechaLocal(fechaStr) {
+    if (!fechaStr) return "-";
+    
+    // Si ya está en formato YYYY-MM-DD, convertir directamente
+    if (fechaStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = fechaStr.split('-');
+        return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+    }
+    
+    return "-";
 }
 
 function eliminarMantenimiento(index) {

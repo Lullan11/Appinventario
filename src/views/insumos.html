@@ -4,11 +4,14 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Exportar Excel - Inventario</title>
+    <title>Inventario - Kardex</title>
     <link href="../../dist/output.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Fuente moderna (Google Fonts - Poppins) -->
+    <!-- Estilos personalizados del módulo Kardex -->
+    <link rel="stylesheet" href="../css/kardex.css">
+    <!-- Fuente moderna (Google Fonts) -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -54,10 +57,6 @@
                         class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
                         <i class="fas fa-laptop"></i> Equipos
                     </a>
-                    <!-- <a href="#" data-view="historial.html"
-                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
-                        <i class="fas fa-history"></i> Historial
-                    </a> -->
                     <a href="#" data-view="excel.html"
                         class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
                         <i class="fas fa-file-excel"></i> Excel
@@ -77,8 +76,9 @@
                 </nav>
             </div>
             <div class="text-sm mt-6">
-                <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario: <span id="user-role"
-                        class="text-[#639A33] font-semibold">...</span></p>
+                <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario:
+                    <span id="user-role" class="text-[#639A33] font-semibold">...</span>
+                </p>
                 <button onclick="logout()"
                     class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
                     <i class="fas fa-sign-out-alt"></i>
@@ -90,27 +90,63 @@
         <!-- Contenido principal -->
         <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
             <div>
-                <!-- Título y Logo -->
                 <header class="mb-6 flex items-center justify-between">
-                    <h1 class="text-4xl font-semibold text-[#0F172A]">Insumos</h1>
+                    <h1 class="text-4xl font-semibold text-[#0F172A]">Módulo de Insumos</h1>
                     <div class="flex items-center gap-4">
-                        <img src="../assets/Logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
+                        <img src="../assets/logo_ips.png" alt="Logo IPS" class="h-25 w-24 object-contain" />
                         <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
                     </div>
                 </header>
 
+                <!-- 📦 SECCIÓN KARDEX CORREGIDA -->
+                <section class="kardex-section">
+                    <h2 class="kardex-title">Registrar Movimiento</h2>
 
+                    <div class="kardex-form">
+                        <input id="fecha" type="date" placeholder="Fecha" />
+                        
+                        <!-- Select de productos que se llenará dinámicamente desde la base de datos -->
+                        <select id="producto">
+                            <option value="">Cargando productos...</option>
+                        </select>
+                        
+                        <select id="tipo">
+                            <option value="">Tipo de movimiento</option>
+                            <option value="entrada">Entrada</option>
+                            <option value="salida">Salida</option>
+                        </select>
+                        
+                        <input id="cantidad" type="number" placeholder="Cantidad" />
+                        <button id="btnRegistrar">Registrar</button>
+                    </div>
 
+                    <h3 class="kardex-subtitle">Movimientos Kardex</h3>
+                    <table id="tabla-kardex">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Producto</th>
+                                <th>Tipo</th>
+                                <th>Cantidad</th>
+                                <th>Stock Actual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Las filas se agregarán dinámicamente aquí -->
+                        </tbody>
+                    </table>
+                </section>
+            </div>
 
-                <footer class="text-center mt-6 py-4 border-t border-gray-200">
-                    <p class="text-sm text-[#0F172A] font-medium">Módulo de insumos</p>
-                </footer>
+            <footer class="text-center mt-6 py-4 border-t border-gray-200">
+                <p class="text-sm text-[#0F172A] font-medium">Módulo de Insumos con Kardex</p>
+            </footer>
         </main>
     </div>
 
     <script src="../js/auth.js"></script>
     <script src="../js/navegacion.js"></script>
-    <!-- <script src="../js/exportar.js"></script> -->
+    <script src="../js/kardex.js"></script>
 </body>
 
 </html>

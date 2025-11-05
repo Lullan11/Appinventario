@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Información del Puesto - IPS Progresando</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Arial', sans-serif; 
+            margin: 0; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 0;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #639A33 0%, #4a7c2a 100%);
+            color: white; 
+            padding: 30px 20px; 
+            text-align: center;
+        }
+        .header h1 { 
+            font-size: 2.2em; 
+            margin-bottom: 10px;
+        }
+        .content { 
+            padding: 30px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .info-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #639A33;
+        }
+        .campo { 
+            margin: 12px 0; 
+            display: flex;
+            align-items: flex-start;
+        }
+        .etiqueta { 
+            font-weight: bold; 
+            color: #2d3748;
+            min-width: 140px;
+        }
+        .valor { 
+            color: #4a5568; 
+            flex: 1;
+        }
+        .tabla-equipos {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .tabla-equipos th {
+            background: #639A33;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        .tabla-equipos td {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .tabla-equipos tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .tabla-equipos tr:hover {
+            background: #edf2f7;
+        }
+        .estado-activo {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .estado-inactivo {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .footer { 
+            text-align: center; 
+            margin-top: 30px; 
+            padding-top: 20px; 
+            border-top: 1px solid #e2e8f0; 
+            color: #718096;
+        }
+        @media (max-width: 768px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💼 Información del Puesto</h1>
+            <p>Sistema de Inventario - IPS Progresando</p>
+        </div>
+        
+        <div class="content">
+            <div id="puesto-content">
+                <p style="text-align: center; padding: 40px;">Cargando información del puesto...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Obtener ID de la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const puestoId = urlParams.get('id');
+        
+        // Variables globales
+        let datosPuesto = null;
+        let equiposPuesto = [];
+
+        if (puestoId) {
+            cargarInformacionPuesto(puestoId);
+        } else {
+            mostrarError('No se proporcionó un ID de puesto válido.');
+        }
+
+        async function cargarInformacionPuesto(id) {
+            try {
+                // Cargar datos del puesto
+                const responsePuesto = await fetch(`https://inventario-api-gw73.onrender.com/puestos/${id}`);
+                if (!responsePuesto.ok) throw new Error('No se pudo cargar el puesto');
+                
+                datosPuesto = await responsePuesto.json();
+                
+                // Cargar equipos del puesto
+                await cargarEquiposPuesto(id);
+                
+                mostrarInformacionPuesto();
+                
+            } catch (error) {
+                mostrarError('No se pudo cargar la información del puesto: ' + error.message);
+            }
+        }
+
+        async function cargarEquiposPuesto(puestoId) {
+            try {
+                const response = await fetch(`https://inventario-api-gw73.onrender.com/equipos?puesto_id=${puestoId}`);
+                if (response.ok) {
+                    equiposPuesto = await response.json();
+                    console.log('✅ Equipos del puesto cargados:', equiposPuesto.length);
+                } else {
+                    console.warn('No se pudieron cargar los equipos del puesto');
+                    equiposPuesto = [];
+                }
+            } catch (error) {
+                console.warn('Error cargando equipos del puesto:', error);
+                equiposPuesto = [];
+            }
+        }
+
+        function mostrarInformacionPuesto() {
+            const contenido = `
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3 style="margin-bottom: 15px; color: #2d3748; border-bottom: 2px solid #639A33; padding-bottom: 8px;">📋 Información del Puesto</h3>
+                        
+                        <div class="campo">
+                            <span class="etiqueta">🏷️ Código:</span>
+                            <span class="valor">${datosPuesto.codigo || 'No disponible'}</span>
+                        </div>
+                        <div class="campo">
+                            <span class="etiqueta">🏢 Área:</span>
+                            <span class="valor">${datosPuesto.area_nombre || 'No disponible'}</span>
+                        </div>
+                        <div class="campo">
+                            <span class="etiqueta">📍 Sede:</span>
+                            <span class="valor">${datosPuesto.sede_nombre || 'No disponible'}</span>
+                        </div>
+                        <div class="campo">
+                            <span class="etiqueta">👤 Responsable:</span>
+                            <span class="valor">${datosPuesto.responsable_nombre || 'No asignado'}</span>
+                        </div>
+                        <div class="campo">
+                            <span class="etiqueta">📄 Documento:</span>
+                            <span class="valor">${datosPuesto.responsable_documento || 'No disponible'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <h3 style="margin-bottom: 15px; color: #2d3748; border-bottom: 2px solid #639A33; padding-bottom: 8px;">📊 Resumen</h3>
+                        
+                        <div class="campo">
+                            <span class="etiqueta">💻 Total Equipos:</span>
+                            <span class="valor">
+                                <strong style="color: #639A33; font-size: 1.2em;">${equiposPuesto.length}</strong> equipos asignados
+                            </span>
+                        </div>
+                        <div class="campo">
+                            <span class="etiqueta">✅ Activos:</span>
+                            <span class="valor">
+                                ${equiposPuesto.filter(eq => eq.estado === 'activo').length} equipos
+                            </span>
+                        </div>
+                        <div class="campo">
+                            <span class="etiqueta">📅 Actualizado:</span>
+                            <span class="valor">${new Date().toLocaleDateString('es-ES')}</span>
+                        </div>
+                    </div>
+                </div>
+
+                ${mostrarEquiposPuesto()}
+
+                <div class="footer">
+                    <p>🔗 Escaneado desde código QR - Sistema de Gestión de Inventarios IPS Progresando</p>
+                    <p>🕐 Generado el: ${new Date().toLocaleDateString('es-ES')} a las ${new Date().toLocaleTimeString('es-ES')}</p>
+                </div>
+            `;
+
+            document.getElementById('puesto-content').innerHTML = contenido;
+
+            // Actualizar título
+            document.title = `Puesto ${datosPuesto.codigo} - IPS Progresando`;
+            document.querySelector('.header h1').textContent = `💼 Puesto: ${datosPuesto.codigo}`;
+        }
+
+        function mostrarEquiposPuesto() {
+            if (equiposPuesto.length === 0) {
+                return `
+                    <div class="info-card">
+                        <h3 style="margin-bottom: 15px; color: #2d3748; border-bottom: 2px solid #639A33; padding-bottom: 8px;">💻 Equipos Asignados</h3>
+                        <p style="text-align: center; padding: 20px; color: #718096;">No hay equipos asignados a este puesto</p>
+                    </div>
+                `;
+            }
+
+            const equiposHTML = equiposPuesto.map(equipo => `
+                <tr>
+                    <td>
+                        <strong>${equipo.codigo_interno || 'Sin código'}</strong>
+                    </td>
+                    <td>${equipo.nombre || 'Sin nombre'}</td>
+                    <td>
+                        <span class="${equipo.estado === 'activo' ? 'estado-activo' : 'estado-inactivo'}">
+                            ${equipo.estado || 'desconocido'}
+                        </span>
+                    </td>
+                    <td>${equipo.descripcion || 'Sin descripción'}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <div class="info-card">
+                    <h3 style="margin-bottom: 15px; color: #2d3748; border-bottom: 2px solid #639A33; padding-bottom: 8px;">
+                        💻 Equipos Asignados (${equiposPuesto.length})
+                    </h3>
+                    <div style="overflow-x: auto;">
+                        <table class="tabla-equipos">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th>Estado</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${equiposHTML}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function mostrarError(mensaje) {
+            document.getElementById('puesto-content').innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #e53e3e;">
+                    <h3>❌ Error</h3>
+                    <p>${mensaje}</p>
+                    <p style="margin-top: 10px; font-size: 0.9em; color: #718096;">
+                        Verifique que el código QR sea válido o contacte al administrador.
+                    </p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

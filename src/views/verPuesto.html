@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ver Puesto - Inventario</title>
   <link rel="stylesheet" href="../../dist/output.css" />
+  <!-- Librería QR Code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Fuente moderna (Google Fonts) -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -123,7 +125,7 @@
       <header class="mb-6 flex items-center justify-between">
         <h1 class="text-4xl font-bold text-[#0F172A]">Detalles del Puesto</h1>
         <div class="flex gap-4">
-          <img src="../assets/Logo_ips.png" class="h-24 w-24 object-contain" alt="Logo IPS" />
+          <img src="../assets/logo_ips.png" class="h-24 w-24 object-contain" alt="Logo IPS" />
           <img src="../assets/logo_coop.png" class="h-24 w-24 object-contain" alt="Logo Cooperativa" />
         </div>
       </header>
@@ -141,6 +143,9 @@
         <div class="mt-6 flex gap-4">
           <button id="btn-editar" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
             Editar Puesto
+          </button>
+          <button id="btn-generar-qr-puesto" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            <i class="fas fa-qrcode mr-2"></i>Generar QR del Puesto
           </button>
           <button onclick="window.location.href='puestos.html'"
             class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
@@ -170,6 +175,93 @@
         <p class="text-sm text-[#0F172A] font-medium">Módulo de Puestos - Ver Detalles</p>
       </footer>
     </main>
+  </div>
+
+
+
+
+
+
+  <!-- Modal QR Puesto - VERSIÓN HORIZONTAL -->
+  <div id="modal-qr-puesto" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-4xl mx-4">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-green-600 to-green-700 text-white p-4 rounded-t-lg">
+        <div class="flex justify-between items-center">
+          <h3 class="text-xl font-bold">🔗 Código QR del Puesto</h3>
+          <button onclick="cerrarModalQRPuesto()" class="text-white hover:text-gray-200 text-xl">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Contenido - DISEÑO HORIZONTAL -->
+      <div class="p-6">
+        <div class="flex flex-col lg:flex-row gap-6">
+
+          <!-- Columna izquierda - Información del puesto -->
+          <div class="lg:w-2/5">
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <h4 class="font-semibold text-gray-800 mb-3 text-lg">📋 Información del Puesto</h4>
+              <div class="space-y-3">
+                <div class="flex items-center">
+                  <span class="font-medium text-gray-700 min-w-24">Código:</span>
+                  <span id="qr-puesto-codigo" class="text-gray-900 font-semibold">-</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="font-medium text-gray-700 min-w-24">Área:</span>
+                  <span id="qr-puesto-area" class="text-gray-900">-</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="font-medium text-gray-700 min-w-24">Sede:</span>
+                  <span id="qr-puesto-sede" class="text-gray-900">-</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="font-medium text-gray-700 min-w-24">Responsable:</span>
+                  <span id="qr-puesto-responsable" class="text-gray-900">-</span>
+                </div>
+                <div class="flex items-center">
+                  <span class="font-medium text-gray-700 min-w-24">Equipos:</span>
+                  <span id="qr-puesto-equipos" class="text-green-600 font-bold">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- URL -->
+            <div id="github-link-container-puesto" class="mt-4"></div>
+
+            <!-- Botones de acción -->
+            <div class="flex flex-col gap-2 mt-4">
+              <button onclick="descargarQRPuesto()"
+                class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-semibold">
+                <i class="fas fa-download"></i> Descargar QR
+              </button>
+              <button onclick="cerrarModalQRPuesto()"
+                class="bg-gray-500 text-white px-4 py-3 rounded-lg hover:bg-gray-600 transition-colors font-semibold">
+                Cerrar
+              </button>
+            </div>
+          </div>
+
+          <!-- Columna derecha - QR Code -->
+          <div class="lg:w-3/5 flex flex-col items-center justify-center">
+            <div class="text-center mb-4">
+              <h4 class="font-semibold text-gray-800 text-lg mb-2">📱 Escanea el Código QR</h4>
+              <p class="text-sm text-gray-600">Escanea este código para ver la información completa del puesto</p>
+            </div>
+
+            <div id="qr-code-puesto" class="border-4 border-green-200 rounded-xl p-6 bg-white shadow-lg">
+              <div class="text-gray-500 text-center py-16">El código QR aparecerá aquí</div>
+            </div>
+
+            <div class="mt-4 text-center">
+              <p class="text-xs text-gray-500">IPS Progresando - Sistema de Inventarios</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="../js/auth.js"></script>
