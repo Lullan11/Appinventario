@@ -29,5 +29,5 @@ document.addEventListener('DOMContentLoaded', () => {
 function logout() {
   localStorage.removeItem('currentUser');
   localStorage.removeItem('token');
-  window.location.href = '/index.html';
+  window.location.href = '../../index.html';
 }
