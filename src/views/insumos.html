@@ -9,14 +9,335 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Estilos personalizados del módulo Kardex -->
-    <link rel="stylesheet" href="../css/kardex.css">
-    <!-- Fuente moderna (Google Fonts) -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-
     <style>
         body {
             font-family: 'Poppins', sans-serif;
+        }
+
+        .kardex-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .kardex-input:focus {
+            border-color: transparent;
+            box-shadow: 0 0 0 2px #639A33;
+            ring: 2px #639A33;
+        }
+
+        .tabla-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .stock-bajo {
+            background-color: #fef2f2;
+        }
+
+        .modal {
+            display: none;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        /* ESTILOS SIMPLIFICADOS PARA PESTAÑAS */
+        .tab-button {
+            padding: 1rem 0.25rem;
+            border-bottom-width: 2px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .tab-button.active {
+            border-color: #639A33;
+            color: #639A33;
+        }
+
+        .tab-button.inactive {
+            border-color: transparent;
+            color: #6b7280;
+        }
+
+        .tab-button.inactive:hover {
+            color: #374151;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ESTILOS MEJORADOS PARA BOTONES */
+        .btn-primary {
+            background: linear-gradient(to right, #639A33, #4a7c27);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(to right, #4a7c27, #3a651f);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(to right, #6b7280, #4b5563);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(to right, #4b5563, #374151);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-success {
+            background: linear-gradient(to right, #10b981, #059669);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(to right, #059669, #047857);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(to right, #ef4444, #dc2626);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(to right, #dc2626, #b91c1c);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-warning {
+            background: linear-gradient(to right, #f59e0b, #d97706);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(to right, #d97706, #b45309);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-info {
+            background: linear-gradient(to right, #3b82f6, #2563eb);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-info:hover {
+            background: linear-gradient(to right, #2563eb, #1d4ed8);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-export {
+            background: linear-gradient(to right, #8b5cf6, #7c3aed);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-export:hover {
+            background: linear-gradient(to right, #7c3aed, #6d28d9);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Botones pequeños para acciones en tabla */
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-warning-sm {
+            background-color: #f59e0b;
+            color: white;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-warning-sm:hover {
+            background-color: #d97706;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-danger-sm {
+            background-color: #ef4444;
+            color: white;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-danger-sm:hover {
+            background-color: #dc2626;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .badge-success {
+            background-color: #dcfce7;
+            color: #166534;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-danger {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-info {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Estilos para filtros */
+        .filtros-container {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .filtros-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            .filtros-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .filtros-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        /* Estilos para mensajes */
+        .mensaje-toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            font-weight: 500;
+            z-index: 50;
+            transition: all 0.3s;
+        }
+
+        .loading {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -88,58 +409,362 @@
         </aside>
 
         <!-- Contenido principal -->
-        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
-            <div>
-                <header class="mb-6 flex items-center justify-between">
-                    <h1 class="text-4xl font-semibold text-[#0F172A]">Módulo de Insumos</h1>
-                    <div class="flex items-center gap-4">
-                        <img src="../assets/logo_ips.png" alt="Logo IPS" class="h-25 w-24 object-contain" />
-                        <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
+        <main class="flex-1 p-8 overflow-y-auto bg-white">
+            <header class="mb-6 flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-semibold text-[#0F172A]">Sistema Kardex</h1>
+                    <p class="text-gray-600">Gestión de inventario por sedes</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <img src="../assets/logo_ips.png" alt="Logo IPS" class="h-20 w-20 object-contain" />
+                    <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-20 w-20 object-contain" />
+                </div>
+            </header>
+
+            <!-- SELECTOR DE SEDE PRINCIPAL -->
+            <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-xl font-semibold text-[#0F172A] mb-4">🏢 Sede Activa</h2>
+                <div class="flex items-center gap-4">
+                    <select id="sede-principal" class="kardex-input w-80">
+                        <option value="">Seleccione una sede para trabajar</option>
+                    </select>
+                    <div id="info-sede" class="text-sm text-gray-600 hidden">
+                        <span id="sede-seleccionada" class="font-semibold"></span>
                     </div>
-                </header>
+                </div>
+            </section>
 
-                <!-- 📦 SECCIÓN KARDEX CORREGIDA -->
-                <section class="kardex-section">
-                    <h2 class="kardex-title">Registrar Movimiento</h2>
+            <!-- PANEL PRINCIPAL (se muestra solo cuando hay sede seleccionada) -->
+            <div id="panel-principal" class="hidden">
 
-                    <div class="kardex-form">
-                        <input id="fecha" type="date" placeholder="Fecha" />
-                        
-                        <!-- Select de productos que se llenará dinámicamente desde la base de datos -->
-                        <select id="producto">
-                            <option value="">Cargando productos...</option>
-                        </select>
-                        
-                        <select id="tipo">
-                            <option value="">Tipo de movimiento</option>
-                            <option value="entrada">Entrada</option>
-                            <option value="salida">Salida</option>
-                        </select>
-                        
-                        <input id="cantidad" type="number" placeholder="Cantidad" />
-                        <button id="btnRegistrar">Registrar</button>
+                <!-- RESUMEN DE STOCK MEJORADO -->
+                <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                                <i class="fas fa-boxes text-blue-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-blue-600 font-medium">Productos con Stock</p>
+                                <p id="total-productos-count" class="text-2xl font-bold text-blue-800">0</p>
+                            </div>
+                        </div>
                     </div>
-
-                    <h3 class="kardex-subtitle">Movimientos Kardex</h3>
-                    <table id="tabla-kardex">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Producto</th>
-                                <th>Tipo</th>
-                                <th>Cantidad</th>
-                                <th>Stock Actual</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Las filas se agregarán dinámicamente aquí -->
-                        </tbody>
-                    </table>
+                    <div class="bg-green-50 border border-green-200 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="bg-green-100 p-3 rounded-lg mr-4">
+                                <i class="fas fa-arrow-down text-green-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-green-600 font-medium">Stock Total</p>
+                                <p id="total-stock-count" class="text-2xl font-bold text-green-800">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="bg-yellow-100 p-3 rounded-lg mr-4">
+                                <i class="fas fa-exclamation-triangle text-yellow-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-yellow-600 font-medium">Stock Bajo</p>
+                                <p id="stock-bajo-count" class="text-2xl font-bold text-yellow-800">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-purple-50 border border-purple-200 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="bg-purple-100 p-3 rounded-lg mr-4">
+                                <i class="fas fa-exchange-alt text-purple-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-purple-600 font-medium">Movimientos</p>
+                                <p id="total-movimientos" class="text-2xl font-bold text-purple-800">0</p>
+                            </div>
+                        </div>
+                    </div>
                 </section>
+
+                <!-- PESTAÑAS SIMPLIFICADAS -->
+                <div class="mb-6 border-b border-gray-200">
+                    <nav class="flex space-x-8">
+                        <button id="tab-movimientos" class="tab-button active">
+                            <i class="fas fa-exchange-alt mr-2"></i>Registrar Movimientos
+                        </button>
+                        <button id="tab-productos" class="tab-button inactive">
+                            <i class="fas fa-boxes mr-2"></i>Gestión de Productos
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- CONTENIDO DE PESTAÑAS -->
+                <div id="contenido-pestanas">
+                    <!-- PESTAÑA: REGISTRAR MOVIMIENTOS -->
+                    <div id="contenido-movimientos" class="tab-content active">
+                        <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-6">
+                            <h2 class="text-xl font-semibold text-[#0F172A] mb-4">📝 Registrar Movimiento</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                                <input id="fecha" type="date" class="kardex-input" value="">
+                                <select id="producto" class="kardex-input">
+                                    <option value="">Seleccionar producto</option>
+                                </select>
+                                <select id="tipo" class="kardex-input">
+                                    <option value="">Tipo de movimiento</option>
+                                    <option value="ENTRADA">Entrada</option>
+                                    <option value="SALIDA">Salida</option>
+                                </select>
+                                <input id="descripcion" type="text" class="kardex-input"
+                                    placeholder="Descripción del movimiento">
+                                <input id="ubicacion" type="text" class="kardex-input"
+                                    placeholder="Ubicación específica">
+                                <div class="flex gap-2">
+                                    <input id="cantidad" type="number" class="kardex-input flex-1"
+                                        placeholder="Cantidad" min="1">
+                                    <span id="unidad-producto"
+                                        class="bg-gray-100 px-3 py-2 rounded border border-gray-300 min-w-20 text-center">UNIDAD</span>
+                                </div>
+                                <input id="costo" type="number" class="kardex-input" placeholder="Costo unitario"
+                                    step="0.01" min="0">
+                                <div class="lg:col-span-2">
+                                    <div id="info-stock" class="text-sm p-3 bg-gray-50 rounded border hidden">
+                                        <span class="font-semibold">Stock actual: </span>
+                                        <span id="stock-actual">0</span>
+                                        <span id="alerta-stock" class="ml-2 hidden text-red-600 font-semibold"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="btnRegistrar" class="btn-primary">
+                                    <i class="fas fa-save mr-2"></i>Registrar Movimiento
+                                </button>
+                                <button id="btnLimpiarForm" class="btn-secondary">
+                                    <i class="fas fa-eraser mr-2"></i>Limpiar
+                                </button>
+                                <button id="btnNuevoProducto" class="btn-success">
+                                    <i class="fas fa-plus mr-2"></i>Nuevo Producto
+                                </button>
+                            </div>
+                        </section>
+
+                        <!-- MOVIMIENTOS RECIENTES CON FILTROS -->
+                        <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-semibold text-[#0F172A]">🕐 Movimientos Recientes</h2>
+                                <button id="btnExportarMovimientos" class="btn-export">
+                                    <i class="fas fa-file-excel mr-2"></i>Exportar Excel
+                                </button>
+                            </div>
+
+                            <!-- FILTROS PARA MOVIMIENTOS -->
+                            <div class="filtros-container mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-3">🔍 Filtros de Búsqueda</h3>
+                                <div class="filtros-grid">
+                                    <select id="filtro-producto-mov" class="kardex-input">
+                                        <option value="">Todos los productos</option>
+                                    </select>
+                                    <select id="filtro-tipo-mov" class="kardex-input">
+                                        <option value="">Todos los movimientos</option>
+                                        <option value="ENTRADA">Entrada</option>
+                                        <option value="SALIDA">Salida</option>
+                                    </select>
+                                </div>
+                                <div class="flex gap-2 mt-3">
+                                    <button id="btnAplicarFiltrosMov" class="btn-success">
+                                        <i class="fas fa-search mr-2"></i>Aplicar Filtros
+                                    </button>
+                                    <button id="btnLimpiarFiltrosMov" class="btn-secondary">
+                                        <i class="fas fa-eraser mr-2"></i>Limpiar Filtros
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="tabla-container">
+                                <table id="tabla-movimientos-recientes"
+                                    class="min-w-full text-left border border-[#0F172A]">
+                                    <thead class="bg-[#0F172A] text-white sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-2 border">Fecha</th>
+                                            <th class="px-4 py-2 border">Producto</th>
+                                            <th class="px-4 py-2 border">Movimiento</th>
+                                            <th class="px-4 py-2 border">Descripción</th>
+                                            <th class="px-4 py-2 border">Ubicación</th>
+                                            <th class="px-4 py-2 border">Cantidad</th>
+                                            <th class="px-4 py-2 border">Stock</th>
+                                            <th class="px-4 py-2 border">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="8" class="px-4 py-4 text-center text-gray-500">
+                                                Seleccione una sede para ver los movimientos
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- PESTAÑA: GESTIÓN DE PRODUCTOS -->
+                    <div id="contenido-productos" class="tab-content">
+                        <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-semibold text-[#0F172A]">📦 Gestión de Productos</h2>
+                                <div class="flex gap-2">
+                                    <button id="btnNuevoProducto2" class="btn-primary">
+                                        <i class="fas fa-plus mr-2"></i>Nuevo Producto
+                                    </button>
+                                    <button id="btnExportarProductos" class="btn-export">
+                                        <i class="fas fa-file-excel mr-2"></i>Exportar Excel
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- FILTROS PARA PRODUCTOS -->
+                            <div class="filtros-container mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-3">🔍 Filtros de Búsqueda</h3>
+                                <div class="filtros-grid">
+                                    <input id="filtro-nombre-producto" type="text" class="kardex-input"
+                                        placeholder="Buscar por nombre">
+                                    <input id="filtro-categoria-producto" type="text" class="kardex-input"
+                                        placeholder="Buscar por categoría">
+                                    <select id="filtro-stock-producto" class="kardex-input">
+                                        <option value="">Todos los estados de stock</option>
+                                        <option value="bajo">Stock Bajo (< 10)</option>
+                                        <option value="normal">Stock Normal</option>
+                                        <option value="sin-stock">Sin Stock</option>
+                                    </select>
+                                    <select id="filtro-unidad-producto" class="kardex-input">
+                                        <option value="">Todas las unidades</option>
+                                        <option value="UNIDAD">UNIDAD</option>
+                                        <option value="CAJA">CAJA</option>
+                                        <option value="PAQUETE">PAQUETE</option>
+                                        <option value="LITRO">LITRO</option>
+                                        <option value="KILO">KILO</option>
+                                        <option value="METRO">METRO</option>
+                                    </select>
+                                </div>
+                                <div class="flex gap-2 mt-3">
+                                    <button id="btnAplicarFiltrosProd" class="btn-success">
+                                        <i class="fas fa-search mr-2"></i>Aplicar Filtros
+                                    </button>
+                                    <button id="btnLimpiarFiltrosProd" class="btn-secondary">
+                                        <i class="fas fa-eraser mr-2"></i>Limpiar Filtros
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Lista de productos con acciones -->
+                            <div class="tabla-container">
+                                <table id="tabla-productos" class="min-w-full text-left border border-[#0F172A]">
+                                    <thead class="bg-[#0F172A] text-white sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-2 border">Producto</th>
+                                            <th class="px-4 py-2 border">Categoría</th>
+                                            <th class="px-4 py-2 border">Unidad</th>
+                                            <th class="px-4 py-2 border">Stock Total</th>
+                                            <th class="px-4 py-2 border">Movimientos</th>
+                                            <th class="px-4 py-2 border">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="6" class="px-4 py-4 text-center text-gray-500">
+                                                Cargando productos...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL NUEVO PRODUCTO -->
+            <div id="modalProducto"
+                class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <h3 class="text-xl font-semibold mb-4">➕ Nuevo Producto</h3>
+                    <form id="formProducto" class="space-y-4">
+                        <input type="text" id="producto-nombre" class="kardex-input" placeholder="Nombre del producto"
+                            required>
+                        <input type="text" id="producto-descripcion" class="kardex-input" placeholder="Descripción">
+                        <input type="text" id="producto-categoria" class="kardex-input" placeholder="Categoría">
+                        <select id="producto-unidad" class="kardex-input" required>
+                            <option value="">Seleccionar unidad</option>
+                            <option value="UNIDAD">UNIDAD</option>
+                            <option value="CAJA">CAJA</option>
+                            <option value="PAQUETE">PAQUETE</option>
+                            <option value="LITRO">LITRO</option>
+                            <option value="KILO">KILO</option>
+                            <option value="METRO">METRO</option>
+                        </select>
+                        <div class="flex gap-2 pt-4">
+                            <button type="submit" class="btn-primary flex-1">
+                                <i class="fas fa-save mr-2"></i>Guardar
+                            </button>
+                            <button type="button" id="btnCerrarModal" class="btn-secondary">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MODAL EDITAR PRODUCTO -->
+            <div id="modalEditarProducto"
+                class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <h3 class="text-xl font-semibold mb-4">✏️ Editar Producto</h3>
+                    <form id="formEditarProducto" class="space-y-4">
+                        <input type="hidden" id="editar-producto-id">
+                        <input type="text" id="editar-producto-nombre" class="kardex-input"
+                            placeholder="Nombre del producto" required>
+                        <input type="text" id="editar-producto-descripcion" class="kardex-input"
+                            placeholder="Descripción">
+                        <input type="text" id="editar-producto-categoria" class="kardex-input" placeholder="Categoría">
+                        <select id="editar-producto-unidad" class="kardex-input" required>
+                            <option value="">Seleccionar unidad</option>
+                            <option value="UNIDAD">UNIDAD</option>
+                            <option value="CAJA">CAJA</option>
+                            <option value="PAQUETE">PAQUETE</option>
+                            <option value="LITRO">LITRO</option>
+                            <option value="KILO">KILO</option>
+                            <option value="METRO">METRO</option>
+                        </select>
+                        <div class="flex gap-2 pt-4">
+                            <button type="submit" class="btn-primary flex-1">
+                                <i class="fas fa-save mr-2"></i>Actualizar
+                            </button>
+                            <button type="button" id="btnCerrarModalEditar" class="btn-secondary">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MODAL CONFIRMAR ELIMINACIÓN -->
+            <div id="modalConfirmarEliminar"
+                class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <h3 class="text-xl font-semibold mb-4 text-red-600">🗑️ Eliminar Producto</h3>
+                    <p class="text-gray-600 mb-4" id="mensaje-confirmacion">¿Está seguro de que desea eliminar este
+                        producto?</p>
+                    <div class="flex gap-2 pt-4">
+                        <button type="button" id="btnConfirmarEliminar" class="btn-danger flex-1">
+                            <i class="fas fa-trash mr-2"></i>Eliminar
+                        </button>
+                        <button type="button" id="btnCancelarEliminar" class="btn-secondary">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <footer class="text-center mt-6 py-4 border-t border-gray-200">
-                <p class="text-sm text-[#0F172A] font-medium">Módulo de Insumos con Kardex</p>
+                <p class="text-sm text-[#0F172A] font-medium">Sistema Kardex - Gestión de Inventario por Sede</p>
             </footer>
         </main>
     </div>
