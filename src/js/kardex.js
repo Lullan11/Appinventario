@@ -514,121 +514,217 @@ function limpiarFiltrosProductos() {
 // FUNCIONES DE EXPORTACIÓN EXCEL PARA KARDEX
 // ====================
 
-function exportarExcelMovimientos() {
-    if (!movimientosFiltrados || movimientosFiltrados.length === 0) {
-        mostrarMensaje('No hay movimientos para exportar', true);
-        return;
-    }
+// ====================
+// FUNCIONES DE EXPORTACIÓN EXCEL CON SHEETJS
+// ====================
 
+async function exportarExcelMovimientos() {
+    const btn = document.getElementById('btnExportarMovimientos');
+    if (!btn) return;
+    
+    const originalText = btn.innerHTML;
+    
     try {
-        const sedeNombre = document.getElementById('sede-seleccionada').textContent;
-        const fechaExportacion = new Date().toLocaleDateString('es-CO');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        btn.disabled = true;
 
-        // Crear contenido CSV
-        let csvContent = "SISTEMA KARDEX - REPORTE DE MOVIMIENTOS\n";
-        csvContent += `Sede: ${sedeNombre}\n`;
-        csvContent += `Fecha de exportación: ${fechaExportacion}\n`;
-        csvContent += `Total de movimientos: ${movimientosFiltrados.length}\n\n`;
+        console.log('🎯 Iniciando exportación de movimientos...');
+        mostrarMensaje('🔄 Generando reporte de movimientos...', false);
 
-        // Encabezados
-        csvContent += "FECHA,PRODUCTO,TIPO MOVIMIENTO,DESCRIPCIÓN,UBICACIÓN,CANTIDAD,UNIDAD,STOCK ANTERIOR,STOCK ACTUAL,COSTO UNITARIO,TOTAL\n";
+        if (!movimientosFiltrados || movimientosFiltrados.length === 0) {
+            mostrarMensaje('❌ No hay movimientos para exportar', true);
+            return;
+        }
 
-        // Datos
+        console.log(`📊 Movimientos obtenidos: ${movimientosFiltrados.length} registros`);
+
+        // Verificar que XLSX esté disponible
+        if (typeof XLSX === 'undefined') {
+            throw new Error('La biblioteca Excel no está cargada. Recarga la página.');
+        }
+
+        // Crear workbook
+        const wb = XLSX.utils.book_new();
+        
+        // Hoja 1: Movimientos detallados
+        const datosMovimientos = movimientosFiltrados.map(mov => ({
+            'Fecha': mov.fecha,
+            'Producto': mov.producto_nombre || '',
+            'Tipo': mov.tipo_movimiento,
+            'Descripción': mov.descripcion || '',
+            'Ubicación': mov.ubicacion || '',
+            'Cantidad': mov.cantidad,
+            'Unidad': mov.unidad,
+            'Stock Anterior': mov.stock_anterior,
+            'Stock Actual': mov.stock_actual,
+            'Costo Unitario': mov.costo ? `$${formatearMoneda(mov.costo)}` : '$0.00',
+            'Total': mov.total ? `$${formatearMoneda(mov.total)}` : '$0.00'
+        }));
+        
+        const wsMovimientos = XLSX.utils.json_to_sheet(datosMovimientos);
+        XLSX.utils.book_append_sheet(wb, wsMovimientos, "Movimientos");
+
+        // Hoja 2: Resumen
+        const datosResumen = [
+            ['REPORTE DE MOVIMIENTOS - KARDEX'],
+            ['Sede:', document.getElementById('sede-seleccionada').textContent],
+            ['Fecha:', new Date().toLocaleDateString()],
+            ['Total movimientos:', movimientosFiltrados.length],
+            [],
+            ['Resumen por tipo:'],
+            ['Tipo', 'Cantidad', 'Valor Total']
+        ];
+
+        // Calcular resumen
+        const resumen = {};
         movimientosFiltrados.forEach(mov => {
-            const fila = [
-                mov.fecha,
-                `"${mov.producto_nombre}"`,
-                mov.tipo_movimiento,
-                `"${mov.descripcion || 'Sin descripción'}"`,
-                `"${mov.ubicacion || 'No especificada'}"`,
-                mov.cantidad,
-                mov.unidad,
-                mov.stock_anterior,
-                mov.stock_actual,
-                `$${formatearMoneda(mov.costo || 0)}`,
-                `$${formatearMoneda(mov.total || 0)}`
-            ];
-            csvContent += fila.join(',') + '\n';
+            const tipo = mov.tipo_movimiento;
+            if (!resumen[tipo]) {
+                resumen[tipo] = { cantidad: 0, valor: 0 };
+            }
+            resumen[tipo].cantidad++;
+            resumen[tipo].valor += mov.total || 0;
         });
 
-        // Totales
-        const totalEntradas = movimientosFiltrados.filter(m => m.tipo_movimiento === 'ENTRADA').length;
-        const totalSalidas = movimientosFiltrados.filter(m => m.tipo_movimiento === 'SALIDA').length;
-        const valorTotal = movimientosFiltrados.reduce((sum, mov) => sum + (mov.total || 0), 0);
+        Object.entries(resumen).forEach(([tipo, datos]) => {
+            datosResumen.push([tipo, datos.cantidad, `$${formatearMoneda(datos.valor)}`]);
+        });
 
-        csvContent += `\nRESUMEN:\n`;
-        csvContent += `Total entradas: ${totalEntradas}\n`;
-        csvContent += `Total salidas: ${totalSalidas}\n`;
-        csvContent += `Valor total movimientos: $${formatearMoneda(valorTotal)}\n`;
+        const wsResumen = XLSX.utils.aoa_to_sheet(datosResumen);
+        XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-        // Descargar archivo
-        descargarCSV(csvContent, `movimientos_kardex_${sedeNombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
-
-        mostrarMensaje('Reporte de movimientos exportado correctamente');
+        // Exportar archivo
+        const sedeNombre = document.getElementById('sede-seleccionada').textContent;
+        const fecha = new Date().toISOString().split('T')[0];
+        const nombreArchivo = `Movimientos_Kardex_${sedeNombre.replace(/\s+/g, '_')}_${fecha}.xlsx`;
+        
+        XLSX.writeFile(wb, nombreArchivo);
+        
+        mostrarMensaje(`✅ Reporte exportado: ${movimientosFiltrados.length} movimientos`, false);
+        console.log('✅ Excel generado:', nombreArchivo);
 
     } catch (error) {
-        console.error('Error exportando movimientos a Excel:', error);
-        mostrarMensaje('Error al generar el archivo Excel', true);
+        console.error('❌ Error exportando movimientos:', error);
+        mostrarMensaje('❌ Error al exportar: ' + error.message, true);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 
-function exportarExcelProductos() {
-    if (!productosFiltrados || productosFiltrados.length === 0) {
-        mostrarMensaje('No hay productos para exportar', true);
-        return;
-    }
-
+async function exportarExcelProductos() {
+    const btn = document.getElementById('btnExportarProductos');
+    if (!btn) return;
+    
+    const originalText = btn.innerHTML;
+    
     try {
-        const sedeNombre = document.getElementById('sede-seleccionada').textContent;
-        const fechaExportacion = new Date().toLocaleDateString('es-CO');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        btn.disabled = true;
 
-        // Crear contenido CSV
-        let csvContent = "SISTEMA KARDEX - INVENTARIO DE PRODUCTOS\n";
-        csvContent += `Sede: ${sedeNombre}\n`;
-        csvContent += `Fecha de exportación: ${fechaExportacion}\n`;
-        csvContent += `Total de productos: ${productosFiltrados.length}\n\n`;
+        console.log('🎯 Iniciando exportación de productos...');
+        mostrarMensaje('🔄 Generando inventario de productos...', false);
 
-        // Encabezados
-        csvContent += "NOMBRE,DESCRIPCIÓN,CATEGORÍA,UNIDAD,STOCK ACTUAL,UBICACIÓN,TOTAL MOVIMIENTOS,ESTADO STOCK\n";
+        if (!productosFiltrados || productosFiltrados.length === 0) {
+            mostrarMensaje('❌ No hay productos para exportar', true);
+            return;
+        }
 
-        // Datos
-        productosFiltrados.forEach(prod => {
+        console.log(`📊 Productos obtenidos: ${productosFiltrados.length} registros`);
+
+        // Verificar que XLSX esté disponible
+        if (typeof XLSX === 'undefined') {
+            throw new Error('La biblioteca Excel no está cargada. Recarga la página.');
+        }
+
+        // Crear workbook
+        const wb = XLSX.utils.book_new();
+        
+        // Hoja 1: Productos detallados
+        const datosProductos = productosFiltrados.map(prod => {
             const estadoStock = (prod.stock_actual || 0) < 10 ? 'STOCK BAJO' :
                 (prod.stock_actual || 0) === 0 ? 'SIN STOCK' : 'NORMAL';
 
-            const fila = [
-                `"${prod.nombre}"`,
-                `"${prod.descripcion || 'Sin descripción'}"`,
-                `"${prod.categoria || 'Sin categoría'}"`,
-                prod.unidad,
-                prod.stock_actual || 0,
-                `"${prod.ubicacion_stock || 'No asignada'}"`,
-                prod.total_movimientos || 0,
-                estadoStock
-            ];
-            csvContent += fila.join(',') + '\n';
+            return {
+                'Nombre': prod.nombre || '',
+                'Descripción': prod.descripcion || '',
+                'Categoría': prod.categoria || '',
+                'Unidad': prod.unidad,
+                'Stock Actual': prod.stock_actual || 0,
+                'Ubicación': prod.ubicacion_stock || '',
+                'Total Movimientos': prod.total_movimientos || 0,
+                'Estado Stock': estadoStock
+            };
+        });
+        
+        const wsProductos = XLSX.utils.json_to_sheet(datosProductos);
+        XLSX.utils.book_append_sheet(wb, wsProductos, "Productos");
+
+        // Hoja 2: Resumen
+        const totalProductos = productosFiltrados.length;
+        const totalStock = productosFiltrados.reduce((sum, prod) => sum + (prod.stock_actual || 0), 0);
+        const productosStockBajo = productosFiltrados.filter(prod => (prod.stock_actual || 0) < 10).length;
+        const productosSinStock = productosFiltrados.filter(prod => (prod.stock_actual || 0) === 0).length;
+
+        const datosResumen = [
+            ['INVENTARIO DE PRODUCTOS - KARDEX'],
+            ['Sede:', document.getElementById('sede-seleccionada').textContent],
+            ['Fecha:', new Date().toLocaleDateString()],
+            ['Total productos:', totalProductos],
+            ['Stock total:', totalStock],
+            ['Productos con stock bajo:', productosStockBajo],
+            ['Productos sin stock:', productosSinStock],
+            [],
+            ['Resumen por categoría:'],
+            ['Categoría', 'Cantidad']
+        ];
+
+        // Resumen por categoría
+        const resumenCategoria = {};
+        productosFiltrados.forEach(prod => {
+            const categoria = prod.categoria || 'Sin categoría';
+            resumenCategoria[categoria] = (resumenCategoria[categoria] || 0) + 1;
         });
 
-        // Estadísticas
-        const stockBajo = productosFiltrados.filter(p => (p.stock_actual || 0) < 10 && (p.stock_actual || 0) > 0).length;
-        const sinStock = productosFiltrados.filter(p => (p.stock_actual || 0) === 0).length;
-        const stockNormal = productosFiltrados.filter(p => (p.stock_actual || 0) >= 10).length;
-        const totalStock = productosFiltrados.reduce((sum, prod) => sum + (prod.stock_actual || 0), 0);
+        Object.entries(resumenCategoria).forEach(([categoria, cantidad]) => {
+            datosResumen.push([categoria, cantidad]);
+        });
 
-        csvContent += `\nESTADÍSTICAS:\n`;
-        csvContent += `Productos con stock normal: ${stockNormal}\n`;
-        csvContent += `Productos con stock bajo: ${stockBajo}\n`;
-        csvContent += `Productos sin stock: ${sinStock}\n`;
-        csvContent += `Stock total en sede: ${totalStock}\n`;
+        const wsResumen = XLSX.utils.aoa_to_sheet(datosResumen);
+        XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-        // Descargar archivo
-        descargarCSV(csvContent, `inventario_productos_${sedeNombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+        // Hoja 3: Stock bajo (si hay)
+        if (productosStockBajo > 0) {
+            const productosBajo = productosFiltrados.filter(prod => (prod.stock_actual || 0) < 10);
+            const datosStockBajo = productosBajo.map(prod => ({
+                'Nombre': prod.nombre || '',
+                'Categoría': prod.categoria || '',
+                'Stock Actual': prod.stock_actual || 0,
+                'Stock Recomendado': 10,
+                'Déficit': 10 - (prod.stock_actual || 0),
+                'Ubicación': prod.ubicacion_stock || ''
+            }));
+            
+            const wsStockBajo = XLSX.utils.json_to_sheet(datosStockBajo);
+            XLSX.utils.book_append_sheet(wb, wsStockBajo, "Stock Bajo");
+        }
 
-        mostrarMensaje('Inventario de productos exportado correctamente');
+        // Exportar archivo
+        const sedeNombre = document.getElementById('sede-seleccionada').textContent;
+        const fecha = new Date().toISOString().split('T')[0];
+        const nombreArchivo = `Inventario_Productos_${sedeNombre.replace(/\s+/g, '_')}_${fecha}.xlsx`;
+        
+        XLSX.writeFile(wb, nombreArchivo);
+        
+        mostrarMensaje(`✅ Inventario exportado: ${productosFiltrados.length} productos`, false);
+        console.log('✅ Excel generado:', nombreArchivo);
 
     } catch (error) {
-        console.error('Error exportando productos a Excel:', error);
-        mostrarMensaje('Error al generar el archivo Excel', true);
+        console.error('❌ Error exportando productos:', error);
+        mostrarMensaje('❌ Error al exportar: ' + error.message, true);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 
