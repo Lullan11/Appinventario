@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    
+
     <style>
         body {
             font-family: 'Poppins', sans-serif;
@@ -339,6 +339,18 @@
             opacity: 0.7;
             cursor: not-allowed;
         }
+
+        .filtro-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.875rem;
+        }
+
+        .campo-contenedor {
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 
@@ -494,6 +506,9 @@
                         <button id="tab-productos" class="tab-button inactive">
                             <i class="fas fa-boxes mr-2"></i>Gestión de Productos
                         </button>
+                        <button id="tab-proveedores" class="tab-button inactive">
+                            <i class="fas fa-truck mr-2"></i>Gestión de Proveedores
+                        </button>
                     </nav>
                 </div>
 
@@ -504,28 +519,53 @@
                         <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-6">
                             <h2 class="text-xl font-semibold text-[#0F172A] mb-4">📝 Registrar Movimiento</h2>
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                                <input id="fecha" type="date" class="kardex-input" value="">
-                                <select id="producto" class="kardex-input">
-                                    <option value="">Seleccionar producto</option>
-                                </select>
-                                <select id="tipo" class="kardex-input">
-                                    <option value="">Tipo de movimiento</option>
-                                    <option value="ENTRADA">Entrada</option>
-                                    <option value="SALIDA">Salida</option>
-                                </select>
-                                <input id="descripcion" type="text" class="kardex-input"
-                                    placeholder="Descripción del movimiento">
-                                <input id="ubicacion" type="text" class="kardex-input"
-                                    placeholder="Ubicación específica">
-                                <div class="flex gap-2">
-                                    <input id="cantidad" type="number" class="kardex-input flex-1"
-                                        placeholder="Cantidad" min="1">
-                                    <span id="unidad-producto"
-                                        class="bg-gray-100 px-3 py-2 rounded border border-gray-300 min-w-20 text-center">UNIDAD</span>
+                                <div class="campo-contenedor">
+                                    <label class="filtro-label">📅 Fecha del movimiento</label>
+                                    <input id="fecha" type="date" class="kardex-input" value="">
                                 </div>
-                                <input id="costo" type="number" class="kardex-input" placeholder="Costo unitario"
-                                    step="0.01" min="0">
-                                <div class="lg:col-span-2">
+                                <div class="campo-contenedor">
+                                    <label class="filtro-label">📦 Producto</label>
+                                    <select id="producto" class="kardex-input">
+                                        <option value="">Seleccionar producto</option>
+                                    </select>
+                                </div>
+                                <div class="campo-contenedor">
+                                    <label class="filtro-label">🔄 Tipo de movimiento</label>
+                                    <select id="tipo" class="kardex-input">
+                                        <option value="">Tipo de movimiento</option>
+                                        <option value="ENTRADA">Entrada</option>
+                                        <option value="SALIDA">Salida</option>
+                                    </select>
+                                </div>
+                                <div class="campo-contenedor">
+                                    <label class="filtro-label">📝 Descripción</label>
+                                    <input id="descripcion" type="text" class="kardex-input"
+                                        placeholder="Descripción del movimiento">
+                                </div>
+                                <div class="campo-contenedor">
+                                    <label class="filtro-label">📍 Ubicación</label>
+                                    <input id="ubicacion" type="text" class="kardex-input"
+                                        placeholder="Ubicación específica">
+                                </div>
+                                <div class="campo-contenedor">
+                                    <label class="filtro-label">🔢 Cantidad</label>
+                                    <div class="flex gap-2">
+                                        <input id="cantidad" type="number" class="kardex-input flex-1"
+                                            placeholder="Cantidad" min="1">
+                                        <span id="unidad-producto"
+                                            class="bg-gray-100 px-3 py-2 rounded border border-gray-300 min-w-20 text-center">UNIDAD</span>
+                                    </div>
+                                </div>
+                                <div class="campo-contenedor">
+                                    <label class="filtro-label">💰 Costo unitario</label>
+                                    <input id="costo" type="number" class="kardex-input" placeholder="Costo unitario"
+                                        step="0.01" min="0">
+                                </div>
+                                <div class="campo-contenedor">
+                                    <label class="filtro-label">📅 Fecha de vencimiento</label>
+                                    <input id="fecha-vencimiento" type="date" class="kardex-input">
+                                </div>
+                                <div class="lg:col-span-2 campo-contenedor">
                                     <div id="info-stock" class="text-sm p-3 bg-gray-50 rounded border hidden">
                                         <span class="font-semibold">Stock actual: </span>
                                         <span id="stock-actual">0</span>
@@ -555,18 +595,32 @@
                                 </button>
                             </div>
 
-                            <!-- FILTROS PARA MOVIMIENTOS -->
+                            <!-- FILTROS PARA MOVIMIENTOS - CORREGIDOS (SOLO 2 FECHAS) -->
                             <div class="filtros-container mb-4">
                                 <h3 class="text-lg font-semibold text-gray-700 mb-3">🔍 Filtros de Búsqueda</h3>
                                 <div class="filtros-grid">
-                                    <select id="filtro-producto-mov" class="kardex-input">
-                                        <option value="">Todos los productos</option>
-                                    </select>
-                                    <select id="filtro-tipo-mov" class="kardex-input">
-                                        <option value="">Todos los movimientos</option>
-                                        <option value="ENTRADA">Entrada</option>
-                                        <option value="SALIDA">Salida</option>
-                                    </select>
+                                    <div>
+                                        <label class="filtro-label">📦 Producto</label>
+                                        <select id="filtro-producto-mov" class="kardex-input">
+                                            <option value="">Todos los productos</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="filtro-label">🔄 Tipo de movimiento</label>
+                                        <select id="filtro-tipo-mov" class="kardex-input">
+                                            <option value="">Todos los movimientos</option>
+                                            <option value="ENTRADA">Entrada</option>
+                                            <option value="SALIDA">Salida</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="filtro-label">📅 Fecha inicio</label>
+                                        <input id="filtro-fecha-inicio" type="date" class="kardex-input">
+                                    </div>
+                                    <div>
+                                        <label class="filtro-label">📅 Fecha fin</label>
+                                        <input id="filtro-fecha-fin" type="date" class="kardex-input">
+                                    </div>
                                 </div>
                                 <div class="flex gap-2 mt-3">
                                     <button id="btnAplicarFiltrosMov" class="btn-success">
@@ -584,18 +638,20 @@
                                     <thead class="bg-[#0F172A] text-white sticky top-0">
                                         <tr>
                                             <th class="px-4 py-2 border">Fecha</th>
+                                            <th class="px-4 py-2 border">Hora</th>
                                             <th class="px-4 py-2 border">Producto</th>
                                             <th class="px-4 py-2 border">Movimiento</th>
                                             <th class="px-4 py-2 border">Descripción</th>
                                             <th class="px-4 py-2 border">Ubicación</th>
                                             <th class="px-4 py-2 border">Cantidad</th>
                                             <th class="px-4 py-2 border">Stock</th>
+                                            <th class="px-4 py-2 border">Vencimiento</th>
                                             <th class="px-4 py-2 border">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td colspan="8" class="px-4 py-4 text-center text-gray-500">
+                                            <td colspan="10" class="px-4 py-4 text-center text-gray-500">
                                                 Seleccione una sede para ver los movimientos
                                             </td>
                                         </tr>
@@ -620,29 +676,47 @@
                                 </div>
                             </div>
 
-                            <!-- FILTROS PARA PRODUCTOS -->
+                            <!-- FILTROS PARA PRODUCTOS - CORREGIDOS -->
                             <div class="filtros-container mb-4">
                                 <h3 class="text-lg font-semibold text-gray-700 mb-3">🔍 Filtros de Búsqueda</h3>
                                 <div class="filtros-grid">
-                                    <input id="filtro-nombre-producto" type="text" class="kardex-input"
-                                        placeholder="Buscar por nombre">
-                                    <input id="filtro-categoria-producto" type="text" class="kardex-input"
-                                        placeholder="Buscar por categoría">
-                                    <select id="filtro-stock-producto" class="kardex-input">
-                                        <option value="">Todos los estados de stock</option>
-                                        <option value="bajo">Stock Bajo (< 10)</option>
-                                        <option value="normal">Stock Normal</option>
-                                        <option value="sin-stock">Sin Stock</option>
-                                    </select>
-                                    <select id="filtro-unidad-producto" class="kardex-input">
-                                        <option value="">Todas las unidades</option>
-                                        <option value="UNIDAD">UNIDAD</option>
-                                        <option value="CAJA">CAJA</option>
-                                        <option value="PAQUETE">PAQUETE</option>
-                                        <option value="LITRO">LITRO</option>
-                                        <option value="KILO">KILO</option>
-                                        <option value="METRO">METRO</option>
-                                    </select>
+                                    <div>
+                                        <label class="filtro-label">🔍 Nombre del producto</label>
+                                        <input id="filtro-nombre-producto" type="text" class="kardex-input"
+                                            placeholder="Buscar por nombre">
+                                    </div>
+                                    <div>
+                                        <label class="filtro-label">📁 Categoría</label>
+                                        <input id="filtro-categoria-producto" type="text" class="kardex-input"
+                                            placeholder="Buscar por categoría">
+                                    </div>
+                                    <div>
+                                        <label class="filtro-label">📊 Estado de stock</label>
+                                        <select id="filtro-stock-producto" class="kardex-input">
+                                            <option value="">Todos los estados</option>
+                                            <option value="bajo">Stock Bajo (< 10)</option>
+                                            <option value="normal">Stock Normal</option>
+                                            <option value="sin-stock">Sin Stock</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="filtro-label">📏 Unidad de medida</label>
+                                        <select id="filtro-unidad-producto" class="kardex-input">
+                                            <option value="">Todas las unidades</option>
+                                            <option value="UNIDAD">UNIDAD</option>
+                                            <option value="CAJA">CAJA</option>
+                                            <option value="PAQUETE">PAQUETE</option>
+                                            <option value="LITRO">LITRO</option>
+                                            <option value="KILO">KILO</option>
+                                            <option value="METRO">METRO</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="filtro-label">🏢 Proveedor</label>
+                                        <select id="filtro-proveedor-producto" class="kardex-input">
+                                            <option value="">Todos los proveedores</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="flex gap-2 mt-3">
                                     <button id="btnAplicarFiltrosProd" class="btn-success">
@@ -654,7 +728,7 @@
                                 </div>
                             </div>
 
-                            <!-- Lista de productos con acciones -->
+                            <!-- Lista de productos con acciones - CORREGIDA (AGREGADO REGISTRO INVIMA) -->
                             <div class="tabla-container">
                                 <table id="tabla-productos" class="min-w-full text-left border border-[#0F172A]">
                                     <thead class="bg-[#0F172A] text-white sticky top-0">
@@ -662,15 +736,81 @@
                                             <th class="px-4 py-2 border">Producto</th>
                                             <th class="px-4 py-2 border">Categoría</th>
                                             <th class="px-4 py-2 border">Unidad</th>
+                                            <th class="px-4 py-2 border">Proveedor</th>
                                             <th class="px-4 py-2 border">Stock Total</th>
+                                            <th class="px-4 py-2 border">Registro Invima</th>
                                             <th class="px-4 py-2 border">Movimientos</th>
                                             <th class="px-4 py-2 border">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td colspan="6" class="px-4 py-4 text-center text-gray-500">
+                                            <td colspan="8" class="px-4 py-4 text-center text-gray-500">
                                                 Cargando productos...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- PESTAÑA: GESTIÓN DE PROVEEDORES -->
+                    <div id="contenido-proveedores" class="tab-content">
+                        <section class="bg-white border-2 border-[#0F172A] p-6 rounded-xl shadow-md mb-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-semibold text-[#0F172A]">🏢 Gestión de Proveedores</h2>
+                                <div class="flex gap-2">
+                                    <button id="btnNuevoProveedor" class="btn-primary">
+                                        <i class="fas fa-plus mr-2"></i>Nuevo Proveedor
+                                    </button>
+                                    <button id="btnExportarProveedores" class="btn-export">
+                                        <i class="fas fa-file-excel mr-2"></i>Exportar Excel
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- FILTROS PARA PROVEEDORES -->
+                            <div class="filtros-container mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-3">🔍 Filtros de Búsqueda</h3>
+                                <div class="filtros-grid">
+                                    <div>
+                                        <label class="filtro-label">🏢 Razón Social</label>
+                                        <input id="filtro-razon-social" type="text" class="kardex-input"
+                                            placeholder="Buscar por razón social">
+                                    </div>
+                                    <div>
+                                        <label class="filtro-label">🔢 NIT</label>
+                                        <input id="filtro-nit" type="text" class="kardex-input"
+                                            placeholder="Buscar por NIT">
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 mt-3">
+                                    <button id="btnAplicarFiltrosProv" class="btn-success">
+                                        <i class="fas fa-search mr-2"></i>Aplicar Filtros
+                                    </button>
+                                    <button id="btnLimpiarFiltrosProv" class="btn-secondary">
+                                        <i class="fas fa-eraser mr-2"></i>Limpiar Filtros
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Tabla de proveedores -->
+                            <div class="tabla-container">
+                                <table id="tabla-proveedores" class="min-w-full text-left border border-[#0F172A]">
+                                    <thead class="bg-[#0F172A] text-white sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-2 border">Razón Social</th>
+                                            <th class="px-4 py-2 border">NIT</th>
+                                            <th class="px-4 py-2 border">Correo</th>
+                                            <th class="px-4 py-2 border">Productos</th>
+                                            <th class="px-4 py-2 border">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="5" class="px-4 py-4 text-center text-gray-500">
+                                                Cargando proveedores...
                                             </td>
                                         </tr>
                                     </tbody>
@@ -700,6 +840,10 @@
                             <option value="KILO">KILO</option>
                             <option value="METRO">METRO</option>
                         </select>
+                        <select id="producto-proveedor" class="kardex-input">
+                            <option value="">Seleccionar proveedor</option>
+                        </select>
+                        <input type="text" id="producto-invima" class="kardex-input" placeholder="Registro Invima">
                         <div class="flex gap-2 pt-4">
                             <button type="submit" class="btn-primary flex-1">
                                 <i class="fas fa-save mr-2"></i>Guardar
@@ -733,6 +877,10 @@
                             <option value="KILO">KILO</option>
                             <option value="METRO">METRO</option>
                         </select>
+                        <select id="editar-producto-proveedor" class="kardex-input">
+                            <option value="">Seleccionar proveedor</option>
+                        </select>
+                        <input type="text" id="editar-producto-invima" class="kardex-input" placeholder="Registro Invima">
                         <div class="flex gap-2 pt-4">
                             <button type="submit" class="btn-primary flex-1">
                                 <i class="fas fa-save mr-2"></i>Actualizar
@@ -745,7 +893,54 @@
                 </div>
             </div>
 
-            <!-- MODAL CONFIRMAR ELIMINACIÓN -->
+            <!-- MODAL NUEVO PROVEEDOR -->
+            <div id="modalProveedor"
+                class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <h3 class="text-xl font-semibold mb-4">➕ Nuevo Proveedor</h3>
+                    <form id="formProveedor" class="space-y-4">
+                        <input type="text" id="proveedor-razon-social" class="kardex-input"
+                            placeholder="Razón Social" required>
+                        <input type="text" id="proveedor-nit" class="kardex-input" placeholder="NIT" required>
+                        <input type="email" id="proveedor-correo" class="kardex-input"
+                            placeholder="Correo electrónico">
+                        <div class="flex gap-2 pt-4">
+                            <button type="submit" class="btn-primary flex-1">
+                                <i class="fas fa-save mr-2"></i>Guardar
+                            </button>
+                            <button type="button" id="btnCerrarModalProveedor" class="btn-secondary">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MODAL EDITAR PROVEEDOR -->
+            <div id="modalEditarProveedor"
+                class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <h3 class="text-xl font-semibold mb-4">✏️ Editar Proveedor</h3>
+                    <form id="formEditarProveedor" class="space-y-4">
+                        <input type="hidden" id="editar-proveedor-id">
+                        <input type="text" id="editar-proveedor-razon-social" class="kardex-input"
+                            placeholder="Razón Social" required>
+                        <input type="text" id="editar-proveedor-nit" class="kardex-input" placeholder="NIT" required>
+                        <input type="email" id="editar-proveedor-correo" class="kardex-input"
+                            placeholder="Correo electrónico">
+                        <div class="flex gap-2 pt-4">
+                            <button type="submit" class="btn-primary flex-1">
+                                <i class="fas fa-save mr-2"></i>Actualizar
+                            </button>
+                            <button type="button" id="btnCerrarModalEditarProveedor" class="btn-secondary">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MODAL CONFIRMAR ELIMINACIÓN PRODUCTO -->
             <div id="modalConfirmarEliminar"
                 class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-lg p-6 w-full max-w-md">
@@ -757,6 +952,24 @@
                             <i class="fas fa-trash mr-2"></i>Eliminar
                         </button>
                         <button type="button" id="btnCancelarEliminar" class="btn-secondary">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL CONFIRMAR ELIMINACIÓN PROVEEDOR -->
+            <div id="modalConfirmarEliminarProveedor"
+                class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <h3 class="text-xl font-semibold mb-4 text-red-600">🗑️ Eliminar Proveedor</h3>
+                    <p class="text-gray-600 mb-4" id="mensaje-confirmacion-proveedor">¿Está seguro de que desea eliminar este
+                        proveedor?</p>
+                    <div class="flex gap-2 pt-4">
+                        <button type="button" id="btnConfirmarEliminarProveedor" class="btn-danger flex-1">
+                            <i class="fas fa-trash mr-2"></i>Eliminar
+                        </button>
+                        <button type="button" id="btnCancelarEliminarProveedor" class="btn-secondary">
                             Cancelar
                         </button>
                     </div>

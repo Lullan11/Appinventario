@@ -300,116 +300,6 @@ function cerrarModalMantenimiento() {
   }
 }
 
-// EL RESTO DEL CÓDIGO SE MANTIENE IGUAL...
-// [Mantener todas las otras funciones como están]
-
-// ✅ FUNCIÓN DE GUARDAR MANTENIMIENTO (ACTUALIZADA)
-async function guardarMantenimiento() {
-  const tipo = document.getElementById('mantenimiento-tipo')?.value;
-  const id = document.getElementById('mantenimiento-id')?.value;
-
-  if (tipo === 'edicion' && id) {
-    await actualizarMantenimiento();
-    return;
-  }
-
-  // Obtener datos del formulario
-  const idMantenimientoProgramado = document.getElementById('id-mantenimiento-programado')?.value;
-  const fechaRealizado = document.getElementById('fecha-realizado')?.value;
-  const descripcion = document.getElementById('descripcion-mantenimiento')?.value;
-  const realizadoPor = document.getElementById('realizado-por')?.value;
-  const observaciones = document.getElementById('observaciones-mantenimiento')?.value;
-
-  // Validaciones
-  if (!fechaRealizado || !descripcion || !realizadoPor) {
-    mostrarMensaje('❌ Complete todos los campos requeridos', true);
-    return;
-  }
-
-  try {
-    // Buscar tipo de mantenimiento
-    const tipoMantenimiento = tiposMantenimiento.find(t => {
-      const nombreTipo = t.nombre.toLowerCase();
-      const tipoBuscado = tipo.toLowerCase();
-
-      if (tipoBuscado === 'preventivo') return nombreTipo.includes('preventivo');
-      if (tipoBuscado === 'calibracion') return nombreTipo.includes('calibración') || nombreTipo.includes('calibracion');
-      if (tipoBuscado === 'correctivo') return nombreTipo.includes('correctivo');
-      return false;
-    });
-
-    if (!tipoMantenimiento) {
-      mostrarMensaje(`❌ Tipo de mantenimiento no válido: "${tipo}"`, true);
-      return;
-    }
-
-    // Preparar datos
-    const mantenimientoData = {
-      id_equipo: currentEquipo.id,
-      id_tipo: tipoMantenimiento.id,
-      fecha_realizado: fechaRealizado,
-      descripcion: descripcion,
-      realizado_por: realizadoPor,
-      observaciones: observaciones,
-      estado: 'realizado',
-      nombre_personalizado: tipoMantenimiento.nombre
-    };
-
-    // Agregar datos de mantenimiento programado si aplica
-    if (tipo !== 'correctivo' && idMantenimientoProgramado) {
-      const mantenimientoProgramado = mantenimientosProgramados.find(mp => mp.id == idMantenimientoProgramado);
-      if (mantenimientoProgramado?.nombre_personalizado) {
-        mantenimientoData.nombre_personalizado = mantenimientoProgramado.nombre_personalizado;
-      }
-      mantenimientoData.fecha_programada = document.getElementById('fecha-programada')?.value || fechaRealizado;
-      mantenimientoData.id_mantenimiento_programado = parseInt(idMantenimientoProgramado);
-    }
-
-    // ✅ SUBIR DOCUMENTO PDF SI EXISTE
-    const archivoDocumento = document.getElementById('documento-mantenimiento')?.files[0];
-    if (archivoDocumento) {
-      mostrarMensaje('📤 Subiendo PDF...');
-
-      const documentoSubido = await subirPDFCloudinary(archivoDocumento);
-
-      mantenimientoData.documento_url = documentoSubido.url;
-      mantenimientoData.documento_public_id = documentoSubido.public_id;
-      mantenimientoData.documento_nombre = documentoSubido.nombre_original;
-      mantenimientoData.documento_tamaño = documentoSubido.tamaño;
-      mantenimientoData.documento_tipo = 'cloudinary_raw';
-
-      mostrarMensaje('✅ PDF subido correctamente');
-    }
-
-    // ✅ GUARDAR EN LA BASE DE DATOS
-    const response = await fetch(API_MANTENIMIENTOS, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mantenimientoData)
-    });
-
-    if (!response.ok) {
-      throw new Error('Error al guardar mantenimiento');
-    }
-
-    const result = await response.json();
-    console.log('✅ Mantenimiento guardado:', result);
-
-    // Mensaje de éxito
-    const esValidacion = tipo !== 'correctivo';
-    mostrarMensaje(esValidacion ? '✅ Mantenimiento validado correctamente' : '✅ Correctivo agregado correctamente');
-
-    // Limpiar y recargar
-    cerrarModalMantenimiento();
-    await cargarMantenimientosRealizados(currentEquipo.id);
-    await cargarMantenimientosProgramados(currentEquipo.id);
-
-  } catch (error) {
-    console.error('❌ Error guardando mantenimiento:', error);
-    mostrarMensaje('❌ Error: ' + error.message, true);
-  }
-}
-
 // ✅ FUNCIÓN ACTUALIZADA: Actualizar mantenimiento CON CLOUDINARY
 async function actualizarMantenimiento() {
   const id = document.getElementById('mantenimiento-id')?.value;
@@ -490,8 +380,6 @@ async function actualizarMantenimiento() {
     mostrarMensaje('❌ Error al actualizar mantenimiento', true);
   }
 }
-
-
 
 // ✅ FUNCIÓN SIMPLIFICADA: Previsualizar PDF en nueva pestaña
 async function previsualizarPDF(url, nombreArchivo = 'documento.pdf') {
@@ -599,8 +487,6 @@ async function descargarDocumento(url, nombreArchivo) {
         return true;
     }
 }
-
-
 
 // ✅ FUNCIÓN MEJORADA: Renderizar mantenimientos con botones de previsualización
 function renderMantenimientosPorTipo(tipo, tablaId) {
@@ -1544,7 +1430,7 @@ function configurarEventos() {
   if (btnGenerarQR) btnGenerarQR.addEventListener('click', generarQR);
 }
 
-// Generar hoja de vida PDF (mantener la función existente - es la misma)
+// Generar hoja de vida PDF (con imagen más grande y ubicación recortada) - LETRA MÁS GRANDE
 async function generarHojaVida() {
   try {
     mostrarMensaje('📄 Generando hoja de vida...');
@@ -1601,8 +1487,8 @@ async function generarHojaVida() {
                         padding: 0; 
                         background: white;
                         color: #1e293b;
-                        font-size: 11px;
-                        line-height: 1.3;
+                        font-size: 13px; /* AUMENTADO DE 11px A 13px */
+                        line-height: 1.4; /* AUMENTADO DE 1.3 A 1.4 */
                     }
                     
                     .page-container {
@@ -1673,7 +1559,7 @@ async function generarHojaVida() {
                     }
                     
                     .title-container h1 {
-                        font-size: 18px;
+                        font-size: 22px; /* AUMENTADO DE 18px A 22px */
                         font-weight: 700;
                         margin-bottom: 3px;
                         color: white !important;
@@ -1683,7 +1569,7 @@ async function generarHojaVida() {
                     }
                     
                     .title-container .subtitle {
-                        font-size: 11px;
+                        font-size: 13px; /* AUMENTADO DE 11px A 13px */
                         font-weight: 400;
                         color: white !important;
                         opacity: 0.95;
@@ -1692,24 +1578,62 @@ async function generarHojaVida() {
                         line-height: 1.2;
                     }
                     
-                    /* CONTENEDOR PARA IMAGEN DEL EQUIPO - POSICIÓN MÁS ARRIBA */
-                    .equipo-imagen-container {
-                        position: absolute;
-                        top: 8px; /* SUBIDO DE 15px A 8px */
-                        right: 25px;
-                        z-index: 3;
+                    /* NUEVO CONTENEDOR PRINCIPAL CON TRES COLUMNAS */
+                    .main-content {
+                        display: grid;
+                        grid-template-columns: 1fr 1.2fr 1.3fr;
+                        gap: 10px;
+                        padding: 12px 20px;
+                        align-items: start;
+                    }
+                    
+                    /* Columna izquierda: Información general */
+                    .left-column {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 10px;
+                    }
+                    
+                    /* Columna central: Ubicación y descripción - MÁS COMPACTA */
+                    .center-column {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 10px;
+                    }
+                    
+                    /* Columna derecha: Imagen del equipo más grande */
+                    .right-column {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 6px;
+                        margin-top: -5px;
+                    }
+                    
+                    /* CONTENEDOR PARA IMAGEN DEL EQUIPO MÁS GRANDE */
+                    .equipo-imagen-grande {
+                        width: 100%;
+                        max-width: 220px;
                         text-align: center;
                     }
                     
+                    .equipo-imagen-container {
+                        background: white;
+                        border-radius: 8px;
+                        padding: 12px;
+                        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+                        border: 2px solid #e2e8f0;
+                    }
+                    
                     .equipo-imagen {
-                        width: 75px; /* Reducido ligeramente para mejor ajuste */
-                        height: 75px;
+                        width: 200px;
+                        height: 200px;
                         background: white;
                         border-radius: 6px;
-                        border: 2px solid white;
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                        border: 3px solid #f8fafc;
+                        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
                         overflow: hidden;
-                        margin-bottom: 4px;
+                        margin: 0 auto;
                     }
                     
                     .equipo-imagen img {
@@ -1719,46 +1643,43 @@ async function generarHojaVida() {
                     }
                     
                     .equipo-imagen-label {
-                        font-size: 7px;
-                        color: white;
-                        background: rgba(0, 0, 0, 0.3);
-                        padding: 1px 5px;
-                        border-radius: 8px;
-                        font-weight: 500;
+                        font-size: 12px; /* AUMENTADO DE 10px A 12px */
+                        color: #1e293b;
+                        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+                        padding: 6px 12px;
+                        border-radius: 14px;
+                        font-weight: 700;
+                        margin-top: 8px;
+                        border: 1px solid #cbd5e1;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
                     }
                     
                     .no-imagen {
-                        width: 75px;
-                        height: 75px;
+                        width: 200px;
+                        height: 200px;
                         background: #f8fafc;
                         border-radius: 6px;
-                        border: 2px dashed #cbd5e1;
+                        border: 3px dashed #cbd5e1;
                         display: flex;
                         align-items: center;
                         justify-content: center;
                         color: #94a3b8;
-                        margin-bottom: 4px;
+                        margin: 0 auto;
                     }
                     
                     .no-imagen i {
-                        font-size: 20px;
+                        font-size: 40px;
                     }
 
                     /* Contenido principal */
                     .content {
-                        padding: 15px 20px;
+                        padding: 0 20px 15px 20px;
                         min-height: 230mm;
                     }
                     
-                    .two-columns {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 12px;
-                        margin-bottom: 15px;
-                    }
-                    
                     .section {
-                        margin-bottom: 12px;
+                        margin-bottom: 10px;
                         background: white;
                         border-radius: 6px;
                         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
@@ -1766,35 +1687,46 @@ async function generarHojaVida() {
                         border: 1px solid #e2e8f0;
                     }
                     
+                    /* SECCIÓN DE UBICACIÓN MÁS COMPACTA */
+                    .section-compact .section-content {
+                        padding: 8px 10px !important;
+                    }
+                    
+                    .section-compact .info-item {
+                        padding: 3px 0 !important;
+                        margin-bottom: 0 !important;
+                    }
+                    
                     .section-title {
                         background: #639A33 !important;
-                        padding: 8px 12px;
+                        padding: 8px 12px; /* AUMENTADO DE 6px 10px */
                         font-weight: 600;
                         color: white !important;
-                        font-size: 11px;
+                        font-size: 12px; /* AUMENTADO DE 10px A 12px */
                         display: flex;
                         align-items: center;
-                        gap: 6px;
+                        gap: 5px;
                         border-left: 4px solid #4a7a27;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
                     
                     .section-content {
-                        padding: 12px;
+                        padding: 10px;
                     }
                     
                     .info-grid {
                         display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                        gap: 8px;
+                        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                        gap: 6px;
                     }
                     
                     .info-item {
                         display: flex;
                         flex-direction: column;
-                        padding: 5px 0;
+                        padding: 4px 0;
                         border-bottom: 1px solid #f8fafc;
+                        margin-bottom: 2px;
                     }
                     
                     .info-item:last-child {
@@ -1804,7 +1736,7 @@ async function generarHojaVida() {
                     .label {
                         font-weight: 600;
                         color: #475569;
-                        font-size: 8px;
+                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
                         margin-bottom: 1px;
                         text-transform: uppercase;
                         letter-spacing: 0.2px;
@@ -1813,7 +1745,7 @@ async function generarHojaVida() {
                     .value {
                         font-weight: 500;
                         color: #1e293b;
-                        font-size: 9px;
+                        font-size: 10px; /* AUMENTADO DE 8px A 10px */
                         line-height: 1.2;
                     }
                     
@@ -1821,27 +1753,27 @@ async function generarHojaVida() {
                     .stats-grid {
                         display: grid;
                         grid-template-columns: repeat(3, 1fr);
-                        gap: 8px;
-                        margin-bottom: 10px;
+                        gap: 6px;
+                        margin-bottom: 8px;
                     }
                     
                     .stat-item {
                         text-align: center;
-                        padding: 8px;
-                        border-radius: 6px;
+                        padding: 6px;
+                        border-radius: 5px;
                         background: #f8fafc;
                         border: 1px solid #e2e8f0;
                     }
                     
                     .stat-number {
-                        font-size: 16px;
+                        font-size: 16px; /* AUMENTADO DE 14px A 16px */
                         font-weight: 700;
                         color: #639A33;
-                        margin-bottom: 2px;
+                        margin-bottom: 1px;
                     }
                     
                     .stat-label {
-                        font-size: 8px;
+                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
                         color: #64748b;
                         text-transform: uppercase;
                         font-weight: 600;
@@ -1851,18 +1783,18 @@ async function generarHojaVida() {
                     table {
                         width: 100%;
                         border-collapse: collapse;
-                        margin-top: 6px;
-                        font-size: 8px;
+                        margin-top: 5px;
+                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
                         border: 1px solid #e2e8f0;
                     }
                     
                     th {
                         background: #639A33 !important;
                         color: white !important;
-                        padding: 5px 4px;
+                        padding: 4px 3px;
                         text-align: left;
                         font-weight: 600;
-                        font-size: 7px;
+                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
                         text-transform: uppercase;
                         border-right: 1px solid #4a7a27;
                         -webkit-print-color-adjust: exact !important;
@@ -1874,7 +1806,7 @@ async function generarHojaVida() {
                     }
                     
                     td {
-                        padding: 4px;
+                        padding: 3px;
                         border-bottom: 1px solid #e2e8f0;
                         border-right: 1px solid #e2e8f0;
                         color: #475569;
@@ -1892,32 +1824,32 @@ async function generarHojaVida() {
                     /* Especificaciones técnicas */
                     .specs-grid {
                         display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                        gap: 6px;
-                        margin-top: 8px;
+                        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                        gap: 5px;
+                        margin-top: 6px;
                     }
                     
                     .spec-item {
-                        padding: 4px 0;
+                        padding: 3px 0;
                         border-bottom: 1px solid #f1f5f9;
                     }
                     
                     .spec-label {
                         font-weight: 600;
                         color: #475569;
-                        font-size: 7px;
+                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
                         text-transform: uppercase;
                     }
                     
                     .spec-value {
-                        font-size: 8px;
+                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
                         color: #1e293b;
                     }
                     
                     /* Footer */
                     .footer {
-                        margin-top: 20px;
-                        padding: 12px 20px;
+                        margin-top: 15px;
+                        padding: 10px 20px;
                         background: #f8fafc;
                         border-top: 2px solid #639A33;
                         text-align: center;
@@ -1928,8 +1860,8 @@ async function generarHojaVida() {
                     .footer-content {
                         display: grid;
                         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-                        gap: 8px;
-                        margin-bottom: 8px;
+                        gap: 6px;
+                        margin-bottom: 6px;
                     }
                     
                     .footer-item {
@@ -1937,22 +1869,22 @@ async function generarHojaVida() {
                     }
                     
                     .footer-item .label {
-                        font-size: 7px;
+                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
                         color: #64748b;
                         margin-bottom: 1px;
                     }
                     
                     .footer-item .value {
-                        font-size: 8px;
+                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
                         color: #1e293b;
                         font-weight: 600;
                     }
                     
                     .copyright {
-                        font-size: 7px;
+                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
                         color: #94a3b8;
-                        margin-top: 8px;
-                        padding-top: 8px;
+                        margin-top: 6px;
+                        padding-top: 6px;
                         border-top: 1px solid #e2e8f0;
                     }
                     
@@ -1965,9 +1897,9 @@ async function generarHojaVida() {
                     /* Badges de estado */
                     .badge {
                         display: inline-block;
-                        padding: 2px 6px;
-                        border-radius: 10px;
-                        font-size: 7px;
+                        padding: 1px 5px;
+                        border-radius: 8px;
+                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
                         font-weight: 600;
                         text-transform: uppercase;
                     }
@@ -2036,30 +1968,13 @@ async function generarHojaVida() {
                                 <h1>HOJA DE VIDA DEL EQUIPO</h1>
                                 <div class="subtitle">Sistema de Gestión de Inventarios - IPS Progresando</div>
                             </div>
-                            
-                            <!-- IMAGEN DEL EQUIPO EN LA PARTE SUPERIOR DERECHA - MÁS ARRIBA -->
-                            <div class="equipo-imagen-container">
-                                ${imagenEquipo ? `
-                                    <div class="equipo-imagen">
-                                        <img src="${imagenEquipo}" alt="Imagen del equipo ${currentEquipo.codigo_interno}" 
-                                            onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'no-imagen\\'><i class=\\'fas fa-camera\\'></i></div><div class=\\'equipo-imagen-label\\'>Sin imagen</div>';" />
-                                    </div>
-                                    <div class="equipo-imagen-label">Equipo</div>
-                                ` : `
-                                    <div class="no-imagen">
-                                        <i class="fas fa-camera"></i>
-                                    </div>
-                                    <div class="equipo-imagen-label">Sin imagen</div>
-                                `}
-                            </div>
                         </div>
                     </div>
                     
-                    <!-- Contenido principal -->
-                    <div class="content">
-                        <!-- Información general en dos columnas -->
-                        <div class="two-columns">
-                            <!-- Columna 1: Información básica -->
+                    <!-- NUEVA ESTRUCTURA CON TRES COLUMNAS -->
+                    <div class="main-content">
+                        <!-- Columna izquierda: Información general -->
+                        <div class="left-column">
                             <div class="section no-break">
                                 <div class="section-title">
                                     <i class="fas fa-info-circle"></i>
@@ -2098,12 +2013,14 @@ async function generarHojaVida() {
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Columna 2: Ubicación y descripción -->
-                            <div class="section no-break">
+                        </div>
+                        
+                        <!-- Columna central: Ubicación y descripción - MÁS COMPACTA -->
+                        <div class="center-column">
+                            <div class="section section-compact no-break">
                                 <div class="section-title">
                                     <i class="fas fa-map-marker-alt"></i>
-                                    UBICACIÓN Y DESCRIPCIÓN
+                                    UBICACIÓN
                                 </div>
                                 <div class="section-content">
                                     <div class="info-grid">
@@ -2125,15 +2042,38 @@ async function generarHojaVida() {
                                             <span class="value">${currentEquipo.puesto_codigo || '-'}</span>
                                         </div>
                                         ` : ''}
-                                        <div class="info-item" style="grid-column: 1 / -1;">
+                                        <div class="info-item">
                                             <span class="label">Descripción</span>
-                                            <span class="value">${currentEquipo.descripcion || 'Sin descripción'}</span>
+                                            <span class="value" style="font-size: 9px; line-height: 1.1;">${currentEquipo.descripcion || 'Sin descripción'}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
+                        <!-- Columna derecha: Imagen del equipo MÁS GRANDE -->
+                        <div class="right-column">
+                            <div class="equipo-imagen-grande">
+                                <div class="equipo-imagen-container">
+                                    ${imagenEquipo ? `
+                                        <div class="equipo-imagen">
+                                            <img src="${imagenEquipo}" alt="Imagen del equipo ${currentEquipo.codigo_interno}" 
+                                                onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'no-imagen\\'><i class=\\'fas fa-camera\\'></i></div>';" />
+                                        </div>
+                                        <div class="equipo-imagen-label">EQUIPO</div>
+                                    ` : `
+                                        <div class="no-imagen">
+                                            <i class="fas fa-camera"></i>
+                                        </div>
+                                        <div class="equipo-imagen-label">SIN IMAGEN</div>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Contenido adicional (especificaciones y mantenimientos) -->
+                    <div class="content">
                         <!-- Especificaciones técnicas -->
                         ${Object.keys(currentEquipo.campos_personalizados || {}).length > 0 ? `
                         <div class="section no-break">
@@ -2152,7 +2092,7 @@ async function generarHojaVida() {
                                 </div>
                                 ${Object.keys(currentEquipo.campos_personalizados).length > 12 ? `
                                     <div style="margin-top: 6px; text-align: center;">
-                                        <span style="font-size: 7px; color: #64748b;">
+                                        <span style="font-size: 9px; color: #64748b;">
                                             + ${Object.keys(currentEquipo.campos_personalizados).length - 12} especificaciones adicionales
                                         </span>
                                     </div>
@@ -2199,7 +2139,7 @@ async function generarHojaVida() {
                                     </table>
                                     ${mantenimientosRealizados.length > 15 ? `
                                         <div style="margin-top: 6px; text-align: center;">
-                                            <span style="font-size: 7px; color: #64748b;">
+                                            <span style="font-size: 9px; color: #64748b;">
                                                 + ${mantenimientosRealizados.length - 15} mantenimientos adicionales en el historial completo
                                             </span>
                                         </div>
@@ -2207,7 +2147,7 @@ async function generarHojaVida() {
                                 ` : `
                                     <div style="text-align: center; padding: 20px; color: #64748b;">
                                         <i class="fas fa-clipboard-list" style="font-size: 24px; margin-bottom: 8px;"></i>
-                                        <p style="font-size: 9px;">No hay mantenimientos registrados para este equipo</p>
+                                        <p style="font-size: 11px;">No hay mantenimientos registrados para este equipo</p>
                                     </div>
                                 `}
                             </div>
