@@ -53,12 +53,7 @@ async function cargarHistorialDesdeBD() {
 // Guardar chequeo en BD - VERSIÓN CORREGIDA
 async function guardarChequeoEnBD(chequeoData) {
     try {
-        console.log('📤 Guardando chequeo en BD...', {
-            tipo: chequeoData.tipo,
-            nombre: chequeoData.nombre,
-            responsable: chequeoData.responsable,
-            equipos_chequeados: chequeoData.equipos_chequeados
-        });
+        console.log('📤 Guardando chequeo en BD...', chequeoData);
         
         const res = await fetch(`${API_BASE_URL}/chequeos`, {
             method: 'POST',
@@ -72,7 +67,8 @@ async function guardarChequeoEnBD(chequeoData) {
             let errorMessage = 'Error al guardar chequeo';
             try {
                 const errorData = await res.json();
-                errorMessage = errorData.error || errorMessage;
+                console.error('❌ Error del servidor:', errorData);
+                errorMessage = errorData.error || errorData.message || errorMessage;
             } catch (e) {
                 errorMessage = `Error ${res.status}: ${res.statusText}`;
             }
@@ -114,7 +110,7 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
         const cloudinaryData = await cloudinaryResponse.json();
         console.log('✅ PDF subido a Cloudinary:', cloudinaryData.secure_url);
 
-        // 2. Preparar datos para guardar en BD - SIN id_usuario
+        // 2. Preparar datos para guardar en BD - ESTRUCTURA SIMPLIFICADA
         const nombre = tipo === 'consultorio' ? 
             `Consultorio ${consultorioSeleccionado}` : 
             obtenerNombreArea(areaEspecialSeleccionada);
@@ -131,6 +127,7 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
             document.getElementById('observaciones-generales').value :
             document.getElementById('observaciones-generales-area').value;
 
+        // Estructura de datos CORREGIDA para evitar error 500
         const chequeoData = {
             tipo: tipo,
             nombre: nombre,
@@ -140,9 +137,10 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
             archivo_public_id: cloudinaryData.public_id,
             observaciones: observaciones || '',
             equipos_chequeados: equiposData.filter(e => e.chequeado).length,
-            datos_equipos: equiposData,
+            datos_equipos: JSON.stringify(equiposData), // Convertir a string para evitar problemas
             mes: new Date().getMonth() + 1,
-            año: new Date().getFullYear()
+            año: new Date().getFullYear(),
+            fecha: new Date().toISOString()
         };
 
         console.log('💾 Datos para guardar en BD:', chequeoData);
@@ -509,9 +507,10 @@ function resetearFormulario(tipo) {
         document.getElementById('validado-por').value = '';
         document.getElementById('observaciones-generales').value = '';
         
+        // SOLO resetear campos de texto, mantener checkboxes seleccionados
         document.querySelectorAll('#lista-chequeo-consultorio input[type="checkbox"]').forEach(checkbox => {
-            checkbox.checked = false;
-            checkbox.closest('.checkbox-item').classList.remove('checked');
+            checkbox.checked = true; // MANTENER SELECCIONADOS
+            checkbox.closest('.checkbox-item').classList.add('checked');
         });
         
     } else {
@@ -519,9 +518,10 @@ function resetearFormulario(tipo) {
         document.getElementById('validado-por-area').value = '';
         document.getElementById('observaciones-generales-area').value = '';
         
+        // SOLO resetear campos de texto, mantener checkboxes seleccionados
         document.querySelectorAll('#lista-chequeo-area input[type="checkbox"]').forEach(checkbox => {
-            checkbox.checked = false;
-            checkbox.closest('.checkbox-item').classList.remove('checked');
+            checkbox.checked = true; // MANTENER SELECCIONADOS
+            checkbox.closest('.checkbox-item').classList.add('checked');
         });
     }
 }
@@ -579,9 +579,10 @@ function configurarTabs() {
 }
 
 function configurarEventos() {
-    // Consultorios
+    // Consultorios - CORREGIDO
     document.querySelectorAll('.consultorio-card').forEach(card => {
         card.addEventListener('click', () => {
+            console.log('🟢 Consultorio clickeado:', card.getAttribute('data-consultorio'));
             document.querySelectorAll('.consultorio-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
             consultorioSeleccionado = card.getAttribute('data-consultorio');
@@ -758,14 +759,63 @@ function llenarSelectAnios(selectId) {
     });
 }
 
+// ========================= FUNCIONES PARA CARGAR EQUIPOS =========================
+
+// FUNCIÓN CORREGIDA - Ahora funciona con el HTML existente
+// ========================= FUNCIONES PARA CARGAR EQUIPOS =========================
+
+// FUNCIÓN MEJORADA - Maneja equipos dinámicamente incluyendo electrocardiograma para consultorio 6
 function mostrarListaChequeoConsultorio() {
     const container = document.getElementById('lista-chequeo-consultorio');
     const titulo = document.getElementById('consultorio-seleccionado');
+    const equiposContainer = document.querySelector('#lista-chequeo-consultorio .space-y-3');
     
-    if (container && titulo) {
+    if (container && titulo && equiposContainer) {
         titulo.textContent = `Consultorio ${consultorioSeleccionado}`;
         container.classList.remove('hidden');
-        resetearFormulario('consultorio');
+        
+        // Lista base de equipos para todos los consultorios
+        const equiposBase = [
+            'Báscula', 'Linterna', 'Martillo de Reflejos', 'Negatoscopio', 
+            'Pulsioxímetro', 'Tensiómetro', 'Fonendoscopio', 'Equipo de Órganos', 'Tallímetro'
+        ];
+        
+        // Solo para consultorio 6 agregar electrocardiograma
+        if (consultorioSeleccionado === '6') {
+            equiposBase.push('Electrocardiograma');
+        }
+        
+        // Generar HTML de equipos
+        let html = '';
+        equiposBase.forEach(equipo => {
+            const equipoId = equipo.toLowerCase().replace(/\s+/g, '-');
+            html += `
+                <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4 checked">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="${equipoId}" 
+                                   class="h-5 w-5 text-[#01983B] focus:ring-[#01983B] rounded" checked>
+                            <label for="${equipoId}" class="text-gray-700 font-medium">${equipo}</label>
+                        </div>
+                        <div class="flex space-x-2">
+                            <select class="estado-equipo border border-gray-300 rounded px-3 py-1 text-sm">
+                                <option value="optimo">Óptimo</option>
+                                <option value="regular">Regular</option>
+                                <option value="defectuoso">Defectuoso</option>
+                            </select>
+                            <input type="text" placeholder="Observaciones" class="observaciones border border-gray-300 rounded px-3 py-1 text-sm w-40">
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        equiposContainer.innerHTML = html;
+        
+        console.log('✅ Formulario de consultorio mostrado para:', consultorioSeleccionado);
+        console.log('📋 Equipos cargados:', equiposBase);
+    } else {
+        console.error('❌ No se encontró el contenedor del formulario de consultorio');
     }
 }
 
@@ -777,14 +827,14 @@ function mostrarListaChequeoArea() {
     if (container && titulo && equiposContainer) {
         titulo.textContent = obtenerNombreArea(areaEspecialSeleccionada);
         container.classList.remove('hidden');
-        resetearFormulario('area');
         cargarEquiposAreaEspecial(areaEspecialSeleccionada, equiposContainer);
     }
 }
 
+// Función para cargar equipos de áreas especiales
 function cargarEquiposAreaEspecial(area, container) {
     const equiposPorArea = {
-        'espirometria': ['Espirómetro'],
+        'espirometria': ['Espirómetro', 'Báscula'], // AGREGADA BÁSCULA
         'audiometria': ['Audiómetro', 'Cabina Audiométrica', 'Equipo de organos'],
         'optometria': [
             'Autorref-Keratómetro', 'Forópter', 'Lámpara de Hendidura', 'Lensómetro',
@@ -799,13 +849,14 @@ function cargarEquiposAreaEspecial(area, container) {
     let html = `<h4 class="font-semibold text-gray-800 mb-4 text-lg">Equipos del Área</h4><div class="space-y-3">`;
     
     equipos.forEach(equipo => {
+        const equipoId = `${area}-${equipo.toLowerCase().replace(/\s+/g, '-')}`;
         html += `
-            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4 checked">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
-                        <input type="checkbox" id="${equipo.toLowerCase().replace(/\s+/g, '-')}" 
-                               class="h-5 w-5 text-[#639A33] focus:ring-[#639A33] rounded">
-                        <label for="${equipo.toLowerCase().replace(/\s+/g, '-')}" class="text-gray-700 font-medium">${equipo}</label>
+                        <input type="checkbox" id="${equipoId}" 
+                               class="h-5 w-5 text-[#639A33] focus:ring-[#639A33] rounded" checked>
+                        <label for="${equipoId}" class="text-gray-700 font-medium">${equipo}</label>
                     </div>
                     <div class="flex space-x-2">
                         <select class="estado-equipo border border-gray-300 rounded px-3 py-1 text-sm">
