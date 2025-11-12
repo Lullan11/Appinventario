@@ -1431,6 +1431,7 @@ function configurarEventos() {
 }
 
 // Generar hoja de vida PDF (con imagen más grande y ubicación recortada) - LETRA MÁS GRANDE
+// Generar hoja de vida PDF (con imagen más grande y ubicación recortada) - LETRA MÁS GRANDE
 async function generarHojaVida() {
   try {
     mostrarMensaje('📄 Generando hoja de vida...');
@@ -1821,17 +1822,27 @@ async function generarHojaVida() {
                         background: #f8fafc;
                     }
                     
-                    /* Especificaciones técnicas */
+                    /* Especificaciones técnicas - AHORA CON SCROLL SI ES NECESARIO */
+                    .specs-container {
+                        max-height: 300px;
+                        overflow-y: auto;
+                        margin-top: 6px;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 4px;
+                        padding: 5px;
+                    }
+                    
                     .specs-grid {
                         display: grid;
                         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
                         gap: 5px;
-                        margin-top: 6px;
                     }
                     
                     .spec-item {
                         padding: 3px 0;
                         border-bottom: 1px solid #f1f5f9;
+                        page-break-inside: avoid;
+                        break-inside: avoid;
                     }
                     
                     .spec-label {
@@ -1949,6 +1960,12 @@ async function generarHojaVida() {
                             color: white !important;
                             -webkit-print-color-adjust: exact !important;
                             print-color-adjust: exact !important;
+                        }
+                        
+                        /* En impresión, mostrar todas las especificaciones sin scroll */
+                        .specs-container {
+                            max-height: none !important;
+                            overflow: visible !important;
                         }
                     }
                 </style>
@@ -2074,32 +2091,40 @@ async function generarHojaVida() {
                     
                     <!-- Contenido adicional (especificaciones y mantenimientos) -->
                     <div class="content">
-                        <!-- Especificaciones técnicas -->
+                        <!-- Especificaciones técnicas - AHORA MUESTRA TODAS SIN LIMITE -->
                         ${Object.keys(currentEquipo.campos_personalizados || {}).length > 0 ? `
                         <div class="section no-break">
                             <div class="section-title">
                                 <i class="fas fa-cogs"></i>
-                                ESPECIFICACIONES
+                                ESPECIFICACIONES (${Object.keys(currentEquipo.campos_personalizados).length} campos)
                             </div>
                             <div class="section-content">
-                                <div class="specs-grid">
-                                    ${Object.entries(currentEquipo.campos_personalizados).slice(0, 12).map(([key, value]) => `
-                                        <div class="spec-item">
-                                            <div class="spec-label">${key}</div>
-                                            <div class="spec-value">${value || 'No especificado'}</div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                ${Object.keys(currentEquipo.campos_personalizados).length > 12 ? `
-                                    <div style="margin-top: 6px; text-align: center;">
-                                        <span style="font-size: 9px; color: #64748b;">
-                                            + ${Object.keys(currentEquipo.campos_personalizados).length - 12} especificaciones adicionales
-                                        </span>
+                                <div class="specs-container">
+                                    <div class="specs-grid">
+                                        ${Object.entries(currentEquipo.campos_personalizados).map(([key, value]) => `
+                                            <div class="spec-item">
+                                                <div class="spec-label">${key}</div>
+                                                <div class="spec-value">${value || 'No especificado'}</div>
+                                            </div>
+                                        `).join('')}
                                     </div>
-                                ` : ''}
+                                </div>
                             </div>
                         </div>
-                        ` : ''}
+                        ` : `
+                        <div class="section no-break">
+                            <div class="section-title">
+                                <i class="fas fa-cogs"></i>
+                                ESPECIFICACIONES TÉCNICAS
+                            </div>
+                            <div class="section-content">
+                                <div style="text-align: center; padding: 15px; color: #64748b;">
+                                    <i class="fas fa-sliders-h" style="font-size: 24px; margin-bottom: 8px;"></i>
+                                    <p style="font-size: 11px;">No hay especificaciones técnicas registradas</p>
+                                </div>
+                            </div>
+                        </div>
+                        `}
                         
                         <!-- Historial de mantenimientos -->
                         <div class="section">

@@ -334,7 +334,7 @@ function cargarTablaProveedores() {
     if (proveedoresFiltrados.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" class="px-4 py-4 text-center text-gray-500">
+                <td colspan="7" class="px-4 py-4 text-center text-gray-500">
                     No hay proveedores registrados
                 </td>
             </tr>
@@ -353,6 +353,8 @@ function cargarTablaProveedores() {
             </td>
             <td class="px-4 py-2 border">${prov.nit}</td>
             <td class="px-4 py-2 border">${prov.correo || '-'}</td>
+            <td class="px-4 py-2 border">${prov.telefono || '-'}</td>
+            <td class="px-4 py-2 border">${prov.direccion || '-'}</td>
             <td class="px-4 py-2 border text-center">
                 <span class="badge-info">${productosAsociados}</span>
             </td>
@@ -393,7 +395,9 @@ async function guardarProveedor(event) {
     const proveedorData = {
         razon_social: document.getElementById('proveedor-razon-social').value,
         nit: document.getElementById('proveedor-nit').value,
-        correo: document.getElementById('proveedor-correo').value
+        correo: document.getElementById('proveedor-correo').value,
+        telefono: document.getElementById('proveedor-telefono').value,
+        direccion: document.getElementById('proveedor-direccion').value
     };
 
     try {
@@ -436,6 +440,8 @@ async function editarProveedor(proveedorId) {
         document.getElementById('editar-proveedor-razon-social').value = proveedor.razon_social;
         document.getElementById('editar-proveedor-nit').value = proveedor.nit;
         document.getElementById('editar-proveedor-correo').value = proveedor.correo || '';
+        document.getElementById('editar-proveedor-telefono').value = proveedor.telefono || '';
+        document.getElementById('editar-proveedor-direccion').value = proveedor.direccion || '';
 
         const modal = document.getElementById('modalEditarProveedor');
         if (modal) modal.classList.add('active');
@@ -461,7 +467,9 @@ async function actualizarProveedor(event) {
     const proveedorData = {
         razon_social: document.getElementById('editar-proveedor-razon-social').value,
         nit: document.getElementById('editar-proveedor-nit').value,
-        correo: document.getElementById('editar-proveedor-correo').value
+        correo: document.getElementById('editar-proveedor-correo').value,
+        telefono: document.getElementById('editar-proveedor-telefono').value,
+        direccion: document.getElementById('editar-proveedor-direccion').value
     };
 
     try {
@@ -1228,6 +1236,8 @@ async function exportarExcelProveedores() {
                 'Razón Social': prov.razon_social || '',
                 'NIT': prov.nit || '',
                 'Correo Electrónico': prov.correo || '',
+                'Teléfono': prov.telefono || '',
+                'Dirección': prov.direccion || '',
                 'Productos Asociados': productosAsociados,
                 'Fecha Registro': formatearFechaLocal(prov.created_at)
             };

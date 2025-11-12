@@ -796,6 +796,7 @@
                             </div>
 
                             <!-- Tabla de proveedores -->
+                            <!-- Tabla de proveedores -->
                             <div class="tabla-container">
                                 <table id="tabla-proveedores" class="min-w-full text-left border border-[#0F172A]">
                                     <thead class="bg-[#0F172A] text-white sticky top-0">
@@ -803,13 +804,15 @@
                                             <th class="px-4 py-2 border">Razón Social</th>
                                             <th class="px-4 py-2 border">NIT</th>
                                             <th class="px-4 py-2 border">Correo</th>
+                                            <th class="px-4 py-2 border">Teléfono</th>
+                                            <th class="px-4 py-2 border">Dirección</th>
                                             <th class="px-4 py-2 border">Productos</th>
                                             <th class="px-4 py-2 border">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td colspan="5" class="px-4 py-4 text-center text-gray-500">
+                                            <td colspan="7" class="px-4 py-4 text-center text-gray-500">
                                                 Cargando proveedores...
                                             </td>
                                         </tr>
@@ -880,7 +883,8 @@
                         <select id="editar-producto-proveedor" class="kardex-input">
                             <option value="">Seleccionar proveedor</option>
                         </select>
-                        <input type="text" id="editar-producto-invima" class="kardex-input" placeholder="Registro Invima">
+                        <input type="text" id="editar-producto-invima" class="kardex-input"
+                            placeholder="Registro Invima">
                         <div class="flex gap-2 pt-4">
                             <button type="submit" class="btn-primary flex-1">
                                 <i class="fas fa-save mr-2"></i>Actualizar
@@ -893,17 +897,20 @@
                 </div>
             </div>
 
+
             <!-- MODAL NUEVO PROVEEDOR -->
             <div id="modalProveedor"
                 class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-lg p-6 w-full max-w-md">
                     <h3 class="text-xl font-semibold mb-4">➕ Nuevo Proveedor</h3>
                     <form id="formProveedor" class="space-y-4">
-                        <input type="text" id="proveedor-razon-social" class="kardex-input"
-                            placeholder="Razón Social" required>
+                        <input type="text" id="proveedor-razon-social" class="kardex-input" placeholder="Razón Social"
+                            required>
                         <input type="text" id="proveedor-nit" class="kardex-input" placeholder="NIT" required>
-                        <input type="email" id="proveedor-correo" class="kardex-input"
-                            placeholder="Correo electrónico">
+                        <input type="email" id="proveedor-correo" class="kardex-input" placeholder="Correo electrónico">
+                        <!-- AGREGAR CAMPOS NUEVOS -->
+                        <input type="text" id="proveedor-telefono" class="kardex-input" placeholder="Teléfono">
+                        <input type="text" id="proveedor-direccion" class="kardex-input" placeholder="Dirección">
                         <div class="flex gap-2 pt-4">
                             <button type="submit" class="btn-primary flex-1">
                                 <i class="fas fa-save mr-2"></i>Guardar
@@ -928,6 +935,9 @@
                         <input type="text" id="editar-proveedor-nit" class="kardex-input" placeholder="NIT" required>
                         <input type="email" id="editar-proveedor-correo" class="kardex-input"
                             placeholder="Correo electrónico">
+                        <!-- AGREGAR CAMPOS NUEVOS -->
+                        <input type="text" id="editar-proveedor-telefono" class="kardex-input" placeholder="Teléfono">
+                        <input type="text" id="editar-proveedor-direccion" class="kardex-input" placeholder="Dirección">
                         <div class="flex gap-2 pt-4">
                             <button type="submit" class="btn-primary flex-1">
                                 <i class="fas fa-save mr-2"></i>Actualizar
@@ -963,7 +973,8 @@
                 class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-lg p-6 w-full max-w-md">
                     <h3 class="text-xl font-semibold mb-4 text-red-600">🗑️ Eliminar Proveedor</h3>
-                    <p class="text-gray-600 mb-4" id="mensaje-confirmacion-proveedor">¿Está seguro de que desea eliminar este
+                    <p class="text-gray-600 mb-4" id="mensaje-confirmacion-proveedor">¿Está seguro de que desea eliminar
+                        este
                         proveedor?</p>
                     <div class="flex gap-2 pt-4">
                         <button type="button" id="btnConfirmarEliminarProveedor" class="btn-danger flex-1">
