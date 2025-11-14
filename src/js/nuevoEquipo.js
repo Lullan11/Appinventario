@@ -361,11 +361,15 @@ async function cargarUbicaciones() {
 }
 
 // Autocompletar responsable
+// Autocompletar responsable - VERSIÓN MEJORADA
 function configurarAutocompletarResponsable() {
     const ubicacionSelect = document.getElementById("ubicacion");
     const responsableInput = document.getElementById("responsable");
 
     if (!ubicacionSelect || !responsableInput) return;
+
+    // Cache de puestos para evitar múltiples llamadas a la API
+    let cachePuestos = null;
 
     ubicacionSelect.addEventListener("change", async (e) => {
         const value = e.target.value;
@@ -375,21 +379,85 @@ function configurarAutocompletarResponsable() {
         }
 
         const [tipo, id] = value.split("-");
+        console.log(`📍 Ubicación seleccionada: ${tipo} - ID: ${id}`);
 
         if (tipo === "puesto") {
             try {
-                const res = await fetch(`${apiUrl}/ubicacion/${tipo}/${id}`);
-                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-                const data = await res.json();
-                responsableInput.value = data.responsable_nombre || "";
+                // Cargar puestos si no están en cache
+                if (!cachePuestos) {
+                    const res = await fetch(`${apiUrl}/puestos`);
+                    if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                    cachePuestos = await res.json();
+                }
+
+                // Buscar el puesto específico
+                const puesto = cachePuestos.find(p => p.id == id);
+                
+                if (puesto && puesto.responsable_nombre) {
+                    responsableInput.value = puesto.responsable_nombre;
+                    console.log(`✅ Responsable autocompletado: ${puesto.responsable_nombre}`);
+                    
+                    // Mostrar feedback visual
+                    responsableInput.classList.add('bg-green-50', 'border-green-500');
+                    setTimeout(() => {
+                        responsableInput.classList.remove('bg-green-50', 'border-green-500');
+                    }, 2000);
+                    
+                } else {
+                    // Intentar extraer del texto de la opción
+                    const responsable = extraerResponsableDeOpcion(e.target);
+                    responsableInput.value = responsable || "";
+                    
+                    if (responsable) {
+                        console.log(`✅ Responsable extraído del texto: ${responsable}`);
+                    } else {
+                        console.warn("⚠️ No se pudo determinar el responsable");
+                        mostrarMensajeEquipo("ℹ️ Complete manualmente el responsable", false);
+                    }
+                }
+                
             } catch (err) {
-                console.error("Error al obtener información de puesto:", err);
-                responsableInput.value = "";
+                console.error("❌ Error al obtener información del puesto:", err);
+                
+                // Fallback: extraer del texto de la opción
+                const responsable = extraerResponsableDeOpcion(e.target);
+                responsableInput.value = responsable || "";
+                
+                if (!responsable) {
+                    mostrarMensajeEquipo("⚠️ Error al cargar responsable. Complete manualmente.", true);
+                }
             }
         } else {
+            // Si es área, limpiar el campo
             responsableInput.value = "";
+            responsableInput.classList.remove('bg-green-50', 'border-green-500');
         }
     });
+}
+
+// Función auxiliar para extraer responsable del texto de la opción
+function extraerResponsableDeOpcion(selectElement) {
+    const optionSeleccionada = selectElement.options[selectElement.selectedIndex];
+    if (!optionSeleccionada) return "";
+    
+    const texto = optionSeleccionada.textContent;
+    
+    // Patrones para extraer el nombre del responsable
+    const patrones = [
+        /💼.*?- (.*?) \(Área:/,           // Formato: 💼 CODIGO - NOMBRE (Área: ...)
+        /👤.*?- (.*?) \(Área:/,           // Formato alternativo
+        /- ([^-()]+) \(Área:/,            // Formato genérico
+        /- ([^-()]+)$/                    // Último recurso: tomar lo después del último guión
+    ];
+    
+    for (const patron of patrones) {
+        const match = texto.match(patron);
+        if (match && match[1]) {
+            return match[1].trim();
+        }
+    }
+    
+    return "";
 }
 
 // Funciones para mantenimientos
