@@ -361,15 +361,15 @@ async function cargarUbicaciones() {
 }
 
 // Autocompletar responsable
-// Autocompletar responsable - VERSIÓN MEJORADA
+/// Autocompletar responsable - VERSIÓN CORREGIDA
 function configurarAutocompletarResponsable() {
     const ubicacionSelect = document.getElementById("ubicacion");
     const responsableInput = document.getElementById("responsable");
 
     if (!ubicacionSelect || !responsableInput) return;
 
-    // Cache de puestos para evitar múltiples llamadas a la API
-    let cachePuestos = null;
+    // Cache para almacenar los puestos ya cargados
+    let puestosCache = null;
 
     ubicacionSelect.addEventListener("change", async (e) => {
         const value = e.target.value;
@@ -383,49 +383,45 @@ function configurarAutocompletarResponsable() {
 
         if (tipo === "puesto") {
             try {
-                // Cargar puestos si no están en cache
-                if (!cachePuestos) {
+                // Cargar todos los puestos si no están en cache
+                if (!puestosCache) {
+                    console.log("📥 Cargando lista de puestos...");
                     const res = await fetch(`${apiUrl}/puestos`);
                     if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-                    cachePuestos = await res.json();
+                    puestosCache = await res.json();
+                    console.log("✅ Puestos cargados:", puestosCache.length);
                 }
 
-                // Buscar el puesto específico
-                const puesto = cachePuestos.find(p => p.id == id);
+                // Buscar el puesto específico en la lista
+                const puesto = puestosCache.find(p => p.id == id);
                 
-                if (puesto && puesto.responsable_nombre) {
-                    responsableInput.value = puesto.responsable_nombre;
-                    console.log(`✅ Responsable autocompletado: ${puesto.responsable_nombre}`);
+                if (puesto) {
+                    // Usar el campo correcto según lo que tenga tu API
+                    const responsable = 
+                        puesto.responsable_nombre || 
+                        puesto.responsable || 
+                        puesto.nombre_responsable ||
+                        "Responsable no asignado";
                     
-                    // Mostrar feedback visual
+                    responsableInput.value = responsable;
+                    console.log(`✅ Responsable autocompletado: ${responsable}`);
+                    
+                    // Feedback visual
                     responsableInput.classList.add('bg-green-50', 'border-green-500');
                     setTimeout(() => {
                         responsableInput.classList.remove('bg-green-50', 'border-green-500');
                     }, 2000);
                     
                 } else {
-                    // Intentar extraer del texto de la opción
-                    const responsable = extraerResponsableDeOpcion(e.target);
-                    responsableInput.value = responsable || "";
-                    
-                    if (responsable) {
-                        console.log(`✅ Responsable extraído del texto: ${responsable}`);
-                    } else {
-                        console.warn("⚠️ No se pudo determinar el responsable");
-                        mostrarMensajeEquipo("ℹ️ Complete manualmente el responsable", false);
-                    }
+                    console.warn(`⚠️ Puesto con ID ${id} no encontrado`);
+                    // Intentar extraer del texto de la opción como fallback
+                    extraerResponsableDeTexto(e.target, responsableInput);
                 }
                 
             } catch (err) {
-                console.error("❌ Error al obtener información del puesto:", err);
-                
+                console.error("❌ Error al cargar puestos:", err);
                 // Fallback: extraer del texto de la opción
-                const responsable = extraerResponsableDeOpcion(e.target);
-                responsableInput.value = responsable || "";
-                
-                if (!responsable) {
-                    mostrarMensajeEquipo("⚠️ Error al cargar responsable. Complete manualmente.", true);
-                }
+                extraerResponsableDeTexto(e.target, responsableInput);
             }
         } else {
             // Si es área, limpiar el campo
@@ -436,28 +432,38 @@ function configurarAutocompletarResponsable() {
 }
 
 // Función auxiliar para extraer responsable del texto de la opción
-function extraerResponsableDeOpcion(selectElement) {
+function extraerResponsableDeTexto(selectElement, responsableInput) {
     const optionSeleccionada = selectElement.options[selectElement.selectedIndex];
-    if (!optionSeleccionada) return "";
+    if (!optionSeleccionada) {
+        responsableInput.value = "";
+        return;
+    }
     
     const texto = optionSeleccionada.textContent;
+    console.log("📝 Analizando texto de opción:", texto);
     
-    // Patrones para extraer el nombre del responsable
+    // Diferentes patrones para extraer el nombre
     const patrones = [
         /💼.*?- (.*?) \(Área:/,           // Formato: 💼 CODIGO - NOMBRE (Área: ...)
         /👤.*?- (.*?) \(Área:/,           // Formato alternativo
-        /- ([^-()]+) \(Área:/,            // Formato genérico
-        /- ([^-()]+)$/                    // Último recurso: tomar lo después del último guión
+        /- ([^-()]+) \(Área:/,            // Buscar entre - y (Área:
+        /- ([^-]+)$/                      // Último recurso: después del último -
     ];
     
     for (const patron of patrones) {
         const match = texto.match(patron);
         if (match && match[1]) {
-            return match[1].trim();
+            const responsable = match[1].trim();
+            responsableInput.value = responsable;
+            console.log(`✅ Responsable extraído del texto: ${responsable}`);
+            return;
         }
     }
     
-    return "";
+    // Si no se pudo extraer, dejar vacío y mostrar mensaje
+    responsableInput.value = "";
+    console.warn("⚠️ No se pudo extraer responsable del texto");
+    mostrarMensajeEquipo("ℹ️ Complete manualmente el responsable", false);
 }
 
 // Funciones para mantenimientos
