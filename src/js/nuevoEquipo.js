@@ -361,15 +361,11 @@ async function cargarUbicaciones() {
 }
 
 // Autocompletar responsable
-/// Autocompletar responsable - VERSIÓN CORREGIDA
 function configurarAutocompletarResponsable() {
     const ubicacionSelect = document.getElementById("ubicacion");
     const responsableInput = document.getElementById("responsable");
 
     if (!ubicacionSelect || !responsableInput) return;
-
-    // Cache para almacenar los puestos ya cargados
-    let puestosCache = null;
 
     ubicacionSelect.addEventListener("change", async (e) => {
         const value = e.target.value;
@@ -379,91 +375,21 @@ function configurarAutocompletarResponsable() {
         }
 
         const [tipo, id] = value.split("-");
-        console.log(`📍 Ubicación seleccionada: ${tipo} - ID: ${id}`);
 
         if (tipo === "puesto") {
             try {
-                // Cargar todos los puestos si no están en cache
-                if (!puestosCache) {
-                    console.log("📥 Cargando lista de puestos...");
-                    const res = await fetch(`${apiUrl}/puestos`);
-                    if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-                    puestosCache = await res.json();
-                    console.log("✅ Puestos cargados:", puestosCache.length);
-                }
-
-                // Buscar el puesto específico en la lista
-                const puesto = puestosCache.find(p => p.id == id);
-                
-                if (puesto) {
-                    // Usar el campo correcto según lo que tenga tu API
-                    const responsable = 
-                        puesto.responsable_nombre || 
-                        puesto.responsable || 
-                        puesto.nombre_responsable ||
-                        "Responsable no asignado";
-                    
-                    responsableInput.value = responsable;
-                    console.log(`✅ Responsable autocompletado: ${responsable}`);
-                    
-                    // Feedback visual
-                    responsableInput.classList.add('bg-green-50', 'border-green-500');
-                    setTimeout(() => {
-                        responsableInput.classList.remove('bg-green-50', 'border-green-500');
-                    }, 2000);
-                    
-                } else {
-                    console.warn(`⚠️ Puesto con ID ${id} no encontrado`);
-                    // Intentar extraer del texto de la opción como fallback
-                    extraerResponsableDeTexto(e.target, responsableInput);
-                }
-                
+                const res = await fetch(`${apiUrl}/ubicacion/${tipo}/${id}`);
+                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                const data = await res.json();
+                responsableInput.value = data.responsable_nombre || "";
             } catch (err) {
-                console.error("❌ Error al cargar puestos:", err);
-                // Fallback: extraer del texto de la opción
-                extraerResponsableDeTexto(e.target, responsableInput);
+                console.error("Error al obtener información de puesto:", err);
+                responsableInput.value = "";
             }
         } else {
-            // Si es área, limpiar el campo
             responsableInput.value = "";
-            responsableInput.classList.remove('bg-green-50', 'border-green-500');
         }
     });
-}
-
-// Función auxiliar para extraer responsable del texto de la opción
-function extraerResponsableDeTexto(selectElement, responsableInput) {
-    const optionSeleccionada = selectElement.options[selectElement.selectedIndex];
-    if (!optionSeleccionada) {
-        responsableInput.value = "";
-        return;
-    }
-    
-    const texto = optionSeleccionada.textContent;
-    console.log("📝 Analizando texto de opción:", texto);
-    
-    // Diferentes patrones para extraer el nombre
-    const patrones = [
-        /💼.*?- (.*?) \(Área:/,           // Formato: 💼 CODIGO - NOMBRE (Área: ...)
-        /👤.*?- (.*?) \(Área:/,           // Formato alternativo
-        /- ([^-()]+) \(Área:/,            // Buscar entre - y (Área:
-        /- ([^-]+)$/                      // Último recurso: después del último -
-    ];
-    
-    for (const patron of patrones) {
-        const match = texto.match(patron);
-        if (match && match[1]) {
-            const responsable = match[1].trim();
-            responsableInput.value = responsable;
-            console.log(`✅ Responsable extraído del texto: ${responsable}`);
-            return;
-        }
-    }
-    
-    // Si no se pudo extraer, dejar vacío y mostrar mensaje
-    responsableInput.value = "";
-    console.warn("⚠️ No se pudo extraer responsable del texto");
-    mostrarMensajeEquipo("ℹ️ Complete manualmente el responsable", false);
 }
 
 // Funciones para mantenimientos
