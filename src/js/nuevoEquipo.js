@@ -33,7 +33,7 @@ function mostrarMensajeEquipo(texto, esError = false) {
 function verificarEstadoImagen() {
     const inputImagen = document.getElementById('imagen-equipo');
     const archivo = inputImagen?.files[0];
-    
+
     return {
         tieneNuevaImagen: !!archivo,
         archivo: archivo
@@ -47,24 +47,24 @@ function configurarPreviewImagen() {
     const previewContainer = document.getElementById('preview-container');
     const previewImagen = document.getElementById('preview-imagen');
     const previewNombre = document.getElementById('preview-nombre');
-    
+
     // Configurar drag & drop
     if (dragDropZone) {
         dragDropZone.addEventListener('click', () => inputImagen?.click());
-        
+
         dragDropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dragDropZone.classList.add('border-blue-400', 'bg-blue-50');
         });
-        
+
         dragDropZone.addEventListener('dragleave', () => {
             dragDropZone.classList.remove('border-blue-400', 'bg-blue-50');
         });
-        
+
         dragDropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dragDropZone.classList.remove('border-blue-400', 'bg-blue-50');
-            
+
             if (e.dataTransfer.files.length > 0) {
                 inputImagen.files = e.dataTransfer.files;
                 mostrarPreviewImagen(inputImagen, previewImagen, previewNombre);
@@ -73,7 +73,7 @@ function configurarPreviewImagen() {
             }
         });
     }
-    
+
     // Configurar cambio de input
     if (inputImagen && previewImagen) {
         inputImagen.addEventListener('change', function(e) {
@@ -117,12 +117,12 @@ function eliminarImagen() {
     const previewContainer = document.getElementById('preview-container');
     const previewImagen = document.getElementById('preview-imagen');
     const previewNombre = document.getElementById('preview-nombre');
-    
+
     if (inputImagen) inputImagen.value = '';
     if (previewContainer) previewContainer.classList.add('hidden');
     if (previewImagen) previewImagen.src = '';
     if (previewNombre) previewNombre.textContent = '';
-    
+
     imagenEquipoData = null;
     mostrarMensajeEquipo('🗑️ Imagen eliminada');
 }
@@ -131,24 +131,24 @@ function eliminarImagen() {
 async function subirImagenEquipo() {
     const inputImagen = document.getElementById('imagen-equipo');
     const archivo = inputImagen?.files[0];
-    
+
     if (!archivo) {
         return null;
     }
-    
+
     try {
         mostrarMensajeEquipo('📤 Subiendo imagen...');
-        
+
         validarArchivo(archivo, ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']);
         const imagenData = await subirArchivoCloudinary(archivo, 'image');
-        
+
         if (!imagenData || !imagenData.url) {
             throw new Error('No se recibió URL de la imagen desde Cloudinary');
         }
-        
+
         mostrarMensajeEquipo('✅ Imagen subida correctamente');
         return imagenData;
-        
+
     } catch (error) {
         console.error('❌ Error subiendo imagen:', error);
         let mensajeError = 'Error subiendo imagen: ' + error.message;
@@ -164,21 +164,21 @@ async function subirImagenEquipo() {
 function validarTamañoImagen(input) {
     const archivo = input.files[0];
     let advertencia = document.getElementById('tamaño-advertencia');
-    
+
     if (!advertencia) {
         advertencia = document.createElement('div');
         advertencia.id = 'tamaño-advertencia';
         advertencia.className = 'text-sm mt-1';
         input.parentNode.appendChild(advertencia);
     }
-    
+
     if (!archivo) {
         advertencia.classList.add('hidden');
         return;
     }
-    
+
     const tamañoMB = archivo.size / 1024 / 1024;
-    
+
     if (tamañoMB > 5) {
         advertencia.textContent = `⚠️ Imagen grande (${tamañoMB.toFixed(1)}MB). Se comprimirá automáticamente.`;
         advertencia.className = 'text-sm mt-1 text-amber-600 font-medium';
@@ -292,7 +292,7 @@ async function mostrarCamposTipo() {
         console.error("Error al mostrar campos específicos:", err);
         mostrarMensajeEquipo("Error al cargar campos personalizados", true);
     }
-    
+
     mostrandoCampos = false;
 }
 
@@ -361,11 +361,15 @@ async function cargarUbicaciones() {
 }
 
 // Autocompletar responsable
+/// Autocompletar responsable - VERSIÓN CORREGIDA
 function configurarAutocompletarResponsable() {
     const ubicacionSelect = document.getElementById("ubicacion");
     const responsableInput = document.getElementById("responsable");
 
     if (!ubicacionSelect || !responsableInput) return;
+
+    // Cache para almacenar los puestos ya cargados
+    let puestosCache = null;
 
     ubicacionSelect.addEventListener("change", async (e) => {
         const value = e.target.value;
@@ -375,21 +379,97 @@ function configurarAutocompletarResponsable() {
         }
 
         const [tipo, id] = value.split("-");
+        console.log(`📍 Ubicación seleccionada: ${tipo} - ID: ${id}`);
 
         if (tipo === "puesto") {
             try {
+                // Cargar todos los puestos si no están en cache
+                if (!puestosCache) {
+                    console.log("📥 Cargando lista de puestos...");
+                    const res = await fetch(`${apiUrl}/puestos`);
+                    if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+                    puestosCache = await res.json();
+                    console.log("✅ Puestos cargados:", puestosCache.length);
+                }
+
+                // Buscar el puesto específico en la lista
+                const puesto = puestosCache.find(p => p.id == id);
+                
+                if (puesto) {
+                    // Usar el campo correcto según lo que tenga tu API
+                    const responsable = 
+                        puesto.responsable_nombre || 
+                        puesto.responsable || 
+                        puesto.nombre_responsable ||
+                        "Responsable no asignado";
+                    
+                    responsableInput.value = responsable;
+                    console.log(`✅ Responsable autocompletado: ${responsable}`);
+                    
+                    // Feedback visual
+                    responsableInput.classList.add('bg-green-50', 'border-green-500');
+                    setTimeout(() => {
+                        responsableInput.classList.remove('bg-green-50', 'border-green-500');
+                    }, 2000);
+                    
+                } else {
+                    console.warn(`⚠️ Puesto con ID ${id} no encontrado`);
+                    // Intentar extraer del texto de la opción como fallback
+                    extraerResponsableDeTexto(e.target, responsableInput);
+                }
+                
                 const res = await fetch(`${apiUrl}/ubicacion/${tipo}/${id}`);
                 if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
                 const data = await res.json();
                 responsableInput.value = data.responsable_nombre || "";
             } catch (err) {
+                console.error("❌ Error al cargar puestos:", err);
+                // Fallback: extraer del texto de la opción
+                extraerResponsableDeTexto(e.target, responsableInput);
                 console.error("Error al obtener información de puesto:", err);
                 responsableInput.value = "";
             }
         } else {
+            // Si es área, limpiar el campo
             responsableInput.value = "";
+            responsableInput.classList.remove('bg-green-50', 'border-green-500');
         }
     });
+}
+
+// Función auxiliar para extraer responsable del texto de la opción
+function extraerResponsableDeTexto(selectElement, responsableInput) {
+    const optionSeleccionada = selectElement.options[selectElement.selectedIndex];
+    if (!optionSeleccionada) {
+        responsableInput.value = "";
+        return;
+    }
+    
+    const texto = optionSeleccionada.textContent;
+    console.log("📝 Analizando texto de opción:", texto);
+    
+    // Diferentes patrones para extraer el nombre
+    const patrones = [
+        /💼.*?- (.*?) \(Área:/,           // Formato: 💼 CODIGO - NOMBRE (Área: ...)
+        /👤.*?- (.*?) \(Área:/,           // Formato alternativo
+        /- ([^-()]+) \(Área:/,            // Buscar entre - y (Área:
+        /- ([^-]+)$/                      // Último recurso: después del último -
+    ];
+    
+    for (const patron of patrones) {
+        const match = texto.match(patron);
+        if (match && match[1]) {
+            const responsable = match[1].trim();
+            responsableInput.value = responsable;
+            console.log(`✅ Responsable extraído del texto: ${responsable}`);
+            return;
+        }
+    }
+    
+    // Si no se pudo extraer, dejar vacío y mostrar mensaje
+    responsableInput.value = "";
+    console.warn("⚠️ No se pudo extraer responsable del texto");
+    mostrarMensajeEquipo("ℹ️ Complete manualmente el responsable", false);
 }
 
 // Funciones para mantenimientos
@@ -480,18 +560,18 @@ function agregarMantenimiento(e) {
     // ✅ CORRECCIÓN: Calcular próxima fecha CONTANDO DESDE EL MISMO DÍA
     // Si intervalo es 90 días, debe ser: fecha_inicio + 89 días (porque cuenta el día 1 como el día que ingresaste)
     const [year, month, day] = fechaInicio.split('-').map(Number);
-    
+
     // Crear fecha local (sin problemas de UTC)
     const fechaBase = new Date(year, month - 1, day);
-    
+
     // ✅ CORRECCIÓN IMPORTANTE: Restar 1 día al intervalo porque el primer día YA CUENTA
     // Ejemplo: Si pones 11/02/2026 y 90 días, la próxima será 11/02/2026 + 89 días = 11/05/2026
     const diasReales = intervalo - 1;
-    
+
     // Calcular próxima fecha sumando los días reales
     const proximaFecha = new Date(fechaBase);
     proximaFecha.setDate(proximaFecha.getDate() + diasReales);
-    
+
     // Formatear a YYYY-MM-DD sin cambios de huso horario
     const proximaYear = proximaFecha.getFullYear();
     const proximaMonth = String(proximaFecha.getMonth() + 1).padStart(2, '0');
@@ -573,13 +653,13 @@ function actualizarListaMantenimientos() {
 // ✅ FUNCIÓN NUEVA: Formatear fecha sin cambios de huso horario
 function formatearFechaLocal(fechaStr) {
     if (!fechaStr) return "-";
-    
+
     // Si ya está en formato YYYY-MM-DD, convertir directamente
     if (fechaStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [year, month, day] = fechaStr.split('-');
         return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
     }
-    
+
     return "-";
 }
 
@@ -611,7 +691,7 @@ async function enviarFormularioEquipo(e) {
 
         const estadoImagen = verificarEstadoImagen();
         let imagenData = null;
-        
+
         if (estadoImagen.tieneNuevaImagen) {
             try {
                 imagenData = await subirImagenEquipo();
@@ -627,7 +707,7 @@ async function enviarFormularioEquipo(e) {
         const [tipoUbic, idUbic] = ubicacion.split("-");
         const camposInputs = document.querySelectorAll("#campos-especificos input");
         const camposPersonalizados = {};
-        
+
         camposInputs.forEach(inp => {
             if (inp.value.trim()) {
                 camposPersonalizados[inp.name] = inp.value.trim();
@@ -664,7 +744,7 @@ async function enviarFormularioEquipo(e) {
 
         const mensajeImagen = imagenData ? "con imagen" : "sin imagen";
         mostrarMensajeEquipo(`✅ Equipo creado correctamente ${mensajeImagen}`);
-        
+
         setTimeout(() => {
             window.location.href = "equipos.html";
         }, 2000);
@@ -679,15 +759,15 @@ async function enviarFormularioEquipo(e) {
 function configurarEventListeners() {
     const formEquipo = document.getElementById("form-equipo");
     const tipoEquipoSelect = document.getElementById("tipoEquipo");
-    
+
     if (formEquipo) {
         formEquipo.addEventListener("submit", enviarFormularioEquipo);
     }
-    
+
     if (tipoEquipoSelect) {
         tipoEquipoSelect.addEventListener("change", mostrarCamposTipo);
     }
-    
+
     configurarAutocompletarResponsable();
 }
 
@@ -698,11 +778,11 @@ async function inicializar() {
     try {
         configurarPreviewImagen();
         configurarEventListeners();
-        
+
         await cargarTiposMantenimiento();
         await cargarTiposEquipo();
         await cargarUbicaciones();
-        
+
         console.log("✅ Página de creación inicializada correctamente");
     } catch (error) {
         console.error("❌ Error en inicialización:", error);
