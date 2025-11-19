@@ -251,7 +251,9 @@ async function cargarDatosEquipo() {
             nombre: equipoData.nombre,
             imagen_url: equipoData.imagen_url,
             tieneImagen: !!equipoData.imagen_url,
-            estado: equipoData.estado
+            estado: equipoData.estado,
+            responsable_nombre: equipoData.responsable_nombre,
+            responsable_documento: equipoData.responsable_documento
         });
         
         // Cargar mantenimientos existentes
@@ -286,7 +288,7 @@ async function cargarTiposEquipo() {
     }
 }
 
-// Cargar ubicaciones (áreas y puestos)
+// Cargar ubicaciones (áreas y puestos) CON DATOS COMPLETOS
 async function cargarUbicaciones() {
     try {
         const [areasRes, puestosRes] = await Promise.all([
@@ -306,7 +308,7 @@ async function cargarUbicaciones() {
     }
 }
 
-// Renderizar select de ubicaciones organizado por sedes
+// ✅ FUNCIÓN MEJORADA: Renderizar select de ubicaciones con datos completos
 function renderizarSelectUbicaciones(areas, puestos, ubicacionActual = '') {
     let html = '<option value="">Selecciona una ubicación...</option>';
 
@@ -333,7 +335,7 @@ function renderizarSelectUbicaciones(areas, puestos, ubicacionActual = '') {
         html += '</optgroup>';
     });
 
-    // Agrupar puestos por sede
+    // Agrupar puestos por sede CON DATOS COMPLETOS
     const puestosPorSede = {};
     puestos.forEach(puesto => {
         const sedeNombre = puesto.sede_nombre || 'Sin sede';
@@ -343,13 +345,19 @@ function renderizarSelectUbicaciones(areas, puestos, ubicacionActual = '') {
         puestosPorSede[sedeNombre].push(puesto);
     });
 
-    // Crear optgroups para puestos por sede
+    // Crear optgroups para puestos por sede CON DATOS COMPLETOS
     Object.keys(puestosPorSede).forEach(sedeNombre => {
         html += `<optgroup label="👤 ${sedeNombre} - Puestos">`;
         puestosPorSede[sedeNombre].forEach(puesto => {
             const value = `puesto-${puesto.id}`;
             const selected = ubicacionActual === value ? 'selected' : '';
-            html += `<option value="${value}" ${selected} data-tipo="puesto" data-sede="${sedeNombre}">
+            
+            // ✅ GUARDAR DATOS COMPLETOS DEL RESPONSABLE
+            html += `<option value="${value}" ${selected} 
+                        data-tipo="puesto" 
+                        data-sede="${sedeNombre}"
+                        data-responsable="${puesto.responsable_nombre || ''}"
+                        data-documento="${puesto.responsable_documento || ''}">
                         💼 ${puesto.codigo} - ${puesto.responsable_nombre} (Área: ${puesto.area_nombre}, Sede: ${sedeNombre})
                      </option>`;
         });
@@ -361,6 +369,78 @@ function renderizarSelectUbicaciones(areas, puestos, ubicacionActual = '') {
     }
 
     return html;
+}
+
+// ✅ FUNCIÓN MEJORADA: Configurar autocompletado de responsable y documento
+function configurarAutocompletarResponsable() {
+    const ubicacionSelect = document.getElementById("ubicacion");
+    const responsableInput = document.getElementById("responsable");
+    const documentoInput = document.getElementById("documento-responsable");
+
+    if (!ubicacionSelect || !responsableInput || !documentoInput) return;
+
+    ubicacionSelect.addEventListener("change", (e) => {
+        const value = e.target.value;
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        
+        if (!value || !selectedOption) {
+            responsableInput.value = "";
+            documentoInput.value = "";
+            return;
+        }
+
+        const [tipo, id] = value.split("-");
+
+        if (tipo === "puesto") {
+            // ✅ USAR DIRECTAMENTE LOS DATOS GUARDADOS EN EL OPTION
+            const responsable = selectedOption.getAttribute('data-responsable');
+            const documento = selectedOption.getAttribute('data-documento');
+            
+            if (responsable) {
+                responsableInput.value = responsable;
+                documentoInput.value = documento || "N/A";
+                
+                console.log(`✅ Datos autocompletados: ${responsable} - ${documento}`);
+                
+                // Feedback visual
+                responsableInput.classList.add('bg-green-50', 'border-green-500');
+                setTimeout(() => {
+                    responsableInput.classList.remove('bg-green-50', 'border-green-500');
+                }, 2000);
+            } else {
+                // Fallback: intentar cargar desde API
+                cargarDatosPuestoDesdeAPI(id, responsableInput, documentoInput);
+            }
+        } else if (tipo === "area") {
+            // Para áreas, limpiar los campos
+            responsableInput.value = "";
+            documentoInput.value = "";
+            const sede = selectedOption.getAttribute('data-sede');
+            console.log(`📍 Ubicación seleccionada: Área ${id} en sede ${sede}`);
+            mostrarMensaje("ℹ️ Área seleccionada - complete manualmente el responsable");
+        } else {
+            responsableInput.value = "";
+            documentoInput.value = "";
+        }
+    });
+}
+
+// Función de fallback para cargar datos del puesto desde API
+async function cargarDatosPuestoDesdeAPI(puestoId, responsableInput, documentoInput) {
+    try {
+        const res = await fetch(`${apiUrl}/puestos/${puestoId}`);
+        if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+        
+        const puesto = await res.json();
+        if (puesto) {
+            responsableInput.value = puesto.responsable_nombre || "";
+            documentoInput.value = puesto.responsable_documento || "N/A";
+        }
+    } catch (err) {
+        console.error("Error al cargar datos del puesto:", err);
+        responsableInput.value = "";
+        documentoInput.value = "";
+    }
 }
 
 // Renderizar formulario
@@ -405,6 +485,9 @@ async function renderizarFormulario() {
         `;
 
     const formularioHTML = `
+        <!-- ✅ AGREGAR CAMPO OCULTO PARA DOCUMENTO -->
+        <input type="hidden" id="documento-responsable" name="documento_responsable" value="${equipoData.responsable_documento || 'N/A'}">
+
         <!-- Nombre y Tipo -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -601,12 +684,14 @@ async function renderizarFormulario() {
     // Mostrar campos específicos del tipo de equipo
     await mostrarCamposTipo();
 
+    // ✅ CONFIGURAR AUTOMATIZACIÓN DE RESPONSABLE Y DOCUMENTO
+    configurarAutocompletarResponsable();
+
     // Configurar eventos
     configurarEventos();
 }
 
 // Mostrar mantenimientos
-// Mostrar mantenimientos - VERSIÓN MEJORADA para múltiples mantenimientos
 function renderizarMantenimientos() {
     if (mantenimientosConfigurados.length === 0) {
         return `
@@ -736,45 +821,6 @@ async function mostrarCamposTipo() {
 
 // Configurar eventos
 function configurarEventos() {
-    // Autocompletar responsable al cambiar ubicación
-    document.getElementById("ubicacion").addEventListener("change", async (e) => {
-        const value = e.target.value;
-        const responsableInput = document.getElementById("responsable");
-        const selectedOption = e.target.options[e.target.selectedIndex];
-
-        if (!value || !responsableInput) {
-            if (responsableInput) responsableInput.value = "";
-            return;
-        }
-
-        const [tipo, id] = value.split("-");
-
-        if (tipo === "puesto") {
-            try {
-                const res = await fetch(`${apiUrl}/ubicacion/${tipo}/${id}`);
-                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-
-                const data = await res.json();
-                responsableInput.value = data.responsable_nombre || "";
-
-                const sede = selectedOption.getAttribute('data-sede');
-                console.log(`📍 Ubicación seleccionada: Puesto ${id} en sede ${sede}`);
-
-            } catch (err) {
-                console.error("Error al obtener información de puesto:", err);
-                responsableInput.value = "";
-                mostrarMensaje("Error al obtener responsable del puesto", true);
-            }
-        } else if (tipo === "area") {
-            responsableInput.value = "";
-            const sede = selectedOption.getAttribute('data-sede');
-            console.log(`📍 Ubicación seleccionada: Área ${id} en sede ${sede}`);
-            mostrarMensaje("ℹ️ Área seleccionada - complete manualmente el responsable");
-        } else {
-            responsableInput.value = "";
-        }
-    });
-
     // Enviar formulario
     document.getElementById("form-equipo").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -782,8 +828,7 @@ function configurarEventos() {
     });
 }
 
-// Actualizar equipo
-// Actualizar equipo - VERSIÓN CORREGIDA (estado siempre activo)
+// ✅ FUNCIÓN ACTUALIZADA: Actualizar equipo con documento del responsable
 async function actualizarEquipo() {
     const submitBtn = document.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
@@ -804,11 +849,15 @@ async function actualizarEquipo() {
             }
         }
 
+        // ✅ OBTENER DOCUMENTO DEL CAMPO OCULTO
+        const documentoResponsable = document.getElementById("documento-responsable")?.value.trim() || "N/A";
+
         const formData = {
             nombre: document.getElementById("nombre").value.trim(),
             descripcion: document.getElementById("descripcion").value.trim(),
             codigo_interno: document.getElementById("codigo").value.trim(),
             responsable_nombre: document.getElementById("responsable").value.trim(),
+            responsable_documento: documentoResponsable, // ✅ INCLUIR DOCUMENTO
             id_tipo_equipo: parseInt(document.getElementById("tipoEquipo").value),
             estado: "activo" // ✅ SIEMPRE activo en edición
         };
@@ -836,7 +885,10 @@ async function actualizarEquipo() {
         });
         formData.campos_personalizados = camposPersonalizados;
 
-        console.log("📤 Enviando datos:", formData);
+        console.log("📤 Enviando datos:", {
+            ...formData,
+            documento_responsable: documentoResponsable
+        });
 
         // Actualizar equipo
         const res = await fetch(`${apiUrl}/equipos/${equipoId}`, {
@@ -871,7 +923,6 @@ async function actualizarEquipo() {
 }
 
 // Eliminar mantenimiento
-// Eliminar mantenimiento - VERSIÓN MEJORADA
 function eliminarMantenimiento(index) {
     if (index >= 0 && index < mantenimientosConfigurados.length) {
         const mantenimiento = mantenimientosConfigurados[index];
@@ -924,7 +975,6 @@ async function procesarEliminacionesMantenimientos() {
 }
 
 // Actualizar mantenimientos
-/// Actualizar mantenimientos - VERSIÓN CORREGIDA
 async function actualizarMantenimientos() {
     try {
         // Procesar eliminaciones
@@ -950,7 +1000,6 @@ async function actualizarMantenimientos() {
                     id_tipo_mantenimiento: mantenimiento.id_tipo_mantenimiento,
                     intervalo_dias: mantenimiento.intervalo_dias,
                     fecha_inicio: mantenimiento.fecha_inicio,
-                    // ✅ ENVIAR el nombre_personalizado (puede ser string vacío)
                     nombre_personalizado: mantenimiento.nombre_personalizado || ""
                 };
 
@@ -1086,7 +1135,7 @@ function agregarMantenimiento() {
 
     const idTipoMantenimiento = parseInt(tipoSelect.value);
     const tipoMantenimientoNombre = tiposMantenimiento.find(t => t.id === idTipoMantenimiento)?.nombre;
-    const nombrePersonalizado = nombreInput.value.trim() || ''; // ✅ Siempre string vacío, nunca null
+    const nombrePersonalizado = nombreInput.value.trim() || '';
     const intervaloDias = parseInt(intervaloInput.value);
     const fechaInicio = fechaInput.value;
 
@@ -1097,7 +1146,7 @@ function agregarMantenimiento() {
     const nuevoMantenimiento = {
         id_tipo_mantenimiento: idTipoMantenimiento,
         tipo_mantenimiento_nombre: tipoMantenimientoNombre,
-        nombre_personalizado: nombrePersonalizado, // ✅ String vacío en lugar de null
+        nombre_personalizado: nombrePersonalizado,
         intervalo_dias: intervaloDias,
         fecha_inicio: fechaInicio,
         proxima_fecha: proximaFecha.toISOString().split('T')[0],
