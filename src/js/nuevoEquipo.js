@@ -296,7 +296,7 @@ async function mostrarCamposTipo() {
     mostrandoCampos = false;
 }
 
-// Cargar ubicaciones
+// Cargar ubicaciones CON DOCUMENTO DEL RESPONSABLE
 async function cargarUbicaciones() {
     const select = document.getElementById("ubicacion");
     if (!select) return;
@@ -333,7 +333,7 @@ async function cargarUbicaciones() {
             select.appendChild(optgroup);
         });
 
-        // Agrupar puestos por sede
+        // Agrupar puestos por sede CON DATOS COMPLETOS
         const puestosPorSede = {};
         puestos.forEach(puesto => {
             const sedeNombre = puesto.sede_nombre || 'Sin sede';
@@ -349,6 +349,11 @@ async function cargarUbicaciones() {
                 option.value = `puesto-${puesto.id}`;
                 option.textContent = `💼 ${puesto.codigo} - ${puesto.responsable_nombre} (Área: ${puesto.area_nombre})`;
                 option.setAttribute('data-tipo', 'puesto');
+                
+                // ✅ GUARDAR DATOS COMPLETOS DEL RESPONSABLE
+                option.setAttribute('data-responsable', puesto.responsable_nombre || '');
+                option.setAttribute('data-documento', puesto.responsable_documento || '');
+                
                 optgroup.appendChild(option);
             });
             select.appendChild(optgroup);
@@ -360,88 +365,79 @@ async function cargarUbicaciones() {
     }
 }
 
-// Autocompletar responsable
-/// Autocompletar responsable - VERSIÓN CORREGIDA
+// Autocompletar responsable Y DOCUMENTO
 function configurarAutocompletarResponsable() {
     const ubicacionSelect = document.getElementById("ubicacion");
     const responsableInput = document.getElementById("responsable");
+    const documentoInput = document.getElementById("documento-responsable");
 
-    if (!ubicacionSelect || !responsableInput) return;
+    if (!ubicacionSelect || !responsableInput || !documentoInput) return;
 
-    // Cache para almacenar los puestos ya cargados
-    let puestosCache = null;
-
-    ubicacionSelect.addEventListener("change", async (e) => {
+    ubicacionSelect.addEventListener("change", (e) => {
         const value = e.target.value;
-        if (!value) {
+        const optionSeleccionada = e.target.options[e.target.selectedIndex];
+        
+        if (!value || !optionSeleccionada) {
             responsableInput.value = "";
+            documentoInput.value = "";
             return;
         }
 
         const [tipo, id] = value.split("-");
-        console.log(`📍 Ubicación seleccionada: ${tipo} - ID: ${id}`);
 
         if (tipo === "puesto") {
-            try {
-                // Cargar todos los puestos si no están en cache
-                if (!puestosCache) {
-                    console.log("📥 Cargando lista de puestos...");
-                    const res = await fetch(`${apiUrl}/puestos`);
-                    if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-                    puestosCache = await res.json();
-                    console.log("✅ Puestos cargados:", puestosCache.length);
-                }
-
-                // Buscar el puesto específico en la lista
-                const puesto = puestosCache.find(p => p.id == id);
+            // ✅ USAR DIRECTAMENTE LOS DATOS GUARDADOS EN EL OPTION
+            const responsable = optionSeleccionada.getAttribute('data-responsable');
+            const documento = optionSeleccionada.getAttribute('data-documento');
+            
+            if (responsable) {
+                responsableInput.value = responsable;
+                documentoInput.value = documento || "N/A";
                 
-                if (puesto) {
-                    // Usar el campo correcto según lo que tenga tu API
-                    const responsable = 
-                        puesto.responsable_nombre || 
-                        puesto.responsable || 
-                        puesto.nombre_responsable ||
-                        "Responsable no asignado";
-                    
-                    responsableInput.value = responsable;
-                    console.log(`✅ Responsable autocompletado: ${responsable}`);
-                    
-                    // Feedback visual
-                    responsableInput.classList.add('bg-green-50', 'border-green-500');
-                    setTimeout(() => {
-                        responsableInput.classList.remove('bg-green-50', 'border-green-500');
-                    }, 2000);
-                    
-                } else {
-                    console.warn(`⚠️ Puesto con ID ${id} no encontrado`);
-                    // Intentar extraer del texto de la opción como fallback
-                    extraerResponsableDeTexto(e.target, responsableInput);
-                }
+                console.log(`✅ Datos autocompletados: ${responsable} - ${documento}`);
                 
-                const res = await fetch(`${apiUrl}/ubicacion/${tipo}/${id}`);
-                if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
-                const data = await res.json();
-                responsableInput.value = data.responsable_nombre || "";
-            } catch (err) {
-                console.error("❌ Error al cargar puestos:", err);
-                // Fallback: extraer del texto de la opción
-                extraerResponsableDeTexto(e.target, responsableInput);
-                console.error("Error al obtener información de puesto:", err);
-                responsableInput.value = "";
+                // Feedback visual
+                responsableInput.classList.add('bg-green-50', 'border-green-500');
+                setTimeout(() => {
+                    responsableInput.classList.remove('bg-green-50', 'border-green-500');
+                }, 2000);
+            } else {
+                // Fallback: intentar cargar desde API
+                cargarDatosPuestoDesdeAPI(id, responsableInput, documentoInput);
             }
         } else {
-            // Si es área, limpiar el campo
+            // Si es área, limpiar los campos
             responsableInput.value = "";
+            documentoInput.value = "";
             responsableInput.classList.remove('bg-green-50', 'border-green-500');
         }
     });
 }
 
+// Función de fallback para cargar datos del puesto desde API
+async function cargarDatosPuestoDesdeAPI(puestoId, responsableInput, documentoInput) {
+    try {
+        const res = await fetch(`${apiUrl}/puestos/${puestoId}`);
+        if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
+        
+        const puesto = await res.json();
+        if (puesto) {
+            responsableInput.value = puesto.responsable_nombre || "";
+            documentoInput.value = puesto.responsable_documento || "N/A";
+        }
+    } catch (err) {
+        console.error("Error al cargar datos del puesto:", err);
+        responsableInput.value = "";
+        documentoInput.value = "";
+    }
+}
+
 // Función auxiliar para extraer responsable del texto de la opción
-function extraerResponsableDeTexto(selectElement, responsableInput) {
+function extraerResponsableDeTexto(selectElement, responsableInput, documentoInput) {
     const optionSeleccionada = selectElement.options[selectElement.selectedIndex];
     if (!optionSeleccionada) {
         responsableInput.value = "";
+        if (documentoInput) documentoInput.value = "";
         return;
     }
     
@@ -450,10 +446,10 @@ function extraerResponsableDeTexto(selectElement, responsableInput) {
     
     // Diferentes patrones para extraer el nombre
     const patrones = [
-        /💼.*?- (.*?) \(Área:/,           // Formato: 💼 CODIGO - NOMBRE (Área: ...)
-        /👤.*?- (.*?) \(Área:/,           // Formato alternativo
-        /- ([^-()]+) \(Área:/,            // Buscar entre - y (Área:
-        /- ([^-]+)$/                      // Último recurso: después del último -
+        /💼.*?- (.*?) \(Área:/,
+        /👤.*?- (.*?) \(Área:/,
+        /- ([^-()]+) \(Área:/,
+        /- ([^-]+)$/
     ];
     
     for (const patron of patrones) {
@@ -461,6 +457,7 @@ function extraerResponsableDeTexto(selectElement, responsableInput) {
         if (match && match[1]) {
             const responsable = match[1].trim();
             responsableInput.value = responsable;
+            if (documentoInput) documentoInput.value = "";
             console.log(`✅ Responsable extraído del texto: ${responsable}`);
             return;
         }
@@ -468,6 +465,7 @@ function extraerResponsableDeTexto(selectElement, responsableInput) {
     
     // Si no se pudo extraer, dejar vacío y mostrar mensaje
     responsableInput.value = "";
+    if (documentoInput) documentoInput.value = "";
     console.warn("⚠️ No se pudo extraer responsable del texto");
     mostrarMensajeEquipo("ℹ️ Complete manualmente el responsable", false);
 }
@@ -557,22 +555,14 @@ function agregarMantenimiento(e) {
     const tipo = tiposMantenimiento.find(t => t.id == tipoId);
     if (!tipo) return;
 
-    // ✅ CORRECCIÓN: Calcular próxima fecha CONTANDO DESDE EL MISMO DÍA
-    // Si intervalo es 90 días, debe ser: fecha_inicio + 89 días (porque cuenta el día 1 como el día que ingresaste)
+    // Calcular próxima fecha
     const [year, month, day] = fechaInicio.split('-').map(Number);
-
-    // Crear fecha local (sin problemas de UTC)
     const fechaBase = new Date(year, month - 1, day);
-
-    // ✅ CORRECCIÓN IMPORTANTE: Restar 1 día al intervalo porque el primer día YA CUENTA
-    // Ejemplo: Si pones 11/02/2026 y 90 días, la próxima será 11/02/2026 + 89 días = 11/05/2026
     const diasReales = intervalo - 1;
 
-    // Calcular próxima fecha sumando los días reales
     const proximaFecha = new Date(fechaBase);
     proximaFecha.setDate(proximaFecha.getDate() + diasReales);
 
-    // Formatear a YYYY-MM-DD sin cambios de huso horario
     const proximaYear = proximaFecha.getFullYear();
     const proximaMonth = String(proximaFecha.getMonth() + 1).padStart(2, '0');
     const proximaDay = String(proximaFecha.getDate()).padStart(2, '0');
@@ -583,8 +573,8 @@ function agregarMantenimiento(e) {
         tipo_nombre: tipo.nombre,
         nombre_personalizado: nombrePersonalizado,
         intervalo_dias: intervalo,
-        fecha_inicio: fechaInicio, // ✅ Fecha exacta del usuario
-        proxima_fecha: proximaFechaStr // ✅ Próxima fecha calculada CORRECTAMENTE
+        fecha_inicio: fechaInicio,
+        proxima_fecha: proximaFechaStr
     };
 
     console.log('➕ Mantenimiento a agregar:', {
@@ -615,12 +605,10 @@ function actualizarListaMantenimientos() {
     }
 
     container.innerHTML = mantenimientosConfigurados.map((mant, index) => {
-        // Mostrar nombre personalizado o nombre por defecto
         const nombreDisplay = mant.nombre_personalizado 
             ? `${mant.tipo_nombre}: ${mant.nombre_personalizado}`
             : mant.tipo_nombre;
 
-        // ✅ CORRECCIÓN: Mostrar fechas EXACTAMENTE como se ingresaron
         const fechaInicioDisplay = formatearFechaLocal(mant.fecha_inicio);
         const proximaFechaDisplay = formatearFechaLocal(mant.proxima_fecha);
 
@@ -654,7 +642,6 @@ function actualizarListaMantenimientos() {
 function formatearFechaLocal(fechaStr) {
     if (!fechaStr) return "-";
 
-    // Si ya está en formato YYYY-MM-DD, convertir directamente
     if (fechaStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [year, month, day] = fechaStr.split('-');
         return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
@@ -671,7 +658,7 @@ function eliminarMantenimiento(index) {
     }
 }
 
-// Función principal para enviar formulario
+// ✅ FUNCIÓN ACTUALIZADA: Enviar formulario con documento del responsable
 async function enviarFormularioEquipo(e) {
     e.preventDefault();
 
@@ -680,6 +667,7 @@ async function enviarFormularioEquipo(e) {
     const nombre = document.getElementById("nombre")?.value.trim();
     const codigo = document.getElementById("codigo")?.value.trim();
     const responsable = document.getElementById("responsable")?.value.trim();
+    const documentoResponsable = document.getElementById("documento-responsable")?.value.trim(); // ✅ NUEVO
 
     if (!tipoId || !ubicacion || !nombre || !codigo || !responsable) {
         mostrarMensajeEquipo("⚠️ Por favor completa todos los campos requeridos.", true);
@@ -721,13 +709,18 @@ async function enviarFormularioEquipo(e) {
             ubicacion_tipo: tipoUbic,
             id_ubicacion: parseInt(idUbic),
             responsable_nombre: responsable,
-            responsable_documento: "N/A",
+            responsable_documento: documentoResponsable || "N/A", // ✅ AHORA USA EL DOCUMENTO REAL
             id_tipo_equipo: parseInt(tipoId),
             campos_personalizados: camposPersonalizados,
             mantenimientos: mantenimientosConfigurados,
             imagen_url: imagenData?.url || "",
             imagen_public_id: imagenData?.public_id || ""
         };
+
+        console.log('📤 Enviando equipo con datos:', {
+            responsable: responsable,
+            documento: documentoResponsable
+        });
 
         const res = await fetch(`${apiUrl}/equipos`, {
             method: "POST",
