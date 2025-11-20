@@ -90,10 +90,6 @@
             class="view-link block py-2 px-3 rounded bg-[#639A33] text-[#0F172A] font-semibold text-sm md:text-xs flex items-center gap-2">
             <i class="fas fa-laptop"></i> Equipos
           </a>
-          <!-- <a href="#" data-view="historial.html"
-            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
-            <i class="fas fa-history"></i> Historial
-          </a> -->
           <a href="#" data-view="excel.html"
             class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
             <i class="fas fa-file-excel"></i> Excel
@@ -134,8 +130,8 @@
       </header>
 
       <div class="bg-white w-full max-w-4xl px-6 mx-auto rounded-xl border-2 border-[#0F172A] shadow-md p-8">
-        <!-- Mensaje de error -->
-        <div id="mensaje-error" class="mb-4 text-red-600 font-semibold hidden"></div>
+        <!-- El mensaje se mostrará dinámicamente -->
+        <div id="mensaje-tipo-equipo"></div>
 
         <form id="form-tipo-equipo" class="space-y-6">
           <div>
@@ -176,7 +172,6 @@
         </thead>
         <tbody id="tabla-tipos"></tbody>
       </table>
-
 
       <footer class="text-center mt-6 py-4 border-t border-gray-200">
         <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos - Nuevo Tipo de Equipo</p>
