@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Exportar Excel - Inventario</title>
+    <title>Historial - Inventario</title>
     <link href="../../dist/output.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Fuente moderna (Google Fonts - Poppins) -->
+    <!-- Fuente moderna (Google Fonts) -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -20,6 +20,7 @@
 
 <body class="bg-white text-[#0F172A] min-h-screen flex">
     <div class="flex flex-1 h-screen overflow-hidden">
+
         <!-- Sidebar -->
         <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
             <div>
@@ -62,10 +63,10 @@
                         <i class="fas fa-file-excel"></i> Excel
                     </a>
                     <a href="#" data-view="inactivos.html"
-                        class="view-link block py-2 px-3 rounded bg-[#639A33] text-[#0F172A] font-semibold text-sm md:text-xs flex items-center gap-2">
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
                         <i class="fas fa-ban"></i> Inactivos
                     </a>
-                    <a href="#" data-view="usuarios.html"
+                    <a href="#" data-view="Usuarios.html"
                         class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
                         <i class="fas fa-users"></i> Usuarios
                     </a>
@@ -78,7 +79,7 @@
                         <i class="fas fa-boxes"></i> Cronograma
                     </a>
                     <a href="#" data-view="temperatura.html"
-                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        class="view-link block py-2 px-3 rounded bg-[#639A33] text-[#0F172A] font-semibold text-sm md:text-xs flex items-center gap-2">
                         <i class="fas fa-boxes"></i> Temperatura
                     </a>
                     <a href="#" data-view="entrada_salida.html"
@@ -88,8 +89,9 @@
                 </nav>
             </div>
             <div class="text-sm mt-6">
-                <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario: <span id="user-role"
-                        class="text-[#639A33] font-semibold">...</span></p>
+                <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario:
+                    <span id="user-role" class="text-[#639A33] font-semibold">...</span>
+                </p>
                 <button onclick="logout()"
                     class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
                     <i class="fas fa-sign-out-alt"></i>
@@ -99,33 +101,29 @@
         </aside>
 
         <!-- Contenido principal -->
-        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col">
-            <div class="flex-1">
+        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
+            <div>
                 <!-- Título y Logo -->
                 <header class="mb-6 flex items-center justify-between">
-                    <h1 class="text-4xl font-semibold text-[#0F172A]">Inactivos</h1>
+                    <h1 class="text-4xl font-semibold text-[#0F172A]">Temperatura</h1>
                     <div class="flex items-center gap-4">
                         <img src="../assets/logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
                         <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
                     </div>
                 </header>
 
-                <!-- Contenedor para el contenido dinámico -->
-                <div id="contenido-dinamico" class="flex-1">
-                    <!-- Aquí se cargará la tabla o mensaje de no datos -->
-                </div>
-            </div>
 
-            <!-- Footer que ahora estará debajo del contenido -->
-            <footer class="text-center mt-6 py-4 border-t border-gray-200">
-                <p class="text-sm text-[#0F172A] font-medium">Módulo de Inactivos</p>
-            </footer>
+
+                <footer class="text-center mt-6 py-4 border-t border-gray-200">
+                    <p class="text-sm text-[#0F172A] font-medium">Módulo de Temperatura</p>
+                </footer>
         </main>
     </div>
 
     <script src="../js/auth.js"></script>
     <script src="../js/navegacion.js"></script>
-    <script src="../js/inactivos.js"></script>
+    <!-- Futuro script para cargar el historial desde la base de datos -->
+    <!-- <script src="../js/historial.js"></script> -->
 </body>
 
 </html>

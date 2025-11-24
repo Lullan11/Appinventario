@@ -17,39 +17,39 @@
       height: 100vh;
       display: flex;
     }
-    
+
     .main-wrapper {
       display: flex;
       width: 100%;
       height: 100vh;
     }
-    
+
     .content-wrapper {
       flex: 1;
       display: flex;
       flex-direction: column;
     }
-    
+
     .main-content {
       flex: 1;
       overflow-y: auto;
       padding: 2rem;
     }
-    
+
     .footer {
       background: white;
       border-top: 1px solid #e5e7eb;
       padding: 1rem;
       text-align: center;
     }
-    
+
     .mantenimientos-container {
-        max-height: 300px;
-        overflow-y: auto;
-        border: 1px solid #e5e7eb;
-        border-radius: 0.5rem;
-        padding: 0.5rem;
-        background: white;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      padding: 0.5rem;
+      background: white;
     }
 
     .preview-imagen {
@@ -59,6 +59,7 @@
       border: 2px solid #e5e7eb;
       border-radius: 8px;
     }
+
     .hidden {
       display: none;
     }
@@ -100,10 +101,10 @@
             class="block py-2 px-3 rounded bg-[#639A33] text-[#0F172A] font-semibold text-sm md:text-xs flex items-center gap-2">
             <i class="fas fa-laptop"></i> Equipos
           </a>
-          <!-- <a href="historial.html"
+          <a href="chequeos.html"
             class="block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
-            <i class="fas fa-history"></i> Historial
-          </a> -->
+            <i class="fas fa-history"></i> Chequeos diarios
+          </a>
           <a href="excel.html"
             class="block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
             <i class="fas fa-file-excel"></i> Excel
@@ -119,6 +120,18 @@
           <a href="insumos.html"
             class="block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
             <i class="fas fa-boxes"></i> Insumos
+          </a>
+          <a href="#" data-view="cronograma.html"
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-boxes"></i> Cronograma
+          </a>
+          <a href="#" data-view="temperatura.html"
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-boxes"></i> Temperatura
+          </a>
+          <a href="#" data-view="entrada_salida.html"
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-boxes"></i> Entrada y salidas
           </a>
         </nav>
       </div>
@@ -168,7 +181,7 @@
   </div>
 
   <script src="../js/auth.js"></script>
-  <script src="../js/cloudinary.js"></script>  <!-- ← NUEVA LÍNEA -->
+  <script src="../js/cloudinary.js"></script> <!-- ← NUEVA LÍNEA -->
   <script src="../js/editarEquipo.js"></script>
   <script src="../js/navegacion.js"></script>
 </body>
