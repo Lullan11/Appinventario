@@ -66,7 +66,7 @@
                         class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
                         <i class="fas fa-ban"></i> Inactivos
                     </a>
-                    <a href="#" data-view="Usuarios.html"
+                    <a href="#" data-view="usuarios.html"
                         class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
                         <i class="fas fa-users"></i> Usuarios
                     </a>
@@ -88,12 +88,25 @@
                     </a>
                 </nav>
             </div>
-            <div class="text-sm mt-6">
-                <p class="mb-2 text-gray-300"><i class="fas fa-user text-white"></i> Usuario:
-                    <span id="user-role" class="text-[#639A33] font-semibold">...</span>
-                </p>
+            <div class="text-sm mt-6 bg-[#0F172A]/50 p-3 rounded-lg">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="bg-[#639A33] p-1.5 rounded-full">
+                        <i class="fas fa-user text-white text-xs"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-white font-medium truncate" id="user-name">Cargando...</p>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs text-gray-300">Rol:</span>
+                            <span id="user-role"
+                                class="text-xs bg-[#639A33]/20 text-[#639A33] px-2 py-0.5 rounded-full font-medium">
+                                Cargando...
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
                 <button onclick="logout()"
-                    class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors">
+                    class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors flex items-center justify-center gap-2">
                     <i class="fas fa-sign-out-alt"></i>
                     Cerrar Sesión
                 </button>
@@ -121,7 +134,8 @@
     </div>
 
     <script src="../js/auth.js"></script>
-    <script src="../js/navegacion.js"></script>
+    <!-- <script src="../js/navegacion.js"></script> -->
+    <script src="../js/roles.js"></script>
     <!-- Futuro script para cargar el historial desde la base de datos -->
     <!-- <script src="../js/historial.js"></script> -->
 </body>

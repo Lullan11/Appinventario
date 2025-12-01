@@ -1,8 +1,8 @@
-// welcome.js - login
+// welcome.js - login (ACTUALIZADO)
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("loginForm");
 
-  if (!form) return; // si no existe, salir (esto evita errores en recover.html)
+  if (!form) return;
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -24,10 +24,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
 
       if (res.ok) {
+        // IMPORTANTE: Guardar usuario CON ROL
         localStorage.setItem("currentUser", JSON.stringify(data.usuario));
         localStorage.setItem("token", data.token);
-        mostrarMensaje("✅ Login exitoso, redirigiendo...");
-        setTimeout(() => window.location.href = "src/views/dashboard.html", 1500);
+
+        console.log("✅ Login exitoso:", data.usuario.nombre, "Rol:", data.usuario.rol);
+
+        mostrarMensaje(`✅ Bienvenido ${data.usuario.nombre} (${data.usuario.rol})`);
+        setTimeout(() => {
+          // Redirigir a la página de inicio según el rol
+          const rol = data.usuario.rol.toLowerCase();
+          const paginaInicio = PAGINA_INICIO_POR_ROL[rol] || 'dashboard.html';
+          window.location.href = `src/views/${paginaInicio}`;
+        }, 1500);
       } else {
         mostrarMensaje(data.error || "Error al iniciar sesión", true);
       }
@@ -37,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // FUNCIÓN PARA MENSAJES
+  // FUNCIÓN PARA MENSAJES (se mantiene igual)
   function mostrarMensaje(texto, esError = false) {
     let mensaje = document.getElementById("mensaje-login");
     if (!mensaje) {
@@ -48,11 +57,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     mensaje.textContent = texto;
-    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${
-      esError
+    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError
         ? "bg-red-100 text-red-800 border-l-4 border-red-500"
         : "bg-green-100 text-green-800 border-l-4 border-green-500"
-    }`;
+      }`;
 
     setTimeout(() => {
       mensaje.textContent = "";

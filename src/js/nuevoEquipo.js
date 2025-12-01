@@ -213,6 +213,7 @@ async function cargarTiposMantenimiento() {
 }
 
 // Cargar tipos de equipo
+// Cargar tipos de equipo - VERSIÓN SIMPLE CON CONTADOR
 async function cargarTiposEquipo() {
     const selectTipo = document.getElementById("tipoEquipo");
     if (!selectTipo) return;
@@ -224,12 +225,34 @@ async function cargarTiposEquipo() {
         if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
 
         const tipos = await res.json();
-        tipos.forEach(tipo => {
+        
+        // ORDENAR ALFABÉTICAMENTE
+        const tiposOrdenados = [...tipos].sort((a, b) => 
+            a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+        );
+
+        // Mostrar cuántos tipos hay
+        const contador = document.createElement('div');
+        contador.className = 'text-sm text-gray-600 mb-2';
+        contador.textContent = `📋 ${tiposOrdenados.length} tipos disponibles`;
+        
+        // Insertar contador antes del select
+        const container = selectTipo.parentElement;
+        if (container && !container.querySelector('.contador-tipos')) {
+            contador.className = 'contador-tipos text-sm text-gray-600 mb-2';
+            selectTipo.insertAdjacentElement('beforebegin', contador);
+        }
+
+        // Crear opciones ordenadas
+        tiposOrdenados.forEach(tipo => {
             const option = document.createElement("option");
             option.value = tipo.id;
             option.textContent = tipo.nombre;
             selectTipo.appendChild(option);
         });
+
+        console.log(`✅ Tipos de equipo cargados: ${tiposOrdenados.length} tipos`);
+
     } catch (err) {
         console.error("Error al cargar tipos de equipo:", err);
         mostrarMensajeEquipo("Error al cargar tipos de equipo", true);

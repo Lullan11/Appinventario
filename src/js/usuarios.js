@@ -1,7 +1,6 @@
+// src/js/usuarios.js - SISTEMA COMPLETO DE GESTIÓN DE USUARIOS CON ROLES
 const API_URL = "https://inventario-api-gw73.onrender.com/usuarios";
-
-// CONFIGURACIÓN - Cambia esta contraseña por la que quieras
-const ACCESS_PASSWORD = "api"; // ← Cambia esta contraseña
+const ACCESS_PASSWORD = "api";
 
 // ========================= SISTEMA DE AUTENTICACIÓN =========================
 
@@ -85,9 +84,8 @@ function validarAcceso() {
     }
 }
 
-// ========================= FUNCIONES ORIGINALES DE USUARIOS =========================
+// ========================= FUNCIONES DE MENSAJES =========================
 
-// Función para mostrar mensajes
 function mostrarMensaje(texto, esError = false) {
     let mensaje = document.getElementById("mensaje-usuarios");
     if (!mensaje) {
@@ -108,6 +106,8 @@ function mostrarMensaje(texto, esError = false) {
     }, 3000);
 }
 
+// ========================= FUNCIONES PRINCIPALES =========================
+
 // Abrir formulario
 function abrirFormularioUsuario(editData = null) {
     const container = document.getElementById("formUsuarioContainer");
@@ -119,11 +119,13 @@ function abrirFormularioUsuario(editData = null) {
     const inputRespuesta = document.getElementById("usuarioRespuesta");
 
     if (editData) {
-        // Edición: llenar campos existentes y dejar password/respuesta vacíos y opcionales
+        // Edición: llenar campos existentes
         document.getElementById("usuarioNombre").value = editData.nombre || '';
         document.getElementById("usuarioDocumento").value = editData.documento || '';
         document.getElementById("usuarioCorreo").value = editData.email || '';
         document.getElementById("usuarioPregunta").value = editData.security_question || '';
+        document.getElementById("usuarioRol").value = editData.rol || 'tecnico'; // ← NUEVO: Rol
+        
         inputRespuesta.value = "";
         inputPassword.value = "";
 
@@ -132,8 +134,9 @@ function abrirFormularioUsuario(editData = null) {
 
         container.dataset.editId = editData.id;
     } else {
-        // Creación: limpiar todo y hacer password/respuesta obligatorios
+        // Creación: limpiar todo
         document.getElementById("formUsuario").reset();
+        document.getElementById("usuarioRol").value = 'tecnico'; // ← Valor por defecto
         inputPassword.required = true;
         inputRespuesta.required = true;
         delete container.dataset.editId;
@@ -159,11 +162,30 @@ document.getElementById("formUsuario").addEventListener("submit", async (e) => {
     const question = document.getElementById("usuarioPregunta").value.trim();
     const answer = document.getElementById("usuarioRespuesta").value.trim();
     const password = document.getElementById("usuarioPassword").value.trim();
+    const rol = document.getElementById("usuarioRol").value; // ← NUEVO: Obtener rol
+
+    // Validaciones
+    if (!nombre || !documento || !email || !question) {
+        mostrarMensaje("❌ Por favor complete todos los campos obligatorios", true);
+        return;
+    }
+
+    if (!id && !password) {
+        mostrarMensaje("❌ La contraseña es obligatoria para nuevos usuarios", true);
+        return;
+    }
 
     const method = id ? "PUT" : "POST";
     const url = id ? `${API_URL}/${id}` : API_URL;
 
-    const bodyData = { nombre, documento, email, security_question: question };
+    const bodyData = { 
+        nombre, 
+        documento, 
+        email, 
+        security_question: question,
+        rol // ← NUEVO: Agregar rol al body
+    };
+    
     if (password) bodyData.password = password;
     if (answer) bodyData.security_answer = answer;
 
@@ -176,15 +198,15 @@ document.getElementById("formUsuario").addEventListener("submit", async (e) => {
         const data = await res.json();
 
         if (res.ok) {
-            mostrarMensaje(id ? "✅ Usuario actualizado." : "✅ Usuario creado.");
+            mostrarMensaje(id ? "✅ Usuario actualizado correctamente" : "✅ Usuario creado exitosamente");
             cargarUsuarios();
             cerrarFormularioUsuario();
         } else {
-            mostrarMensaje(data.error || "❌ Error al guardar usuario.", true);
+            mostrarMensaje(data.error || "❌ Error al guardar usuario", true);
         }
     } catch (err) {
         console.error(err);
-        mostrarMensaje("❌ Error al conectar con el servidor.", true);
+        mostrarMensaje("❌ Error al conectar con el servidor", true);
     }
 });
 
@@ -205,22 +227,66 @@ async function cargarUsuarios() {
         tabla.innerHTML = "";
 
         if (!data || !data.length) {
-            tabla.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">No hay usuarios registrados.</td></tr>`;
+            tabla.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-gray-500">
+                        No hay usuarios registrados
+                    </td>
+                </tr>
+            `;
             return;
         }
 
         data.forEach(u => {
+            // Determinar color del badge según el rol
+            let rolColor = 'bg-gray-200 text-gray-800';
+            let rolTexto = u.rol || 'N/A';
+            
+            switch(u.rol) {
+                case 'admin':
+                    rolColor = 'bg-red-100 text-red-800';
+                    rolTexto = 'Administrador';
+                    break;
+                case 'supervisor':
+                    rolColor = 'bg-blue-100 text-blue-800';
+                    rolTexto = 'Supervisor';
+                    break;
+                case 'auxiliar':
+                    rolColor = 'bg-green-100 text-green-800';
+                    rolTexto = 'Auxiliar';
+                    break;
+                case 'tecnico':
+                    rolColor = 'bg-purple-100 text-purple-800';
+                    rolTexto = 'Técnico';
+                    break;
+                case 'doctor':
+                    rolColor = 'bg-indigo-100 text-indigo-800';
+                    rolTexto = 'Doctor';
+                    break;
+            }
+
             const tr = document.createElement("tr");
-            tr.className = "hover:bg-gray-100 transition";
+            tr.className = "hover:bg-gray-50 border-b transition-colors";
             tr.innerHTML = `
-                <td class="px-4 py-2 border">${u.nombre || 'N/A'}</td>
-                <td class="px-4 py-2 border">${u.documento || 'N/A'}</td>
-                <td class="px-4 py-2 border">${u.email || 'N/A'}</td>
-                <td class="px-4 py-2 border">${u.security_question || 'N/A'}</td>
-                <td class="px-4 py-2 border text-center">
-                    <div id="delete-controls-${u.id}" class="flex justify-center gap-2 flex-wrap">
-                        <button onclick='abrirFormularioUsuario(${JSON.stringify(u).replace(/'/g, "\\'")})' class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Editar</button>
-                        <button onclick='mostrarConfirmacionUsuario(${u.id})' class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Eliminar</button>
+                <td class="px-4 py-3 border">${u.nombre || 'N/A'}</td>
+                <td class="px-4 py-3 border">${u.documento || 'N/A'}</td>
+                <td class="px-4 py-3 border">${u.email || 'N/A'}</td>
+                <td class="px-4 py-3 border">${u.security_question || 'N/A'}</td>
+                <td class="px-4 py-3 border">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${rolColor}">
+                        ${rolTexto}
+                    </span>
+                </td>
+                <td class="px-4 py-3 border text-center">
+                    <div id="delete-controls-${u.id}" class="flex justify-center gap-2">
+                        <button onclick='abrirFormularioUsuario(${JSON.stringify(u).replace(/'/g, "\\'")})' 
+                                class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition text-sm">
+                            Editar
+                        </button>
+                        <button onclick='mostrarConfirmacionUsuario(${u.id})' 
+                                class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm">
+                            Eliminar
+                        </button>
                     </div>
                 </td>
             `;
@@ -236,7 +302,7 @@ async function cargarUsuarios() {
         const tabla = document.getElementById("tablaUsuarios");
         tabla.innerHTML = `
             <tr>
-                <td colspan="5" class="text-center py-4 text-red-500">
+                <td colspan="6" class="text-center py-4 text-red-500">
                     Error al cargar usuarios: ${err.message}
                 </td>
             </tr>
@@ -250,33 +316,44 @@ function mostrarConfirmacionUsuario(id) {
     if (!container) return;
     
     container.innerHTML = `
-        <div class="flex gap-1">
-            <button onclick="eliminarUsuario(${id})" class="bg-red-700 text-white px-2 py-1 rounded">Sí</button>
-            <button onclick="cancelarEliminacionUsuario(${id})" class="bg-gray-400 text-white px-2 py-1 rounded">No</button>
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-red-600 font-medium">¿Eliminar?</span>
+            <button onclick="eliminarUsuario(${id})" 
+                    class="bg-red-700 text-white px-2 py-1 rounded text-xs hover:bg-red-800 transition">
+                Sí
+            </button>
+            <button onclick="cancelarEliminacionUsuario(${id})" 
+                    class="bg-gray-500 text-white px-2 py-1 rounded text-xs hover:bg-gray-600 transition">
+                No
+            </button>
         </div>
     `;
 }
 
 function cancelarEliminacionUsuario(id) {
-    const container = document.getElementById(`delete-controls-${id}`);
-    if (!container) return;
-    
     cargarUsuarios();
 }
 
 // Eliminar usuario
 async function eliminarUsuario(id) {
+    if (!confirm('¿Está seguro de que desea eliminar este usuario?')) {
+        cancelarEliminacionUsuario(id);
+        return;
+    }
+
     try {
         console.log('🗑️ Eliminando usuario ID:', id);
-        const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-        const data = await res.json();
+        const res = await fetch(`${API_URL}/${id}`, { 
+            method: "DELETE" 
+        });
 
         if (!res.ok) {
-            throw new Error(data.message || "No se pudo eliminar el usuario");
+            const errorData = await res.json();
+            throw new Error(errorData.error || "No se pudo eliminar el usuario");
         }
 
-        mostrarMensaje("✅ Usuario eliminado correctamente.");
-        setTimeout(cargarUsuarios, 500);
+        mostrarMensaje("✅ Usuario eliminado correctamente");
+        cargarUsuarios();
         
     } catch (err) {
         console.error('❌ Error eliminando usuario:', err);
@@ -289,21 +366,59 @@ async function eliminarUsuario(id) {
 function filtrarUsuarios() {
     const texto = document.getElementById('busqueda').value.toLowerCase();
     const filas = document.querySelectorAll('#tablaUsuarios tr');
+    let resultados = 0;
     
     filas.forEach(fila => {
         if (fila.cells.length === 1) return;
         
         const contenido = fila.textContent.toLowerCase();
-        fila.style.display = contenido.includes(texto) ? '' : 'none';
+        if (contenido.includes(texto)) {
+            fila.style.display = '';
+            resultados++;
+        } else {
+            fila.style.display = 'none';
+        }
     });
+
+    // Mostrar mensaje si no hay resultados
+    const mensajeNoResultados = document.getElementById('mensaje-no-resultados');
+    if (!mensajeNoResultados && resultados === 0 && texto !== '') {
+        const tabla = document.getElementById("tablaUsuarios");
+        const mensaje = document.createElement('tr');
+        mensaje.id = 'mensaje-no-resultados';
+        mensaje.innerHTML = `
+            <td colspan="6" class="text-center py-4 text-gray-500">
+                No se encontraron usuarios que coincidan con "${texto}"
+            </td>
+        `;
+        tabla.appendChild(mensaje);
+    } else if (mensajeNoResultados && (resultados > 0 || texto === '')) {
+        mensajeNoResultados.remove();
+    }
 }
 
 // ========================= INICIALIZACIÓN =========================
 
-// Inicializar
 document.addEventListener("DOMContentLoaded", function() {
     console.log('🚀 Inicializando gestión de usuarios...');
     
-    // Siempre mostrar el modal de autenticación al entrar
+    // Inicializar búsqueda
+    const busquedaInput = document.getElementById('busqueda');
+    if (busquedaInput) {
+        busquedaInput.addEventListener('input', filtrarUsuarios);
+    }
+    
+    // Mostrar modal de autenticación
     mostrarModalAutenticacion();
 });
+
+// ========================= FUNCIONES GLOBALES =========================
+
+// Hacer funciones disponibles globalmente para los onclick
+window.abrirFormularioUsuario = abrirFormularioUsuario;
+window.cerrarFormularioUsuario = cerrarFormularioUsuario;
+window.mostrarConfirmacionUsuario = mostrarConfirmacionUsuario;
+window.cancelarEliminacionUsuario = cancelarEliminacionUsuario;
+window.eliminarUsuario = eliminarUsuario;
+window.regresar = regresar;
+window.validarAcceso = validarAcceso;
