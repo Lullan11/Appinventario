@@ -21,7 +21,77 @@
         body {
             font-family: 'Poppins', sans-serif;
         }
+
+        .badge-suspendido {
+            background-color: #fbbf24;
+            color: #78350f;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .badge-reintegrado {
+            background-color: #10b981;
+            color: #064e3b;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .modal-suspender {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content-suspender {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 3px solid #0F172A;
+        }
+
+        .btn-suspender {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .btn-suspender:hover {
+            background-color: #d97706;
+        }
+
+        .btn-reintegrar {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-reintegrar:hover {
+            background-color: #059669;
+        }
+
+        .skeleton-row {
+            height: 60px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+            margin: 4px 0;
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
+        }
     </style>
+
 </head>
 
 <body class="bg-white text-[#0F172A] min-h-screen flex">
@@ -136,6 +206,153 @@
                 </header>
 
 
+                <div id="navbar-container"></div>
+                <div class="min-h-screen bg-gray-100 pt-16">
+                    <div id="contenido-dinamico" class="p-4 md:p-6">
+                        <!-- Skeleton loading -->
+                        <div id="skeleton-loading" class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <div class="h-8 bg-gray-200 rounded w-48"></div>
+                                <div class="h-6 bg-gray-200 rounded w-24"></div>
+                            </div>
+                            <div class="h-10 bg-gray-200 rounded w-full max-w-md"></div>
+                            <div class="space-y-2">
+                                <div class="skeleton-row"></div>
+                                <div class="skeleton-row"></div>
+                                <div class="skeleton-row"></div>
+                                <div class="skeleton-row"></div>
+                                <div class="skeleton-row"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal para suspender equipo -->
+                <div id="modal-suspender"
+                    class="modal-suspender fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+                    <div class="modal-content-suspender p-6">
+                        <h2 class="text-2xl font-bold text-[#0F172A] mb-4">Suspender Equipo</h2>
+                        <form id="form-suspender">
+                            <input type="hidden" id="equipo-id-suspender">
+
+                            <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                                <h3 class="font-semibold text-lg text-gray-700 mb-2">Información del Equipo</h3>
+                                <div id="info-equipo-suspender" class="text-sm text-gray-600 space-y-1"></div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Motivo de suspensión
+                                        *</label>
+                                    <select id="motivo-suspension"
+                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
+                                        <option value="">Seleccionar motivo...</option>
+                                        <option value="Mantenimiento programado">Mantenimiento programado</option>
+                                        <option value="Reparación">Reparación</option>
+                                        <option value="Calibración">Calibración</option>
+                                        <option value="Verificación técnica">Verificación técnica</option>
+                                        <option value="Actualización de software">Actualización de software</option>
+                                        <option value="Cambio de ubicación">Cambio de ubicación</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de suspensión
+                                        *</label>
+                                    <input type="date" id="fecha-suspension"
+                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha estimada de
+                                        reintegro *</label>
+                                    <input type="date" id="fecha-reintegro-estimada"
+                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+                                    <textarea id="observaciones-suspension" rows="3"
+                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg"
+                                        placeholder="Detalles adicionales sobre la suspensión..."></textarea>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por
+                                        *</label>
+                                    <input type="text" id="realizado-por-suspension"
+                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                                <button type="button" onclick="cerrarModalSuspender()"
+                                    class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                                    Cancelar
+                                </button>
+                                <button type="submit"
+                                    class="px-4 py-2 bg-[#f59e0b] text-white rounded-lg hover:bg-[#d97706]">
+                                    <i class="fas fa-pause mr-2"></i> Suspender Equipo
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Modal para reintegrar equipo -->
+                <div id="modal-reintegrar"
+                    class="modal-suspender fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+                    <div class="modal-content-suspender p-6">
+                        <h2 class="text-2xl font-bold text-[#0F172A] mb-4">Reintegrar Equipo</h2>
+                        <form id="form-reintegrar">
+                            <input type="hidden" id="equipo-id-reintegrar">
+
+                            <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                                <h3 class="font-semibold text-lg text-gray-700 mb-2">Información del Equipo
+                                    Suspendido</h3>
+                                <div id="info-equipo-reintegrar" class="text-sm text-gray-600 space-y-1"></div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones de
+                                        reintegro *</label>
+                                    <textarea id="observaciones-reintegro" rows="3"
+                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required
+                                        placeholder="Describa el estado del equipo al reintegrarlo..."></textarea>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de reintegro
+                                        real *</label>
+                                    <input type="date" id="fecha-reintegro-real"
+                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por
+                                        *</label>
+                                    <input type="text" id="realizado-por-reintegro"
+                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                                <button type="button" onclick="cerrarModalReintegrar()"
+                                    class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                                    Cancelar
+                                </button>
+                                <button type="submit"
+                                    class="px-4 py-2 bg-[#10b981] text-white rounded-lg hover:bg-[#059669]">
+                                    <i class="fas fa-play mr-2"></i> Reintegrar Equipo
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+
 
                 <footer class="text-center mt-6 py-4 border-t border-gray-200">
                     <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos Suspendidos</p>
@@ -149,5 +366,4 @@
     <!-- Futuro script para cargar el historial desde la base de datos -->
     <!-- <script src="../js/historial.js"></script> -->
 </body>
-
 </html>

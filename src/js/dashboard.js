@@ -1,6 +1,14 @@
-// src/js/dashboard.js - VERSIÓN COMPLETA OPTIMIZADA CON MEJOR EXPERIENCIA DE CARGA
+// src/js/dashboard.js - VERSIÓN COMPLETA CON PERSISTENCIA EN MEMORIA
 
 const API_URL = "https://inventario-api-gw73.onrender.com";
+
+// ✅ VARIABLE GLOBAL PARA PERSISTENCIA EN MEMORIA
+window.DASHBOARD_CACHE = window.DASHBOARD_CACHE || {
+    datos: null,
+    timestamp: null,
+    ttl: 5 * 60 * 1000, // 5 minutos
+    ultimaCarga: null
+};
 
 // Variables globales para almacenar datos
 let dashboardData = {
@@ -22,13 +30,6 @@ let dashboardData = {
         vencidosPreventivos: 0,
         vencidosCalibraciones: 0
     }
-};
-
-// ✅ Cache para datos
-let cache = {
-    timestamp: null,
-    data: null,
-    ttl: 5 * 60 * 1000 // 5 minutos
 };
 
 // Elementos del DOM
@@ -71,32 +72,60 @@ async function cargarStats() {
     try {
         console.log("📊 Cargando estadísticas del dashboard...");
 
-        // ✅ 1. PRIMERO: Mostrar datos cacheados inmediatamente si existen
+        // ✅ 1. PRIMERO: Verificar si ya hay datos en memoria
         const ahora = Date.now();
-        if (cache.data && cache.timestamp && (ahora - cache.timestamp) < cache.ttl) {
-            console.log("✅ Mostrando datos cacheados inmediatamente");
-            dashboardData = cache.data;
-            inicializarElementosDOM();
+        
+        // Opción A: Hay datos en memoria válidos
+        if (window.DASHBOARD_CACHE.datos && 
+            window.DASHBOARD_CACHE.timestamp && 
+            (ahora - window.DASHBOARD_CACHE.timestamp) < window.DASHBOARD_CACHE.ttl) {
+            
+            console.log("✅ Usando datos en memoria (persistencia)");
+            dashboardData = window.DASHBOARD_CACHE.datos;
+            
+            // Inicializar DOM si es necesario
+            if (!domElements.totalEquipos) {
+                inicializarElementosDOM();
+            }
+            
+            // Actualizar interfaz inmediatamente
             actualizarInterfaz();
             
-            // Mostrar toast de carga rápida
+            // Mostrar notificación de carga rápida
             mostrarToastCargaRapida();
             
             // Actualizar en segundo plano
             actualizarDatosEnSegundoPlano();
             return;
         }
+        
+        // Opción B: Datos en memoria pero expirados
+        if (window.DASHBOARD_CACHE.datos) {
+            console.log("ℹ️ Datos en memoria expirados, mostrando mientras se actualizan...");
+            dashboardData = window.DASHBOARD_CACHE.datos;
+            
+            // Inicializar DOM si es necesario
+            if (!domElements.totalEquipos) {
+                inicializarElementosDOM();
+            }
+            
+            // Actualizar interfaz con datos expirados
+            actualizarInterfaz();
+            
+            // Mostrar mensaje de actualización
+            mostrarMensajeActualizacion();
+        }
 
-        // ✅ 2. MOSTRAR SKELETON (solo si no hay cache válido)
-        if (!skeletonMostrado) {
+        // ✅ 2. MOSTRAR SKELETON (solo si no hay datos en memoria)
+        if (!window.DASHBOARD_CACHE.datos && !skeletonMostrado) {
             mostrarSkeletonCards(true);
             skeletonMostrado = true;
         }
 
-        // ✅ 3. Cargar datos frescos (con timeout para loading discreto)
+        // ✅ 3. Cargar datos frescos
         let loadingTimeout = setTimeout(() => {
             mostrarLoadingDashboard(true);
-        }, 800); // Solo muestra loading si tarda más de 800ms
+        }, 800);
 
         try {
             // Inicializar elementos del DOM
@@ -168,9 +197,10 @@ async function cargarStats() {
                 mantenimientos: mantenimientosData
             };
 
-            // ✅ GUARDAR EN CACHE
-            cache.data = dashboardData;
-            cache.timestamp = Date.now();
+            // ✅ GUARDAR EN MEMORIA GLOBAL
+            window.DASHBOARD_CACHE.datos = dashboardData;
+            window.DASHBOARD_CACHE.timestamp = Date.now();
+            window.DASHBOARD_CACHE.ultimaCarga = new Date().toLocaleTimeString();
 
             // Actualizar la interfaz
             actualizarInterfaz();
@@ -181,7 +211,7 @@ async function cargarStats() {
             mostrarSkeletonCards(false);
             skeletonMostrado = false;
 
-            console.log("✅ Dashboard cargado exitosamente");
+            console.log("✅ Dashboard cargado exitosamente y guardado en memoria");
 
         } catch (error) {
             clearTimeout(loadingTimeout);
@@ -453,12 +483,53 @@ function mostrarLoadingDashboard(mostrar) {
     }
 }
 
+// ✅ FUNCIÓN PARA MOSTRAR MENSAJE DE ACTUALIZACIÓN
+function mostrarMensajeActualizacion() {
+    const toastId = 'toast-actualizando';
+    let toast = document.getElementById(toastId);
+    
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = toastId;
+        toast.className = 'fixed top-4 right-4 bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-lg z-50 animate-slide-in';
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <div class="bg-blue-100 p-2 rounded-md mr-3">
+                    <div class="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+                </div>
+                <div>
+                    <p class="font-medium text-blue-800">Actualizando datos</p>
+                    <p class="text-sm text-blue-600">Mostrando información anterior</p>
+                </div>
+                <button onclick="document.getElementById('toast-actualizando').remove()" class="ml-4 text-blue-400 hover:text-blue-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        // Auto-remover después de 3 segundos
+        setTimeout(() => {
+            if (toast && toast.parentNode) {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                    if (toast && toast.parentNode) toast.remove();
+                }, 300);
+            }
+        }, 3000);
+    }
+}
+
 // ✅ MOSTRAR TOAST DE CARGA RÁPIDA
 function mostrarToastCargaRapida() {
     const toastId = 'toast-carga-rapida';
     let toast = document.getElementById(toastId);
     
     if (!toast) {
+        const ultimaCarga = window.DASHBOARD_CACHE.ultimaCarga || 'reciente';
+        
         toast = document.createElement('div');
         toast.id = toastId;
         toast.className = 'fixed top-4 right-4 bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg z-50 animate-slide-in';
@@ -468,8 +539,8 @@ function mostrarToastCargaRapida() {
                     <i class="fas fa-bolt text-green-600"></i>
                 </div>
                 <div>
-                    <p class="font-medium text-green-800">Datos actualizados</p>
-                    <p class="text-sm text-green-600">Usando información reciente</p>
+                    <p class="font-medium text-green-800">Carga instantánea</p>
+                    <p class="text-sm text-green-600">Datos actualizados: ${ultimaCarga}</p>
                 </div>
                 <button onclick="document.getElementById('toast-carga-rapida').remove()" class="ml-4 text-green-400 hover:text-green-600">
                     <i class="fas fa-times"></i>
@@ -543,9 +614,10 @@ async function actualizarDatosEnSegundoPlano() {
     try {
         console.log("🔄 Actualizando datos en segundo plano...");
         
-        // Solo actualizar si el cache tiene más de 1 minuto
+        // Solo actualizar si los datos tienen más de 1 minuto
         const ahora = Date.now();
-        if (cache.timestamp && (ahora - cache.timestamp) < 60000) {
+        if (window.DASHBOARD_CACHE.timestamp && 
+            (ahora - window.DASHBOARD_CACHE.timestamp) < 60000) {
             return; // Demasiado reciente
         }
         
@@ -559,10 +631,11 @@ async function actualizarDatosEnSegundoPlano() {
             const equiposData = await equiposRes.json();
             const mantenimientosData = mantenimientosRes.ok ? await mantenimientosRes.json() : [];
             
-            // Actualizar cache con datos frescos
-            if (cache.data) {
-                cache.data.equipos.activos = equiposData.length;
-                cache.data.equipos.total = equiposData.length + (cache.data.equipos.inactivos || 0);
+            // Actualizar datos en memoria
+            if (window.DASHBOARD_CACHE.datos) {
+                window.DASHBOARD_CACHE.datos.equipos.activos = equiposData.length;
+                window.DASHBOARD_CACHE.datos.equipos.total = equiposData.length + 
+                    (window.DASHBOARD_CACHE.datos.equipos.inactivos || 0);
                 
                 // Recalcular mantenimientos correctivos
                 const tiposMantenimientoRes = await fetch(`${API_URL}/tipos-mantenimiento`);
@@ -573,21 +646,121 @@ async function actualizarDatosEnSegundoPlano() {
                     );
                     
                     if (tipoCorrectivo) {
-                        cache.data.mantenimientos.correctivos = mantenimientosData.filter(mant => 
+                        window.DASHBOARD_CACHE.datos.mantenimientos.correctivos = mantenimientosData.filter(mant => 
                             mant.id_tipo === tipoCorrectivo.id || 
                             mant.tipo_mantenimiento?.toLowerCase().includes('correctivo')
                         ).length;
                     }
                 }
                 
-                cache.timestamp = Date.now();
+                window.DASHBOARD_CACHE.timestamp = Date.now();
+                window.DASHBOARD_CACHE.ultimaCarga = new Date().toLocaleTimeString();
                 
-                console.log("✅ Datos actualizados en segundo plano");
+                console.log("✅ Datos actualizados en segundo plano en memoria");
+                
+                // Notificar actualización silenciosa
+                mostrarNotificacionActualizacion();
             }
         }
     } catch (error) {
         console.log("⚠️ Error en actualización en segundo plano:", error);
-        // No mostrar error al usuario, es silencioso
+        // No mostrar error al usuario
+    }
+}
+
+// ✅ NUEVA FUNCIÓN: Notificación de actualización silenciosa
+function mostrarNotificacionActualizacion() {
+    // Solo mostrar si el usuario está en el dashboard
+    if (!document.querySelector('#dashboard-loading')) {
+        const notificacionId = 'notificacion-actualizacion';
+        let notificacion = document.getElementById(notificacionId);
+        
+        if (!notificacion) {
+            notificacion = document.createElement('div');
+            notificacion.id = notificacionId;
+            notificacion.className = 'fixed bottom-4 right-4 bg-blue-500 text-white rounded-lg p-3 shadow-lg z-50 animate-fade-in';
+            notificacion.style.maxWidth = '300px';
+            notificacion.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-sync-alt mr-2"></i>
+                    <span class="text-sm">Datos del dashboard actualizados</span>
+                    <button onclick="document.getElementById('notificacion-actualizacion').remove()" class="ml-3 text-blue-200 hover:text-white">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(notificacion);
+            
+            // Auto-remover después de 2 segundos
+            setTimeout(() => {
+                if (notificacion && notificacion.parentNode) {
+                    notificacion.style.opacity = '0';
+                    notificacion.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => {
+                        if (notificacion && notificacion.parentNode) notificacion.remove();
+                    }, 300);
+                }
+            }, 2000);
+        }
+    }
+}
+
+// ✅ FUNCIÓN PARA FORZAR UNA ACTUALIZACIÓN COMPLETA
+async function forzarActualizacionDashboard() {
+    try {
+        mostrarLoadingDashboard(true);
+        
+        // Limpiar cache para forzar recarga
+        window.DASHBOARD_CACHE.datos = null;
+        window.DASHBOARD_CACHE.timestamp = null;
+        
+        // Recargar datos
+        await cargarStats();
+        
+        mostrarToastForzado();
+        
+    } catch (error) {
+        console.error("Error forzando actualización:", error);
+        mostrarLoadingDashboard(false);
+    }
+}
+
+// ✅ NUEVA FUNCIÓN: Toast para actualización forzada
+function mostrarToastForzado() {
+    const toastId = 'toast-forzado';
+    let toast = document.getElementById(toastId);
+    
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = toastId;
+        toast.className = 'fixed top-4 right-4 bg-purple-50 border border-purple-200 rounded-lg p-4 shadow-lg z-50 animate-slide-in';
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <div class="bg-purple-100 p-2 rounded-md mr-3">
+                    <i class="fas fa-sync text-purple-600"></i>
+                </div>
+                <div>
+                    <p class="font-medium text-purple-800">Actualización completa</p>
+                    <p class="text-sm text-purple-600">Todos los datos se han actualizado</p>
+                </div>
+                <button onclick="document.getElementById('toast-forzado').remove()" class="ml-4 text-purple-400 hover:text-purple-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        // Auto-remover después de 3 segundos
+        setTimeout(() => {
+            if (toast && toast.parentNode) {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                    if (toast && toast.parentNode) toast.remove();
+                }, 300);
+            }
+        }, 3000);
     }
 }
 
@@ -1278,16 +1451,83 @@ function mostrarErrorDashboard(mensaje) {
     firstChild.insertAdjacentHTML('afterbegin', errorHTML);
 }
 
+// ✅ FUNCIÓN: Agregar botón de actualización al navbar
+function agregarBotonActualizacion() {
+    // Esperar a que el navbar esté disponible
+    setTimeout(() => {
+        const navbar = document.querySelector('nav .flex.items-center.space-x-4');
+        if (navbar && !document.getElementById('btn-actualizar-dashboard')) {
+            const botonActualizar = document.createElement('button');
+            botonActualizar.id = 'btn-actualizar-dashboard';
+            botonActualizar.className = 'flex items-center space-x-2 px-3 py-2 bg-[#639A33] text-white rounded-md hover:bg-[#4B7B2D] transition-colors';
+            botonActualizar.innerHTML = `
+                <i class="fas fa-sync-alt"></i>
+                <span class="hidden md:inline">Actualizar</span>
+            `;
+            botonActualizar.title = "Forzar actualización del dashboard";
+            botonActualizar.onclick = forzarActualizacionDashboard;
+            
+            navbar.appendChild(botonActualizar);
+        }
+    }, 1000);
+}
+
+// ✅ FUNCIÓN PARA MOSTRAR ESTADO DE CACHE EN CONSOLA (debug)
+function mostrarEstadoCache() {
+    console.log("📊 Estado del cache del dashboard:");
+    console.log("- Datos cargados:", window.DASHBOARD_CACHE.datos ? "Sí" : "No");
+    console.log("- Última actualización:", window.DASHBOARD_CACHE.ultimaCarga || "Nunca");
+    console.log("- Tiempo desde última actualización:", 
+        window.DASHBOARD_CACHE.timestamp ? 
+        Math.floor((Date.now() - window.DASHBOARD_CACHE.timestamp) / 1000) + " segundos" : 
+        "N/A");
+    
+    if (window.DASHBOARD_CACHE.datos) {
+        console.log("- Total equipos:", window.DASHBOARD_CACHE.datos.equipos.total);
+        console.log("- Mantenimientos vencidos:", window.DASHBOARD_CACHE.datos.mantenimientos.vencidos);
+    }
+}
+
 // ========================= INICIALIZACIÓN =========================
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log("🚀 Inicializando dashboard optimizado...");
-    cargarStats();
-
+    console.log("🚀 Inicializando dashboard con persistencia...");
+    
+    // Verificar si ya hay datos cargados
+    const ahora = Date.now();
+    
+    if (window.DASHBOARD_CACHE.datos && 
+        window.DASHBOARD_CACHE.timestamp && 
+        (ahora - window.DASHBOARD_CACHE.timestamp) < window.DASHBOARD_CACHE.ttl) {
+        
+        console.log("📱 Dashboard: Datos en memoria encontrados, cargando instantáneamente");
+        
+        // Cargar inmediatamente desde memoria
+        dashboardData = window.DASHBOARD_CACHE.datos;
+        setTimeout(() => {
+            if (!domElements.totalEquipos) {
+                inicializarElementosDOM();
+            }
+            actualizarInterfaz();
+            mostrarToastCargaRapida();
+        }, 100);
+        
+        // Actualizar en segundo plano
+        actualizarDatosEnSegundoPlano();
+        
+    } else {
+        // Cargar normalmente
+        cargarStats();
+    }
+    
+    // Agregar botón de actualización al navbar
+    agregarBotonActualizacion();
+    
     // Actualizar cada 5 minutos
     setInterval(() => {
         const ahora = Date.now();
-        if (!cache.timestamp || (ahora - cache.timestamp) >= cache.ttl) {
+        if (!window.DASHBOARD_CACHE.timestamp || 
+            (ahora - window.DASHBOARD_CACHE.timestamp) >= window.DASHBOARD_CACHE.ttl) {
             console.log("🔄 Actualizando dashboard (cache expirado)");
             cargarStats();
         }
@@ -1298,7 +1538,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!document.hidden) {
             const ahora = Date.now();
             // Actualizar si los datos tienen más de 2 minutos
-            if (!cache.timestamp || (ahora - cache.timestamp) >= (2 * 60 * 1000)) {
+            if (!window.DASHBOARD_CACHE.timestamp || 
+                (ahora - window.DASHBOARD_CACHE.timestamp) >= (2 * 60 * 1000)) {
                 console.log("🔍 Pestaña visible, actualizando datos");
                 cargarStats();
             }
@@ -1309,3 +1550,5 @@ document.addEventListener('DOMContentLoaded', function () {
 // Hacer funciones disponibles globalmente
 window.navigateToMantenimientos = navigateToMantenimientos;
 window.cargarStats = cargarStats;
+window.forzarActualizacionDashboard = forzarActualizacionDashboard;
+window.mostrarEstadoCache = mostrarEstadoCache;
