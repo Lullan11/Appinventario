@@ -8,6 +8,12 @@
   <link href="../../dist/output.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+  <!-- Favicon para modo claro -->
+  <link rel="icon" href="../assets/faviBlack.ico" media="(prefers-color-scheme: light)">
+
+  <!-- Favicon para modo oscuro -->
+  <link rel="icon" href="../assets/faviWhite.ico" media="(prefers-color-scheme: dark)">
+
   <!-- Fuente moderna (Google Fonts: Poppins) -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -50,6 +56,171 @@
     /* En tu archivo CSS */
     #cargando-overlay {
       z-index: 9999;
+    }
+
+    /* Animaciones para el módulo de equipos */
+    @keyframes slide-in {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes progress {
+      0% {
+        width: 100%;
+      }
+
+      100% {
+        width: 0%;
+      }
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .animate-slide-in {
+      animation: slide-in 0.3s ease-out;
+    }
+
+    .animate-progress {
+      animation: progress 4s linear forwards;
+    }
+
+    .animate-pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Estilos para skeleton */
+    .skeleton-row {
+      background: linear-gradient(90deg,
+          #f5f5f5 25%,
+          #e8e8e8 50%,
+          #f5f5f5 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    /* Estilos para paginación */
+    .paginacion-container {
+      transition: opacity 0.3s ease;
+    }
+
+    /* Estilos para botones de acción */
+    .btn-accion {
+      transition: all 0.2s ease;
+    }
+
+    .btn-accion:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Estilos para notificaciones */
+    .notificacion-toast {
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(229, 231, 235, 0.5);
+    }
+
+    /* Animaciones para el módulo de equipos */
+    @keyframes slide-in {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes progress {
+      0% {
+        width: 100%;
+      }
+
+      100% {
+        width: 0%;
+      }
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .animate-slide-in {
+      animation: slide-in 0.3s ease-out;
+    }
+
+    .animate-progress {
+      animation: progress 4s linear forwards;
+    }
+
+    .animate-pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Estilos para el loading en esquina */
+    .loading-equipos {
+      backdrop-filter: blur(3px);
+      border: 1px solid rgba(229, 231, 235, 0.8);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Transición suave para skeleton */
+    .skeleton-fade {
+      transition: opacity 0.3s ease;
+    }
+
+    /* Estilos para notificaciones toast */
+    .toast-notification {
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(229, 231, 235, 0.5);
+    }
+
+    /* Hover effects para botones */
+    .btn-accion-hover {
+      transition: all 0.2s ease;
+    }
+
+    .btn-accion-hover:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
   </style>
 </head>
@@ -100,6 +271,10 @@
           <a href="#" data-view="excel.html"
             class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
             <i class="fas fa-file-excel"></i> Excel
+          </a>
+          <a href="#" data-view="suspendidos.html"
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-power-off"></i> Suspendidos
           </a>
           <a href="#" data-view="inactivos.html"
             class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">

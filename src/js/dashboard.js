@@ -1,4 +1,4 @@
-// src/js/dashboard.js - VERSIÓN COMPLETA OPTIMIZADA
+// src/js/dashboard.js - VERSIÓN COMPLETA OPTIMIZADA CON MEJOR EXPERIENCIA DE CARGA
 
 const API_URL = "https://inventario-api-gw73.onrender.com";
 
@@ -24,7 +24,7 @@ let dashboardData = {
     }
 };
 
-// ✅ NUEVO: Cache para datos
+// ✅ Cache para datos
 let cache = {
     timestamp: null,
     data: null,
@@ -64,114 +64,139 @@ let domElements = {
     vencidosCalibraciones: null
 };
 
+// ✅ Variable para controlar si ya mostramos skeleton
+let skeletonMostrado = false;
+
 async function cargarStats() {
     try {
         console.log("📊 Cargando estadísticas del dashboard...");
 
-        // ✅ MOSTRAR LOADING SUAVE
-        mostrarLoadingDashboard(true);
-
-        // ✅ VERIFICAR CACHE
+        // ✅ 1. PRIMERO: Mostrar datos cacheados inmediatamente si existen
         const ahora = Date.now();
         if (cache.data && cache.timestamp && (ahora - cache.timestamp) < cache.ttl) {
-            console.log("✅ Usando datos cacheados");
+            console.log("✅ Mostrando datos cacheados inmediatamente");
             dashboardData = cache.data;
             inicializarElementosDOM();
             actualizarInterfaz();
-            mostrarLoadingDashboard(false);
+            
+            // Mostrar toast de carga rápida
+            mostrarToastCargaRapida();
+            
+            // Actualizar en segundo plano
+            actualizarDatosEnSegundoPlano();
             return;
         }
 
-        // Inicializar elementos del DOM
-        inicializarElementosDOM();
+        // ✅ 2. MOSTRAR SKELETON (solo si no hay cache válido)
+        if (!skeletonMostrado) {
+            mostrarSkeletonCards(true);
+            skeletonMostrado = true;
+        }
 
-        // ✅ OPTIMIZACIÓN: Cargar datos en paralelo con Promise.all
-        console.time("CargaDatosDashboard");
-        const [equiposRes, equiposInactivosRes, sedesRes, areasRes, puestosRes, tiposMantenimientoRes, mantenimientosRealizadosRes] = await Promise.all([
-            fetch(`${API_URL}/equipos`),
-            fetch(`${API_URL}/equipos/inactivos`),
-            fetch(`${API_URL}/sedes`),
-            fetch(`${API_URL}/areas`),
-            fetch(`${API_URL}/puestos`),
-            fetch(`${API_URL}/tipos-mantenimiento`),
-            fetch(`${API_URL}/mantenimientos`)
-        ]);
-        console.timeEnd("CargaDatosDashboard");
+        // ✅ 3. Cargar datos frescos (con timeout para loading discreto)
+        let loadingTimeout = setTimeout(() => {
+            mostrarLoadingDashboard(true);
+        }, 800); // Solo muestra loading si tarda más de 800ms
 
-        // Verificar respuestas
-        if (!equiposRes.ok) throw new Error("Error al cargar equipos activos");
-        if (!sedesRes.ok) throw new Error("Error al cargar sedes");
-        if (!areasRes.ok) throw new Error("Error al cargar áreas");
-        if (!puestosRes.ok) throw new Error("Error al cargar puestos");
+        try {
+            // Inicializar elementos del DOM
+            inicializarElementosDOM();
 
-        // Procesar datos básicos
-        const equiposActivosData = await equiposRes.json();
-        const sedesData = await sedesRes.json();
-        const areasData = await areasRes.json();
-        const puestosData = await puestosRes.json();
-        const tiposMantenimientoData = tiposMantenimientoRes.ok ? await tiposMantenimientoRes.json() : [];
+            // Cargar datos en paralelo
+            console.time("CargaDatosDashboard");
+            const [equiposRes, equiposInactivosRes, sedesRes, areasRes, puestosRes, tiposMantenimientoRes, mantenimientosRealizadosRes] = await Promise.all([
+                fetch(`${API_URL}/equipos`),
+                fetch(`${API_URL}/equipos/inactivos`),
+                fetch(`${API_URL}/sedes`),
+                fetch(`${API_URL}/areas`),
+                fetch(`${API_URL}/puestos`),
+                fetch(`${API_URL}/tipos-mantenimiento`),
+                fetch(`${API_URL}/mantenimientos`)
+            ]);
+            console.timeEnd("CargaDatosDashboard");
 
-        // ✅ NUEVO: Cargar mantenimientos realizados
-        let todosLosMantenimientosRealizados = [];
-        if (mantenimientosRealizadosRes.ok) {
-            try {
-                todosLosMantenimientosRealizados = await mantenimientosRealizadosRes.json();
-                console.log("✅ Mantenimientos realizados cargados:", todosLosMantenimientosRealizados.length);
-            } catch (parseError) {
-                console.warn("⚠️ Error parseando mantenimientos realizados:", parseError);
-                todosLosMantenimientosRealizados = [];
+            // Verificar respuestas
+            if (!equiposRes.ok) throw new Error("Error al cargar equipos activos");
+            if (!sedesRes.ok) throw new Error("Error al cargar sedes");
+            if (!areasRes.ok) throw new Error("Error al cargar áreas");
+            if (!puestosRes.ok) throw new Error("Error al cargar puestos");
+
+            // Procesar datos básicos
+            const equiposActivosData = await equiposRes.json();
+            const sedesData = await sedesRes.json();
+            const areasData = await areasRes.json();
+            const puestosData = await puestosRes.json();
+            const tiposMantenimientoData = tiposMantenimientoRes.ok ? await tiposMantenimientoRes.json() : [];
+
+            // Cargar mantenimientos realizados
+            let todosLosMantenimientosRealizados = [];
+            if (mantenimientosRealizadosRes.ok) {
+                try {
+                    todosLosMantenimientosRealizados = await mantenimientosRealizadosRes.json();
+                } catch (parseError) {
+                    console.warn("⚠️ Error parseando mantenimientos realizados");
+                    todosLosMantenimientosRealizados = [];
+                }
             }
-        } else {
-            console.warn("⚠️ No se pudo cargar el endpoint de mantenimientos. Status:", mantenimientosRealizadosRes.status);
+
+            // Procesar equipos inactivos
+            let equiposInactivosData = [];
+            if (equiposInactivosRes.ok) {
+                equiposInactivosData = await equiposInactivosRes.json();
+            }
+
+            // Calcular estadísticas de equipos
+            const totalEquipos = equiposActivosData.length + equiposInactivosData.length;
+
+            // Calcular mantenimientos
+            const mantenimientosData = await calcularMantenimientosOptimizado(
+                equiposActivosData,
+                tiposMantenimientoData,
+                todosLosMantenimientosRealizados
+            );
+
+            // Actualizar datos globales
+            dashboardData = {
+                equipos: {
+                    total: totalEquipos,
+                    activos: equiposActivosData.length,
+                    inactivos: equiposInactivosData.length
+                },
+                sedes: sedesData.length || 0,
+                areas: areasData.length || 0,
+                puestos: puestosData.length || 0,
+                mantenimientos: mantenimientosData
+            };
+
+            // ✅ GUARDAR EN CACHE
+            cache.data = dashboardData;
+            cache.timestamp = Date.now();
+
+            // Actualizar la interfaz
+            actualizarInterfaz();
+
+            // Limpiar timeouts y ocultar loadings
+            clearTimeout(loadingTimeout);
+            mostrarLoadingDashboard(false);
+            mostrarSkeletonCards(false);
+            skeletonMostrado = false;
+
+            console.log("✅ Dashboard cargado exitosamente");
+
+        } catch (error) {
+            clearTimeout(loadingTimeout);
+            mostrarLoadingDashboard(false);
+            mostrarSkeletonCards(false);
+            skeletonMostrado = false;
+            throw error;
         }
-
-        // Procesar equipos inactivos (si la respuesta es exitosa)
-        let equiposInactivosData = [];
-        if (equiposInactivosRes.ok) {
-            equiposInactivosData = await equiposInactivosRes.json();
-        }
-
-        // Calcular estadísticas de equipos
-        const totalEquipos = equiposActivosData.length + equiposInactivosData.length;
-
-        console.log(`🔢 Datos básicos - Equipos activos: ${equiposActivosData.length}, Inactivos: ${equiposInactivosData.length}, Sedes: ${sedesData.length}, Áreas: ${areasData.length}, Puestos: ${puestosData.length}`);
-
-        // ✅ OPTIMIZACIÓN: Calcular mantenimientos de forma más eficiente
-        console.time("CalculoMantenimientos");
-        const mantenimientosData = await calcularMantenimientosOptimizado(
-            equiposActivosData,
-            tiposMantenimientoData,
-            todosLosMantenimientosRealizados
-        );
-        console.timeEnd("CalculoMantenimientos");
-
-        // Actualizar datos globales
-        dashboardData = {
-            equipos: {
-                total: totalEquipos,
-                activos: equiposActivosData.length,
-                inactivos: equiposInactivosData.length
-            },
-            sedes: sedesData.length || 0,
-            areas: areasData.length || 0,
-            puestos: puestosData.length || 0,
-            mantenimientos: mantenimientosData
-        };
-
-        // ✅ GUARDAR EN CACHE
-        cache.data = dashboardData;
-        cache.timestamp = Date.now();
-
-        // Actualizar la interfaz
-        actualizarInterfaz();
-
-        mostrarLoadingDashboard(false);
-        console.log("✅ Dashboard cargado exitosamente:", dashboardData);
 
     } catch (err) {
         console.error("❌ Error cargando stats:", err);
         mostrarErrorDashboard(err.message);
         mostrarLoadingDashboard(false);
+        mostrarSkeletonCards(false);
+        skeletonMostrado = false;
     }
 }
 
@@ -199,44 +224,25 @@ async function calcularMantenimientosOptimizado(equiposData, tiposMantenimientoD
         const tipoCalibracion = tiposMantenimientoData.find(t => t.nombre.toLowerCase().includes('calibración') || t.nombre.toLowerCase().includes('calibracion'));
         const tipoCorrectivo = tiposMantenimientoData.find(t => t.nombre.toLowerCase().includes('correctivo'));
 
-        console.log("🔍 Tipos de mantenimiento encontrados:", {
-            preventivo: tipoPreventivo,
-            calibracion: tipoCalibracion,
-            correctivo: tipoCorrectivo
-        });
-
-        // ✅ CONTAR CORRECTIVOS REALIZADOS DESDE LOS DATOS CARGADOS
+        // ✅ CONTAR CORRECTIVOS REALIZADOS
         if (mantenimientosRealizadosData && mantenimientosRealizadosData.length > 0) {
             const correctivosRealizados = mantenimientosRealizadosData.filter(mant => {
-                // Buscar por ID de tipo
-                if (tipoCorrectivo && mant.id_tipo === tipoCorrectivo.id) {
-                    return true;
-                }
-                // Buscar por nombre en caso de que el ID no coincida
-                if (mant.tipo_mantenimiento && mant.tipo_mantenimiento.toLowerCase().includes('correctivo')) {
-                    return true;
-                }
+                if (tipoCorrectivo && mant.id_tipo === tipoCorrectivo.id) return true;
+                if (mant.tipo_mantenimiento && mant.tipo_mantenimiento.toLowerCase().includes('correctivo')) return true;
                 return false;
             });
             correctivos = correctivosRealizados.length;
-            console.log("✅ Correctivos realizados encontrados:", correctivos);
-        } else {
-            console.warn("⚠️ No se pudieron cargar los mantenimientos realizados o el array está vacío");
         }
 
-        // ✅ OPTIMIZACIÓN: Procesar equipos en chunks para no bloquear
-        const chunkSize = 10; // Procesar 10 equipos a la vez
+        // ✅ Procesar equipos en chunks
+        const chunkSize = 10;
         const totalEquipos = equiposData.length;
         
-        console.log(`🔍 Procesando ${totalEquipos} equipos en chunks de ${chunkSize}`);
-
         for (let i = 0; i < totalEquipos; i += chunkSize) {
             const chunk = equiposData.slice(i, i + chunkSize);
             
-            // ✅ Procesar chunk actual
             const chunkPromises = chunk.map(async (equipo) => {
                 try {
-                    // Obtener datos completos del equipo
                     const equipoCompletoRes = await fetch(`${API_URL}/equipos/${equipo.id}/completo`);
                     if (!equipoCompletoRes.ok) {
                         return { sinConfiguracion: 1 };
@@ -244,8 +250,7 @@ async function calcularMantenimientosOptimizado(equiposData, tiposMantenimientoD
 
                     const equipoCompleto = await equipoCompletoRes.json();
 
-                    if (!equipoCompleto.mantenimientos_configurados ||
-                        equipoCompleto.mantenimientos_configurados.length === 0) {
+                    if (!equipoCompleto.mantenimientos_configurados || equipoCompleto.mantenimientos_configurados.length === 0) {
                         return { sinConfiguracion: 1 };
                     }
 
@@ -311,17 +316,15 @@ async function calcularMantenimientosOptimizado(equiposData, tiposMantenimientoD
                     };
 
                 } catch (error) {
-                    console.warn(`⚠️ Error procesando equipo ${equipo.id}:`, error);
                     return { sinConfiguracion: 1 };
                 }
             });
 
-            // ✅ Esperar a que se procese el chunk completo
+            // Esperar a que se procese el chunk completo
             const chunkResults = await Promise.all(chunkPromises);
 
-            // ✅ Sumar resultados del chunk
+            // Sumar resultados del chunk
             chunkResults.forEach(result => {
-                // Sumar por estado
                 switch (result.estado) {
                     case "VENCIDO": vencidos++; break;
                     case "PRÓXIMO": proximos++; break;
@@ -329,7 +332,6 @@ async function calcularMantenimientosOptimizado(equiposData, tiposMantenimientoD
                     case "SIN_DATOS": sinConfiguracion++; break;
                 }
 
-                // Sumar otros contadores
                 sinConfiguracion += result.sinConfiguracion || 0;
                 preventivos += result.preventivos || 0;
                 calibraciones += result.calibraciones || 0;
@@ -340,43 +342,10 @@ async function calcularMantenimientosOptimizado(equiposData, tiposMantenimientoD
                 if (result.vencidoPreventivo) vencidosPreventivos++;
                 if (result.vencidoCalibracion) vencidosCalibraciones++;
             });
-
-            // ✅ Actualizar interfaz parcialmente para mostrar progreso
-            if (i % 20 === 0 || i === totalEquipos - 1) {
-                actualizarInterfazParcial({
-                    vencidos, proximos, alDia, sinConfiguracion,
-                    preventivos, calibraciones, correctivos,
-                    total: totalMantenimientosProgramados + correctivos,
-                    proximosMantenimiento, proximosCalibracion,
-                    vencidosPreventivos, vencidosCalibraciones
-                });
-            }
         }
 
         // ✅ CALCULAR TOTAL COMBINADO
         const totalCombinado = totalMantenimientosProgramados + correctivos;
-
-        console.log("📊 Resumen de conteos:", {
-            totalMantenimientosProgramados,
-            preventivos,
-            calibraciones,
-            correctivos,
-            totalCombinado,
-            equipos: {
-                vencidos,
-                proximos,
-                alDia,
-                sinConfiguracion
-            },
-            proximos_especificos: {
-                mantenimiento: proximosMantenimiento,
-                calibracion: proximosCalibracion
-            },
-            vencidos_especificos: {
-                preventivos: vencidosPreventivos,
-                calibraciones: vencidosCalibraciones
-            }
-        });
 
         return {
             vencidos,
@@ -412,22 +381,6 @@ async function calcularMantenimientosOptimizado(equiposData, tiposMantenimientoD
     }
 }
 
-// ✅ FUNCIÓN AUXILIAR: Actualizar interfaz parcialmente
-function actualizarInterfazParcial(datos) {
-    if (domElements.totalVencidos) domElements.totalVencidos.textContent = datos.vencidos;
-    if (domElements.totalProximos) domElements.totalProximos.textContent = datos.proximos;
-    if (domElements.totalAlDia) domElements.totalAlDia.textContent = datos.alDia;
-    if (domElements.totalSinConfiguracion) domElements.totalSinConfiguracion.textContent = datos.sinConfiguracion;
-    if (domElements.totalMantenimientos) domElements.totalMantenimientos.textContent = datos.total;
-    if (domElements.totalPreventivos) domElements.totalPreventivos.textContent = datos.preventivos;
-    if (domElements.totalCalibraciones) domElements.totalCalibraciones.textContent = datos.calibraciones;
-    if (domElements.totalCorrectivos) domElements.totalCorrectivos.textContent = datos.correctivos;
-    if (domElements.proximosMantenimiento) domElements.proximosMantenimiento.textContent = datos.proximosMantenimiento;
-    if (domElements.proximosCalibracion) domElements.proximosCalibracion.textContent = datos.proximosCalibracion;
-    if (domElements.vencidosPreventivos) domElements.vencidosPreventivos.textContent = datos.vencidosPreventivos;
-    if (domElements.vencidosCalibraciones) domElements.vencidosCalibraciones.textContent = datos.vencidosCalibraciones;
-}
-
 // ✅ FUNCIÓN AUXILIAR: Determinar estado real del mantenimiento
 function determinarEstadoMantenimientoRealDashboard(equipo) {
     if (!equipo.mantenimientos_configurados || equipo.mantenimientos_configurados.length === 0) {
@@ -438,7 +391,6 @@ function determinarEstadoMantenimientoRealDashboard(equipo) {
     hoy.setHours(0, 0, 0, 0);
     
     let estado = "OK";
-    let mantenimientoMasUrgente = null;
     let diasMasUrgente = Infinity;
 
     equipo.mantenimientos_configurados.forEach(mant => {
@@ -450,7 +402,6 @@ function determinarEstadoMantenimientoRealDashboard(equipo) {
             
             if (diffDias < diasMasUrgente) {
                 diasMasUrgente = diffDias;
-                mantenimientoMasUrgente = mant;
             }
         }
     });
@@ -466,7 +417,7 @@ function determinarEstadoMantenimientoRealDashboard(equipo) {
     return estado;
 }
 
-// ✅ FUNCIÓN PARA MOSTRAR LOADING
+// ✅ FUNCIÓN PARA MOSTRAR LOADING DISCRETO
 function mostrarLoadingDashboard(mostrar) {
     let loadingElement = document.getElementById('dashboard-loading');
     
@@ -474,14 +425,14 @@ function mostrarLoadingDashboard(mostrar) {
         if (!loadingElement) {
             loadingElement = document.createElement('div');
             loadingElement.id = 'dashboard-loading';
-            loadingElement.className = 'fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50';
+            loadingElement.className = 'fixed top-4 right-4 z-50 animate-slide-in';
             loadingElement.innerHTML = `
-                <div class="bg-white rounded-lg p-6 shadow-xl">
-                    <div class="flex items-center space-x-4">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#639A33]"></div>
+                <div class="bg-white rounded-lg p-4 shadow-xl border border-gray-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="animate-spin rounded-full h-5 w-5 border-2 border-[#639A33] border-t-transparent"></div>
                         <div>
-                            <p class="font-semibold text-gray-800">Cargando dashboard</p>
-                            <p class="text-sm text-gray-600">Obteniendo datos actualizados...</p>
+                            <p class="text-sm font-medium text-gray-800">Actualizando dashboard</p>
+                            <p class="text-xs text-gray-600">Obteniendo datos...</p>
                         </div>
                     </div>
                 </div>
@@ -490,15 +441,160 @@ function mostrarLoadingDashboard(mostrar) {
         }
     } else {
         if (loadingElement) {
-            loadingElement.remove();
+            loadingElement.style.opacity = '0';
+            loadingElement.style.transform = 'translateY(-10px)';
+            loadingElement.style.transition = 'all 0.3s ease';
+            setTimeout(() => {
+                if (loadingElement && loadingElement.parentNode) {
+                    loadingElement.remove();
+                }
+            }, 300);
         }
     }
 }
 
-// ✅ MANTENGO TODAS TUS FUNCIONES ORIGINALES SIN CAMBIOS
+// ✅ MOSTRAR TOAST DE CARGA RÁPIDA
+function mostrarToastCargaRapida() {
+    const toastId = 'toast-carga-rapida';
+    let toast = document.getElementById(toastId);
+    
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = toastId;
+        toast.className = 'fixed top-4 right-4 bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg z-50 animate-slide-in';
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <div class="bg-green-100 p-2 rounded-md mr-3">
+                    <i class="fas fa-bolt text-green-600"></i>
+                </div>
+                <div>
+                    <p class="font-medium text-green-800">Datos actualizados</p>
+                    <p class="text-sm text-green-600">Usando información reciente</p>
+                </div>
+                <button onclick="document.getElementById('toast-carga-rapida').remove()" class="ml-4 text-green-400 hover:text-green-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        // Auto-remover después de 3 segundos
+        setTimeout(() => {
+            if (toast && toast.parentNode) {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                    if (toast && toast.parentNode) toast.remove();
+                }, 300);
+            }
+        }, 3000);
+    }
+}
+
+// ✅ MOSTRAR SKELETON CARDS
+function mostrarSkeletonCards(mostrar) {
+    const skeletonId = 'skeleton-cards';
+    let skeleton = document.getElementById(skeletonId);
+    
+    if (mostrar) {
+        if (!skeleton) {
+            skeleton = document.createElement('div');
+            skeleton.id = skeletonId;
+            skeleton.className = 'grid grid-cols-1 md:grid-cols-4 gap-4 mb-8';
+            
+            const skeletonHTML = Array(4).fill(0).map(() => `
+                <div class="bg-gray-100 rounded-lg p-6 animate-pulse">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="bg-gray-200 rounded-md w-12 h-12"></div>
+                        <div class="bg-gray-200 rounded w-6 h-6"></div>
+                    </div>
+                    <div class="bg-gray-200 rounded h-6 w-24 mb-2"></div>
+                    <div class="bg-gray-300 rounded h-10 w-16 mb-3"></div>
+                    <div class="bg-gray-200 rounded h-4 w-32"></div>
+                </div>
+            `).join('');
+            
+            skeleton.innerHTML = skeletonHTML;
+            
+            // Reemplazar contenido actual con skeleton
+            const mainContainer = document.querySelector('#main-content > .container');
+            if (mainContainer) {
+                const existingContent = mainContainer.querySelector('.grid-cols-1.md\\:grid-cols-4');
+                if (existingContent) {
+                    existingContent.style.display = 'none';
+                    existingContent.parentNode.insertBefore(skeleton, existingContent.nextSibling);
+                }
+            }
+        }
+    } else {
+        if (skeleton) {
+            skeleton.remove();
+            const existingContent = document.querySelector('#main-content .grid-cols-1.md\\:grid-cols-4');
+            if (existingContent) {
+                existingContent.style.display = 'grid';
+            }
+        }
+    }
+}
+
+// ✅ ACTUALIZAR DATOS EN SEGUNDO PLANO
+async function actualizarDatosEnSegundoPlano() {
+    try {
+        console.log("🔄 Actualizando datos en segundo plano...");
+        
+        // Solo actualizar si el cache tiene más de 1 minuto
+        const ahora = Date.now();
+        if (cache.timestamp && (ahora - cache.timestamp) < 60000) {
+            return; // Demasiado reciente
+        }
+        
+        // Actualizar cache silenciosamente
+        const [equiposRes, mantenimientosRes] = await Promise.all([
+            fetch(`${API_URL}/equipos`),
+            fetch(`${API_URL}/mantenimientos`)
+        ]);
+        
+        if (equiposRes.ok && mantenimientosRes.ok) {
+            const equiposData = await equiposRes.json();
+            const mantenimientosData = mantenimientosRes.ok ? await mantenimientosRes.json() : [];
+            
+            // Actualizar cache con datos frescos
+            if (cache.data) {
+                cache.data.equipos.activos = equiposData.length;
+                cache.data.equipos.total = equiposData.length + (cache.data.equipos.inactivos || 0);
+                
+                // Recalcular mantenimientos correctivos
+                const tiposMantenimientoRes = await fetch(`${API_URL}/tipos-mantenimiento`);
+                if (tiposMantenimientoRes.ok) {
+                    const tiposMantenimientoData = await tiposMantenimientoRes.json();
+                    const tipoCorrectivo = tiposMantenimientoData.find(t => 
+                        t.nombre.toLowerCase().includes('correctivo')
+                    );
+                    
+                    if (tipoCorrectivo) {
+                        cache.data.mantenimientos.correctivos = mantenimientosData.filter(mant => 
+                            mant.id_tipo === tipoCorrectivo.id || 
+                            mant.tipo_mantenimiento?.toLowerCase().includes('correctivo')
+                        ).length;
+                    }
+                }
+                
+                cache.timestamp = Date.now();
+                
+                console.log("✅ Datos actualizados en segundo plano");
+            }
+        }
+    } catch (error) {
+        console.log("⚠️ Error en actualización en segundo plano:", error);
+        // No mostrar error al usuario, es silencioso
+    }
+}
+
+// ✅ FUNCIONES ORIGINALES (sin cambios)
 
 function inicializarElementosDOM() {
-    // Elementos principales (siempre deberían existir)
+    // Elementos principales
     domElements.totalEquipos = document.getElementById("total-equipos");
     domElements.totalOficinas = document.getElementById("total-oficinas");
     domElements.totalSedes = document.getElementById("total-sedes");
@@ -790,7 +886,7 @@ function crearSeccionVencidosEspecificos() {
 }
 
 function actualizarInterfaz() {
-    // Actualizar tarjetas principales (con verificación de existencia)
+    // Actualizar tarjetas principales
     if (domElements.totalEquipos) {
         domElements.totalEquipos.textContent = dashboardData.equipos.activos;
     }
@@ -804,7 +900,7 @@ function actualizarInterfaz() {
         domElements.totalPuestos.textContent = dashboardData.puestos;
     }
 
-    // Actualizar tarjetas de mantenimientos (ESTADOS DE EQUIPOS)
+    // Actualizar tarjetas de mantenimientos
     if (domElements.totalVencidos) {
         domElements.totalVencidos.textContent = dashboardData.mantenimientos.vencidos || 0;
     }
@@ -826,7 +922,7 @@ function actualizarInterfaz() {
         domElements.totalEquiposGeneral.textContent = dashboardData.equipos.total || 0;
     }
 
-    // Actualizar tarjetas de tipos de mantenimiento (TOTALES COMBINADOS)
+    // Actualizar tarjetas de tipos de mantenimiento
     if (domElements.totalMantenimientos) {
         domElements.totalMantenimientos.textContent = dashboardData.mantenimientos.total || 0;
     }
@@ -840,7 +936,7 @@ function actualizarInterfaz() {
         domElements.totalCorrectivos.textContent = dashboardData.mantenimientos.correctivos || 0;
     }
 
-    // Actualizar tarjetas de próximos (POR EQUIPO)
+    // Actualizar tarjetas de próximos
     if (domElements.proximosMantenimiento) {
         domElements.proximosMantenimiento.textContent = dashboardData.mantenimientos.proximosMantenimiento || 0;
     }
@@ -848,7 +944,7 @@ function actualizarInterfaz() {
         domElements.proximosCalibracion.textContent = dashboardData.mantenimientos.proximosCalibracion || 0;
     }
 
-    // Actualizar tarjetas de vencidos específicos (POR EQUIPO)
+    // Actualizar tarjetas de vencidos específicos
     if (domElements.vencidosPreventivos) {
         domElements.vencidosPreventivos.textContent = dashboardData.mantenimientos.vencidosPreventivos || 0;
     }
@@ -917,7 +1013,7 @@ function renderCharts() {
             },
         });
 
-        // 🍩 Gráfica Circular - Tipos de Mantenimiento (ACTUALIZADA)
+        // 🍩 Gráfica Circular - Tipos de Mantenimiento
         new Chart(pieChartCanvas, {
             type: "doughnut",
             data: {
@@ -1094,7 +1190,6 @@ function renderCharts() {
 }
 
 function destruirGraficasExistentes() {
-    // Destruir gráficas existentes para evitar duplicados
     try {
         const charts = Chart.instances;
         Object.keys(charts).forEach(key => {
@@ -1202,8 +1297,9 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             const ahora = Date.now();
+            // Actualizar si los datos tienen más de 2 minutos
             if (!cache.timestamp || (ahora - cache.timestamp) >= (2 * 60 * 1000)) {
-                console.log("🔍 Pestaña visible, actualizando si es necesario");
+                console.log("🔍 Pestaña visible, actualizando datos");
                 cargarStats();
             }
         }

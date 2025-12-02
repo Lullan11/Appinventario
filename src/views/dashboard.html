@@ -9,6 +9,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+  <!-- Favicon para modo claro -->
+  <link rel="icon" href="../assets/faviBlack.ico" media="(prefers-color-scheme: light)">
+
+  <!-- Favicon para modo oscuro -->
+  <link rel="icon" href="../assets/faviWhite.ico" media="(prefers-color-scheme: dark)">
+
   <!-- Fuente moderna (Google Fonts) -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -54,6 +60,83 @@
     .stat-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Animaciones para el dashboard */
+    @keyframes slide-in {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes slide-up {
+      from {
+        transform: translateY(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .animate-slide-in {
+      animation: slide-in 0.3s ease-out;
+    }
+
+    .animate-slide-up {
+      animation: slide-up 0.3s ease-out;
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.5s ease-out;
+    }
+
+    /* Estilos para skeleton loading */
+    .skeleton {
+      background: linear-gradient(90deg,
+          #f0f0f0 25%,
+          #e0e0e0 50%,
+          #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    /* Transiciones suaves */
+    .stat-card {
+      transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     }
   </style>
 </head>
@@ -106,6 +189,10 @@
           <a href="#" data-view="excel.html"
             class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
             <i class="fas fa-file-excel"></i> Excel
+          </a>
+          <a href="#" data-view="suspendidos.html"
+            class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+            <i class="fas fa-power-off"></i> Suspendidos
           </a>
           <a href="#" data-view="inactivos.html"
             class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">

@@ -1,4 +1,4 @@
-// src/js/equipos.js - VERSIÓN COMPLETA CON PAGINACIÓN Y TODAS LAS FUNCIONES ORIGINALES
+// src/js/equipos.js - VERSIÓN CON LOADING DISCRETO EN ESQUINA
 
 const API_EQUIPOS = "https://inventario-api-gw73.onrender.com/equipos";
 const API_TIPOS_EQUIPO = "https://inventario-api-gw73.onrender.com/tipos-equipo";
@@ -10,16 +10,19 @@ let tiposEquipoDisponibles = [];
 let notificacionInterval = null;
 let ultimaNotificacion = null;
 
-// ✅ CARGAR ESTADO DESDE localStorage - SI NO EXISTE, POR DEFECTO ES true (activadas)
+// ✅ CARGAR ESTADO DESDE localStorage
 let notificacionesActivas = localStorage.getItem('notificacionesActivas') !== 'false';
 
-// ✅ AGREGADO: Variables para paginación
-const ITEMS_POR_PAGINA = 20; // 20 equipos por página por defecto
+// ✅ VARIABLES PARA PAGINACIÓN
+const ITEMS_POR_PAGINA = 20;
 let paginaActual = 1;
 let totalPaginas = 1;
 let itemsPorPagina = ITEMS_POR_PAGINA;
 
-// ✅ AGREGADO: Elementos DOM para paginación
+// ✅ VARIABLE PARA CONTROLAR LOADING
+let loadingTimeout = null;
+
+// ✅ ELEMENTOS DOM PARA PAGINACIÓN
 let elementosPaginacion = {
     contadorResultados: null,
     infoPaginacion: null,
@@ -29,24 +32,25 @@ let elementosPaginacion = {
     selectItemsPorPagina: null
 };
 
-// ========================= INICIALIZACIÓN CON PAGINACIÓN =========================
+// ========================= INICIALIZACIÓN OPTIMIZADA =========================
 
-// Al cargar la página - VERSIÓN OPTIMIZADA
 document.addEventListener("DOMContentLoaded", async () => {
     try {
-        // ✅ ACTUALIZAR BOTÓN INMEDIATAMENTE CON EL ESTADO GUARDADO
+        console.log("🚀 Inicializando módulo de equipos...");
+        
+        // ✅ 1. ACTUALIZAR BOTÓN INMEDIATAMENTE CON EL ESTADO GUARDADO
         actualizarEstadoBotonNotificaciones();
         
-        // Solicitar permisos de notificación al cargar la página
-        await inicializarNotificaciones();
-        
-        // ✅ INICIALIZAR PAGINACIÓN
+        // ✅ 2. INICIALIZAR ELEMENTOS DE PAGINACIÓN
         inicializarElementosPaginacion();
         
-        // ✅ MOSTRAR ESPINNER DE CARGA
-        mostrarCargando();
+        // ✅ 3. MOSTRAR SKELETON INMEDIATAMENTE (sin overlay negro)
+        mostrarSkeletonTabla(true);
         
-        // Cargar equipos y tipos de equipo en paralelo (COMO ORIGINAL)
+        // ✅ 4. Solicitar permisos de notificación
+        await inicializarNotificaciones();
+        
+        // ✅ 5. Cargar equipos y tipos de equipo en paralelo
         const [equiposRes, tiposRes] = await Promise.all([
             fetch(API_EQUIPOS),
             fetch(API_TIPOS_EQUIPO)
@@ -59,9 +63,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         tiposEquipoDisponibles = await tiposRes.json();
         equiposFiltrados = [...todosLosEquipos];
 
-        // ✅ OCULTAR ESPINNER
-        ocultarCargando();
-
+        // ✅ 6. OCULTAR SKELETON Y MOSTRAR DATOS
+        mostrarSkeletonTabla(false);
+        
         if (todosLosEquipos.length === 0) {
             document.getElementById("tablaEquipos").innerHTML = `
                 <tr>
@@ -71,39 +75,129 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </tr>
             `;
         } else {
-            // Mostrar alertas de mantenimiento primero (COMO ORIGINAL)
+            // ✅ 7. MOSTRAR ALERTAS DE MANTENIMIENTO
             mostrarAlertasMantenimiento(todosLosEquipos);
             
-            // ✅ CALCULAR PAGINACIÓN
+            // ✅ 8. CONFIGURAR PAGINACIÓN CON LOS DATOS
             calcularPaginacion();
-            
-            // ✅ RENDERIZAR SOLO LA PÁGINA ACTUAL (más rápido)
             renderizarPaginaActual();
-            
-            // ✅ ACTUALIZAR CONTADOR Y PAGINACIÓN
             actualizarContador();
             actualizarControlesPaginacion();
             
-            // Configurar eventos de filtros y cargar tipos (COMO ORIGINAL)
+            // ✅ 9. CONFIGURAR EVENTOS Y CARGAR TIPOS
             configurarEventosFiltros();
             cargarTiposEquipoEnFiltro();
             
-            // ✅ INICIAR O NO MONITOREO SEGÚN ESTADO GUARDADO (COMO ORIGINAL)
+            // ✅ 10. INICIAR O NO MONITOREO SEGÚN ESTADO GUARDADO
             if (notificacionesActivas) {
                 iniciarMonitoreoNotificaciones();
             } else {
-                // Asegurarse de que el título esté limpio si están desactivadas
                 document.title = "Inventario IPS - Equipos";
             }
+            
+            console.log(`✅ Carga completada: ${todosLosEquipos.length} equipos cargados`);
         }
     } catch (err) {
-        console.error("Error cargando datos:", err);
+        console.error("❌ Error cargando datos:", err);
+        mostrarSkeletonTabla(false);
         mostrarMensaje("❌ Error al cargar los datos", true);
-        ocultarCargando();
+        mostrarLoadingEquipos(false);
     }
 });
 
-// ========================= SISTEMA DE PAGINACIÓN (NUEVO) =========================
+// ========================= LOADING DISCRETO EN ESQUINA =========================
+
+// ✅ FUNCIÓN MEJORADA: Mostrar loading discreto en esquina
+function mostrarLoadingEquipos(mostrar) {
+    let loadingElement = document.getElementById('equipos-loading');
+    
+    if (mostrar) {
+        // Limpiar timeout anterior si existe
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+        }
+        
+        // Solo mostrar después de 500ms (si la carga es rápida, no se muestra)
+        loadingTimeout = setTimeout(() => {
+            if (!document.getElementById('equipos-loading')) {
+                loadingElement = document.createElement('div');
+                loadingElement.id = 'equipos-loading';
+                loadingElement.className = 'fixed top-4 right-4 z-50 animate-slide-in';
+                loadingElement.innerHTML = `
+                    <div class="bg-white rounded-lg p-4 shadow-xl border border-gray-200">
+                        <div class="flex items-center space-x-3">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-[#639A33] border-t-transparent"></div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-800">Actualizando equipos</p>
+                                <p class="text-xs text-gray-600">Obteniendo datos...</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(loadingElement);
+            }
+        }, 500); // Solo aparece si tarda más de 500ms
+    } else {
+        // Limpiar timeout si aún no se mostró
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+            loadingTimeout = null;
+        }
+        
+        // Ocultar loading con animación
+        if (loadingElement) {
+            loadingElement.style.opacity = '0';
+            loadingElement.style.transform = 'translateY(-10px)';
+            loadingElement.style.transition = 'all 0.3s ease';
+            setTimeout(() => {
+                if (loadingElement && loadingElement.parentNode) {
+                    loadingElement.remove();
+                }
+            }, 300);
+        }
+    }
+}
+
+// ✅ FUNCIÓN MEJORADA: Mostrar toast de carga rápida
+function mostrarToastCargaRapidaEquipos() {
+    const toastId = 'toast-carga-rapida-equipos';
+    let toast = document.getElementById(toastId);
+    
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = toastId;
+        toast.className = 'fixed top-4 right-4 bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg z-50 animate-slide-in';
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <div class="bg-green-100 p-2 rounded-md mr-3">
+                    <i class="fas fa-bolt text-green-600"></i>
+                </div>
+                <div>
+                    <p class="font-medium text-green-800">Datos cargados</p>
+                    <p class="text-sm text-green-600">Equipos actualizados</p>
+                </div>
+                <button onclick="document.getElementById('${toastId}').remove()" class="ml-4 text-green-400 hover:text-green-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        // Auto-remover después de 3 segundos
+        setTimeout(() => {
+            if (toast && toast.parentNode) {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                    if (toast && toast.parentNode) toast.remove();
+                }, 300);
+            }
+        }, 3000);
+    }
+}
+
+// ========================= SISTEMA DE PAGINACIÓN OPTIMIZADO =========================
 
 function inicializarElementosPaginacion() {
     elementosPaginacion = {
@@ -115,7 +209,7 @@ function inicializarElementosPaginacion() {
         selectItemsPorPagina: document.getElementById('items-por-pagina')
     };
     
-    // Configurar eventos de paginación si los elementos existen
+    // Configurar eventos de paginación
     if (elementosPaginacion.botonAnterior) {
         elementosPaginacion.botonAnterior.addEventListener('click', () => cambiarPagina(paginaActual - 1));
     }
@@ -126,11 +220,19 @@ function inicializarElementosPaginacion() {
     
     if (elementosPaginacion.selectItemsPorPagina) {
         elementosPaginacion.selectItemsPorPagina.addEventListener('change', function() {
+            // ✅ MOSTRAR LOADING AL CAMBIAR ITEMS POR PÁGINA
+            mostrarLoadingEquipos(true);
+            
             itemsPorPagina = parseInt(this.value);
             paginaActual = 1;
             calcularPaginacion();
             renderizarPaginaActual();
             actualizarControlesPaginacion();
+            
+            // ✅ OCULTAR LOADING DESPUÉS DE RENDERIZAR
+            setTimeout(() => {
+                mostrarLoadingEquipos(false);
+            }, 300);
         });
     }
 }
@@ -139,12 +241,10 @@ function calcularPaginacion() {
     totalPaginas = Math.ceil(equiposFiltrados.length / itemsPorPagina);
     if (totalPaginas === 0) totalPaginas = 1;
     
-    // Asegurar que página actual sea válida
     if (paginaActual > totalPaginas) {
         paginaActual = totalPaginas;
     }
     
-    // Actualizar información de paginación
     if (elementosPaginacion.infoPaginacion) {
         actualizarInfoPaginacion();
     }
@@ -171,10 +271,7 @@ function renderizarPaginaActual() {
     const fin = inicio + itemsPorPagina;
     const equiposPagina = equiposFiltrados.slice(inicio, fin);
     
-    // Limpiar tabla
-    tbody.innerHTML = '';
-    
-    // ✅ USAR DocumentFragment PARA RENDERIZADO MÁS RÁPIDO
+    // ✅ OPTIMIZACIÓN: Usar DocumentFragment para renderizado más rápido
     const fragment = document.createDocumentFragment();
     
     equiposPagina.forEach(eq => {
@@ -184,11 +281,12 @@ function renderizarPaginaActual() {
         fragment.appendChild(tr);
     });
     
+    // Limpiar y renderizar de una vez
+    tbody.innerHTML = '';
     tbody.appendChild(fragment);
 }
 
 function crearFilaEquipo(equipo) {
-    // MANTENGO EXACTAMENTE EL MISMO CÓDIGO ORIGINAL
     // Determinar información de ubicación completa
     let ubicacionCompleta = "";
     if (equipo.ubicacion === "puesto") {
@@ -213,7 +311,7 @@ function crearFilaEquipo(equipo) {
         ? (equipo.puesto_responsable || "-")
         : (equipo.responsable_nombre ? `${equipo.responsable_nombre} (${equipo.responsable_documento || "-"})` : "-");
 
-    // Determinar estado de mantenimiento REAL (CORREGIDO)
+    // Determinar estado de mantenimiento REAL
     const estadoReal = determinarEstadoMantenimientoReal(equipo);
     let estadoMantenimientoHTML = "";
     
@@ -284,6 +382,9 @@ function crearFilaEquipo(equipo) {
 function cambiarPagina(nuevaPagina) {
     if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
     
+    // ✅ MOSTRAR LOADING RÁPIDO AL CAMBIAR PÁGINA
+    mostrarLoadingEquipos(true);
+    
     paginaActual = nuevaPagina;
     renderizarPaginaActual();
     actualizarControlesPaginacion();
@@ -294,6 +395,11 @@ function cambiarPagina(nuevaPagina) {
     if (tablaContainer) {
         tablaContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    
+    // ✅ OCULTAR LOADING RÁPIDO DESPUÉS DE RENDERIZAR
+    setTimeout(() => {
+        mostrarLoadingEquipos(false);
+    }, 200);
 }
 
 function actualizarControlesPaginacion() {
@@ -376,29 +482,24 @@ function actualizarInfoPaginacion() {
     }
 }
 
-// ========================= SISTEMA DE NOTIFICACIONES PERSISTENTE (ORIGINAL) =========================
+// ========================= SISTEMA DE NOTIFICACIONES PERSISTENTE =========================
 
-// Inicializar sistema de notificaciones
 async function inicializarNotificaciones() {
-    // Verificar si el navegador soporta notificaciones
     if (!("Notification" in window)) {
         console.log("Este navegador no soporta notificaciones del sistema");
         return false;
     }
 
-    // Si ya tenemos permisos, configurar el monitoreo
     if (Notification.permission === "granted") {
         console.log("✅ Notificaciones ya están activadas");
         return true;
     }
     
-    // Si los permisos fueron denegados, no hacer nada
     if (Notification.permission === "denied") {
         console.log("❌ Notificaciones bloqueadas por el usuario");
         return false;
     }
 
-    // Solicitar permisos automáticamente (sin esperar interacción del usuario)
     try {
         const permission = await Notification.requestPermission();
         if (permission === "granted") {
@@ -415,87 +516,68 @@ async function inicializarNotificaciones() {
     }
 }
 
-// Iniciar monitoreo periódico de notificaciones
 function iniciarMonitoreoNotificaciones() {
-    // Limpiar intervalo anterior si existe
     if (notificacionInterval) {
         clearInterval(notificacionInterval);
     }
 
-    // Verificar cada 5 minutos (300000 ms)
     notificacionInterval = setInterval(() => {
         verificarYMostrarNotificaciones();
     }, 300000);
 
-    // También verificar inmediatamente al cargar
     setTimeout(verificarYMostrarNotificaciones, 2000);
 }
 
-// DETENER monitoreo de notificaciones
 function detenerMonitoreoNotificaciones() {
     if (notificacionInterval) {
         clearInterval(notificacionInterval);
         notificacionInterval = null;
     }
     
-    // ✅ LIMPIAR EL TÍTULO CUANDO SE DESACTIVAN
     document.title = "Inventario IPS - Equipos";
     console.log("🔕 Notificaciones desactivadas - Título limpiado");
 }
 
-// ✅ FUNCIÓN CORREGIDA: Determinar estado real del mantenimiento
 function determinarEstadoMantenimientoReal(equipo) {
-    // Si no tiene mantenimientos configurados, es "SIN_DATOS"
     if (!equipo.mantenimientos_configurados || equipo.mantenimientos_configurados.length === 0) {
         return "SIN_DATOS";
     }
 
     const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+    hoy.setHours(0, 0, 0, 0);
     
-    let estado = "OK"; // Por defecto asumimos que está al día
-    let mantenimientoMasUrgente = null;
+    let estado = "OK";
     let diasMasUrgente = Infinity;
 
-    // Revisar todos los mantenimientos del equipo
     equipo.mantenimientos_configurados.forEach(mant => {
         if (mant.proxima_fecha) {
             const proxima = new Date(mant.proxima_fecha);
-            proxima.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+            proxima.setHours(0, 0, 0, 0);
             
             const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
             
-            // Si encontramos un mantenimiento más urgente, actualizamos
             if (diffDias < diasMasUrgente) {
                 diasMasUrgente = diffDias;
-                mantenimientoMasUrgente = mant;
             }
         }
     });
 
-    // Determinar el estado basado en el mantenimiento más urgente
     if (diasMasUrgente < 0) {
-        // Si hay días negativos, está VENCIDO
         estado = "VENCIDO";
     } else if (diasMasUrgente <= 30) {
-        // ✅ MODIFICADO: Si está entre 0 y 30 días, está PRÓXIMO (1 mes)
         estado = "PRÓXIMO";
     } else if (diasMasUrgente === Infinity) {
-        // Si no se encontraron mantenimientos con fechas
         estado = "SIN_DATOS";
     }
-    // Si está más de 30 días en el futuro, se mantiene como "OK"
 
     return estado;
 }
 
-// ✅ FUNCIÓN CORREGIDA: Obtener equipos con problemas
 function obtenerEquiposConProblemas(equipos) {
     const equiposConProblemas = [];
 
     equipos.forEach(equipo => {
         const estado = determinarEstadoMantenimientoReal(equipo);
-        // Solo considerar equipos con mantenimientos configurados que estén vencidos o próximos
         if (estado === "VENCIDO" || estado === "PRÓXIMO") {
             equiposConProblemas.push(equipo);
         }
@@ -504,7 +586,6 @@ function obtenerEquiposConProblemas(equipos) {
     return equiposConProblemas;
 }
 
-// ✅ FUNCIÓN QUE FALTABA: Generar clave única para notificación
 function generarKeyNotificacion(equiposConProblemas) {
     return equiposConProblemas
         .map(eq => `${eq.id}-${determinarEstadoMantenimientoReal(eq)}`)
@@ -512,11 +593,9 @@ function generarKeyNotificacion(equiposConProblemas) {
         .join('|');
 }
 
-// Verificar y mostrar notificaciones si es necesario - CORREGIDO
 function verificarYMostrarNotificaciones() {
-    // ✅ VERIFICAR PRIMERO SI LAS NOTIFICACIONES ESTÁN DESACTIVADAS (CON PERSISTENCIA)
     if (!notificacionesActivas || !notificacionInterval) {
-        document.title = "Inventario IPS - Equipos"; // ← LIMPIAR TÍTULO
+        document.title = "Inventario IPS - Equipos";
         return;
     }
 
@@ -532,10 +611,8 @@ function verificarYMostrarNotificaciones() {
         return;
     }
 
-    // ✅ SOLO ACTUALIZAR TÍTULO SI LAS NOTIFICACIONES ESTÁN ACTIVAS
     document.title = `⚠️ (${equiposConProblemas.length}) - Inventario IPS`;
 
-    // Verificar si ya mostramos una notificación similar recientemente
     const ahora = new Date().getTime();
     const notificacionKey = generarKeyNotificacion(equiposConProblemas);
     
@@ -546,19 +623,15 @@ function verificarYMostrarNotificaciones() {
         return;
     }
 
-    // Mostrar notificación del sistema
     mostrarNotificacionSistema(equiposConProblemas);
     
-    // Guardar registro de la última notificación
     ultimaNotificacion = {
         key: notificacionKey,
         timestamp: ahora
     };
 }
 
-// Función para mostrar notificaciones del sistema
 function mostrarNotificacionSistema(equiposConProblemas) {
-    // ✅ VERIFICAR SI LAS NOTIFICACIONES ESTÁN ACTIVAS
     if (!notificacionesActivas || Notification.permission !== "granted") {
         return;
     }
@@ -584,7 +657,6 @@ function mostrarNotificacionSistema(equiposConProblemas) {
         cuerpo = `${equiposProximos.length} equipo(s) necesitan mantenimiento pronto`;
     }
 
-    // Crear la notificación
     const notificacion = new Notification(titulo, {
         body: cuerpo,
         icon: "../assets/Logo_ips.png",
@@ -593,7 +665,6 @@ function mostrarNotificacionSistema(equiposConProblemas) {
         silent: false
     });
 
-    // Al hacer clic en la notificación, enfocar la ventana
     notificacion.onclick = function() {
         window.focus();
         notificacion.close();
@@ -604,20 +675,17 @@ function mostrarNotificacionSistema(equiposConProblemas) {
     }, 10000);
 }
 
-// Función para que el usuario active/desactive notificaciones manualmente - CON PERSISTENCIA
 function toggleNotificaciones() {
     if (Notification.permission === "granted") {
         if (notificacionesActivas) {
-            // ✅ DESACTIVAR COMPLETAMENTE Y GUARDAR ESTADO
             notificacionesActivas = false;
-            localStorage.setItem('notificacionesActivas', 'false'); // ← GUARDAR EN localStorage
+            localStorage.setItem('notificacionesActivas', 'false');
             detenerMonitoreoNotificaciones();
             mostrarMensaje("🔕 Notificaciones desactivadas - El estado se guardará");
             actualizarEstadoBotonNotificaciones();
         } else {
-            // ✅ ACTIVAR COMPLETAMENTE Y GUARDAR ESTADO
             notificacionesActivas = true;
-            localStorage.setItem('notificacionesActivas', 'true'); // ← GUARDAR EN localStorage
+            localStorage.setItem('notificacionesActivas', 'true');
             iniciarMonitoreoNotificaciones();
             mostrarMensaje("🔔 Notificaciones reactivadas - El estado se guardará");
             actualizarEstadoBotonNotificaciones();
@@ -636,7 +704,6 @@ function toggleNotificaciones() {
     }
 }
 
-// Función para actualizar el estado visual del botón
 function actualizarEstadoBotonNotificaciones() {
     const boton = document.querySelector('[onclick="toggleNotificaciones()"]');
     const texto = document.getElementById('estado-notificaciones');
@@ -654,24 +721,14 @@ function actualizarEstadoBotonNotificaciones() {
     }
 }
 
-// También actualizar el botón cuando cambia la visibilidad de la página
-document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) {
-        actualizarEstadoBotonNotificaciones();
-    }
-});
+// ========================= FUNCIONES DE FILTRADO CON PAGINACIÓN =========================
 
-// ========================= FUNCIONES EXISTENTES (MANTENIDAS - CON PAGINACIÓN) =========================
-
-// Cargar tipos de equipo en el filtro
 function cargarTiposEquipoEnFiltro() {
     const filtroTipo = document.getElementById('filtro-tipo');
     if (!filtroTipo) return;
 
-    // Limpiar opciones existentes (excepto la primera)
     filtroTipo.innerHTML = '<option value="">Todos los tipos</option>';
     
-    // Agregar tipos de equipo
     tiposEquipoDisponibles.forEach(tipo => {
         const option = document.createElement('option');
         option.value = tipo.nombre;
@@ -680,10 +737,7 @@ function cargarTiposEquipoEnFiltro() {
     });
 }
 
-// Configurar eventos para los filtros
 function configurarEventosFiltros() {
-    // ✅ AGREGADO: Usar debounce para mejor rendimiento en tiempo real
-    // Eventos para búsqueda en tiempo real
     const filtrosInput = [
         'filtro-codigo', 'filtro-nombre', 'filtro-sede', 
         'filtro-area', 'filtro-responsable'
@@ -692,22 +746,31 @@ function configurarEventosFiltros() {
     filtrosInput.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
-            // Usar debounce para evitar múltiples renderizados rápidos
-            element.addEventListener('input', debounce(aplicarFiltros, 300));
+            element.addEventListener('input', debounce(() => {
+                // ✅ MOSTRAR LOADING AL FILTRAR
+                mostrarLoadingEquipos(true);
+                aplicarFiltros();
+                // ✅ OCULTAR LOADING DESPUÉS DE FILTRAR
+                setTimeout(() => mostrarLoadingEquipos(false), 300);
+            }, 300));
         }
     });
     
-    // Eventos para selects
     const filtrosSelect = ['filtro-ubicacion', 'filtro-estado', 'filtro-tipo'];
     filtrosSelect.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
-            element.addEventListener('change', aplicarFiltros);
+            element.addEventListener('change', () => {
+                // ✅ MOSTRAR LOADING AL FILTRAR
+                mostrarLoadingEquipos(true);
+                aplicarFiltros();
+                // ✅ OCULTAR LOADING DESPUÉS DE FILTRAR
+                setTimeout(() => mostrarLoadingEquipos(false), 300);
+            });
         }
     });
 }
 
-// ✅ FUNCIÓN DEBOUNCE PARA MEJOR RENDIMIENTO
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -720,7 +783,6 @@ function debounce(func, wait) {
     };
 }
 
-// Función para aplicar todos los filtros - MODIFICADA PARA PAGINACIÓN
 function aplicarFiltros() {
     const filtroCodigo = document.getElementById('filtro-codigo').value.toLowerCase().trim();
     const filtroNombre = document.getElementById('filtro-nombre').value.toLowerCase().trim();
@@ -732,22 +794,18 @@ function aplicarFiltros() {
     const filtroTipo = document.getElementById('filtro-tipo').value;
 
     equiposFiltrados = todosLosEquipos.filter(equipo => {
-        // Filtro por código
         if (filtroCodigo && !equipo.codigo_interno.toLowerCase().includes(filtroCodigo)) {
             return false;
         }
 
-        // Filtro por nombre
         if (filtroNombre && !equipo.nombre.toLowerCase().includes(filtroNombre)) {
             return false;
         }
 
-        // Filtro por ubicación
         if (filtroUbicacion && equipo.ubicacion !== filtroUbicacion) {
             return false;
         }
 
-        // Filtro por estado de mantenimiento (CORREGIDO)
         if (filtroEstado) {
             const estadoReal = determinarEstadoMantenimientoReal(equipo);
             if (estadoReal !== filtroEstado) {
@@ -755,17 +813,14 @@ function aplicarFiltros() {
             }
         }
 
-        // Filtro por sede
         if (filtroSede && (!equipo.sede_nombre || !equipo.sede_nombre.toLowerCase().includes(filtroSede))) {
             return false;
         }
 
-        // Filtro por área
         if (filtroArea && (!equipo.area_nombre || !equipo.area_nombre.toLowerCase().includes(filtroArea))) {
             return false;
         }
 
-        // Filtro por responsable
         if (filtroResponsable) {
             const responsable = equipo.ubicacion === "puesto" 
                 ? (equipo.puesto_responsable || "").toLowerCase()
@@ -776,7 +831,6 @@ function aplicarFiltros() {
             }
         }
 
-        // Filtro por tipo de equipo (CORREGIDO - ahora es select)
         if (filtroTipo && (!equipo.tipo_equipo_nombre || equipo.tipo_equipo_nombre !== filtroTipo)) {
             return false;
         }
@@ -784,7 +838,6 @@ function aplicarFiltros() {
         return true;
     });
 
-    // ✅ REINICIAR A PÁGINA 1 AL APLICAR FILTROS
     paginaActual = 1;
     calcularPaginacion();
     renderizarPaginaActual();
@@ -792,8 +845,10 @@ function aplicarFiltros() {
     actualizarControlesPaginacion();
 }
 
-// Función para limpiar todos los filtros - MODIFICADA PARA PAGINACIÓN
 function limpiarFiltros() {
+    // ✅ MOSTRAR LOADING AL LIMPIAR FILTROS
+    mostrarLoadingEquipos(true);
+    
     document.getElementById('filtro-codigo').value = '';
     document.getElementById('filtro-nombre').value = '';
     document.getElementById('filtro-ubicacion').value = '';
@@ -805,15 +860,16 @@ function limpiarFiltros() {
     
     equiposFiltrados = [...todosLosEquipos];
     
-    // ✅ REINICIAR A PÁGINA 1 AL LIMPIAR FILTROS
     paginaActual = 1;
     calcularPaginacion();
     renderizarPaginaActual();
     actualizarContador();
     actualizarControlesPaginacion();
+    
+    // ✅ OCULTAR LOADING DESPUÉS DE LIMPIAR
+    setTimeout(() => mostrarLoadingEquipos(false), 300);
 }
 
-// Función para actualizar el contador de resultados
 function actualizarContador() {
     const contador = document.getElementById('contador-resultados');
     if (contador) {
@@ -821,7 +877,8 @@ function actualizarContador() {
     }
 }
 
-// ✅ FUNCIÓN CORREGIDA: Mostrar alertas de mantenimiento en la página
+// ========================= FUNCIÓN DE ALERTAS DE MANTENIMIENTO =========================
+
 function mostrarAlertasMantenimiento(equipos) {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -834,7 +891,6 @@ function mostrarAlertasMantenimiento(equipos) {
         const estado = determinarEstadoMantenimientoReal(equipo);
         
         if (estado === "VENCIDO") {
-            // Para equipos vencidos, encontrar el mantenimiento más urgente
             let mantenimientoMasVencido = null;
             let diasMasVencido = 0;
             
@@ -859,7 +915,6 @@ function mostrarAlertasMantenimiento(equipos) {
                 });
             }
         } else if (estado === "PRÓXIMO") {
-            // Para equipos próximos, encontrar el mantenimiento más cercano
             let mantenimientoMasCercano = null;
             let diasMasCercano = Infinity;
             
@@ -869,7 +924,6 @@ function mostrarAlertasMantenimiento(equipos) {
                     proxima.setHours(0, 0, 0, 0);
                     const diffDias = Math.ceil((proxima - hoy) / (1000 * 60 * 60 * 24));
                     
-                    // ✅ MODIFICADO: Cambiado de 10 a 30 días
                     if (diffDias >= 0 && diffDias <= 30 && diffDias < diasMasCercano) {
                         mantenimientoMasCercano = mant;
                         diasMasCercano = diffDias;
@@ -892,7 +946,6 @@ function mostrarAlertasMantenimiento(equipos) {
     const alertasContainer = document.getElementById('alertas-mantenimiento');
     let alertasHTML = '';
 
-    // Alertas para mantenimientos vencidos
     if (equiposConMantenimientoVencido.length > 0) {
         alertasHTML += `
             <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
@@ -924,7 +977,6 @@ function mostrarAlertasMantenimiento(equipos) {
         `;
     }
 
-    // Alertas para mantenimientos próximos
     if (equiposConMantenimientoProximo.length > 0) {
         alertasHTML += `
             <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
@@ -956,7 +1008,6 @@ function mostrarAlertasMantenimiento(equipos) {
         `;
     }
 
-    // Información sobre equipos sin configuración (solo informativo, no alerta)
     if (equiposSinConfiguracion.length > 0) {
         alertasHTML += `
             <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4 rounded">
@@ -982,9 +1033,8 @@ function mostrarAlertasMantenimiento(equipos) {
     alertasContainer.innerHTML = alertasHTML;
 }
 
-// ========================= FUNCIONES DE INACTIVACIÓN (ORIGINALES) =========================
+// ========================= FUNCIONES DE INACTIVACIÓN =========================
 
-// Función para mostrar confirmación de eliminación
 function mostrarConfirmacion(id) {
     const container = document.getElementById(`delete-controls-${id}`);
     container.innerHTML = `
@@ -995,7 +1045,6 @@ function mostrarConfirmacion(id) {
     `;
 }
 
-// Función para cancelar eliminación
 function cancelarEliminacion(id) {
     const container = document.getElementById(`delete-controls-${id}`);
     container.innerHTML = `
@@ -1006,16 +1055,16 @@ function cancelarEliminacion(id) {
     `;
 }
 
-// Función para mostrar modal de inactivación
 async function mostrarModalInactivar(id) {
     try {
-        // Obtener datos del equipo
+        // ✅ MOSTRAR LOADING AL CARGAR DATOS DEL EQUIPO
+        mostrarLoadingEquipos(true);
+        
         const res = await fetch(`${API_EQUIPOS}/${id}/completo`);
         if (!res.ok) throw new Error("Error al obtener datos del equipo");
         
         const equipo = await res.json();
         
-        // Llenar información del equipo
         document.getElementById('equipo-id-inactivar').value = id;
         document.getElementById('info-equipo-inactivar').innerHTML = `
             <p><strong>Nombre:</strong> ${equipo.nombre}</p>
@@ -1027,25 +1076,25 @@ async function mostrarModalInactivar(id) {
             <p><strong>Tipo:</strong> ${equipo.tipo_equipo_nombre || '-'}</p>
         `;
         
-        // Establecer fecha actual por defecto
         document.getElementById('fecha-baja').valueAsDate = new Date();
         
-        // Mostrar modal
         document.getElementById('modal-inactivar').classList.remove('hidden');
+        
+        // ✅ OCULTAR LOADING
+        mostrarLoadingEquipos(false);
         
     } catch (err) {
         console.error("Error al cargar datos para inactivar:", err);
+        mostrarLoadingEquipos(false);
         mostrarMensaje("❌ Error al cargar datos del equipo", true);
     }
 }
 
-// Función para cerrar modal
 function cerrarModalInactivar() {
     document.getElementById('modal-inactivar').classList.add('hidden');
     document.getElementById('form-inactivar').reset();
 }
 
-// Función para inactivar equipo y generar PDF
 document.getElementById('form-inactivar').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -1057,14 +1106,15 @@ document.getElementById('form-inactivar').addEventListener('submit', async (e) =
         realizado_por: document.getElementById('realizado-por').value.trim()
     };
 
-    // Validaciones
     if (!formData.motivo || !formData.fecha_baja || !formData.realizado_por) {
         mostrarMensaje("❌ Complete todos los campos requeridos", true);
         return;
     }
 
     try {
-        // Inactivar equipo
+        // ✅ MOSTRAR LOADING AL INACTIVAR
+        mostrarLoadingEquipos(true);
+        
         const res = await fetch(`${API_EQUIPOS}/${id}/inactivar`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -1076,22 +1126,24 @@ document.getElementById('form-inactivar').addEventListener('submit', async (e) =
             throw new Error(error.error || "Error al inactivar equipo");
         }
 
-        // Generar PDF
         await generarPDFBaja(id, formData);
 
         mostrarMensaje("✅ Equipo inactivado correctamente y PDF generado");
         cerrarModalInactivar();
+        
+        // ✅ OCULTAR LOADING
+        mostrarLoadingEquipos(false);
         
         // Recargar la lista después de un momento
         setTimeout(() => location.reload(), 2000);
 
     } catch (err) {
         console.error("Error al inactivar equipo:", err);
+        mostrarLoadingEquipos(false);
         mostrarMensaje("❌ Error al inactivar equipo: " + err.message, true);
     }
 });
 
-// Función para generar PDF de baja
 async function generarPDFBaja(equipoId, datosBaja) {
     try {
         const res = await fetch(`${API_EQUIPOS}/${equipoId}/inactivo-completo`);
@@ -1110,7 +1162,6 @@ async function generarPDFBaja(equipoId, datosBaja) {
             return;
         }
 
-        // (Mantener el mismo contenido HTML del PDF original)
         const contenidoPDF = `...`; // Tu HTML del PDF completo aquí
 
         ventanaPDF.document.write(contenidoPDF);
@@ -1129,62 +1180,116 @@ async function generarPDFBaja(equipoId, datosBaja) {
     }
 }
 
-// Actualizar la función eliminarEquipo para usar el modal
 function eliminarEquipo(id) {
     mostrarModalInactivar(id);
 }
 
-// ========================= FUNCIONES AUXILIARES (NUEVAS) =========================
+// ========================= FUNCIONES AUXILIARES MEJORADAS =========================
 
-function mostrarCargando() {
-    // Crear o mostrar overlay de carga
-    let overlay = document.getElementById('cargando-overlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'cargando-overlay';
-        overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        overlay.innerHTML = `
-            <div class="bg-white p-6 rounded-lg shadow-xl">
-                <div class="flex items-center space-x-3">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#639A33]"></div>
-                    <span class="text-lg font-medium">Cargando equipos...</span>
-                </div>
-                <p class="text-sm text-gray-600 mt-2">Por favor espera un momento</p>
-            </div>
-        `;
-        document.body.appendChild(overlay);
+// ✅ FUNCIÓN MEJORADA: Mostrar skeleton en lugar de overlay negro
+function mostrarSkeletonTabla(mostrar) {
+    const tbody = document.getElementById("tablaEquipos");
+    
+    if (!tbody) return;
+    
+    if (mostrar) {
+        // Crear skeleton de filas
+        let skeletonHTML = '';
+        for (let i = 0; i < 10; i++) {
+            skeletonHTML += `
+                <tr class="animate-pulse">
+                    <td class="px-4 py-3 border border-gray-200">
+                        <div class="h-4 bg-gray-200 rounded w-24"></div>
+                    </td>
+                    <td class="px-4 py-3 border border-gray-200">
+                        <div class="h-4 bg-gray-200 rounded w-32"></div>
+                    </td>
+                    <td class="px-4 py-3 border border-gray-200">
+                        <div class="space-y-2">
+                            <div class="h-3 bg-gray-200 rounded w-20"></div>
+                            <div class="h-3 bg-gray-200 rounded w-16"></div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 border border-gray-200">
+                        <div class="h-4 bg-gray-200 rounded w-28"></div>
+                    </td>
+                    <td class="px-4 py-3 border border-gray-200">
+                        <div class="h-8 bg-gray-200 rounded"></div>
+                    </td>
+                    <td class="px-4 py-3 border border-gray-200">
+                        <div class="flex justify-center gap-2">
+                            <div class="h-8 bg-gray-200 rounded w-12"></div>
+                            <div class="h-8 bg-gray-200 rounded w-12"></div>
+                            <div class="h-8 bg-gray-200 rounded w-16"></div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+        tbody.innerHTML = skeletonHTML;
+        
+        // Ocultar paginación mientras carga
+        const paginacion = document.querySelector('.paginacion-container');
+        if (paginacion) {
+            paginacion.style.opacity = '0.5';
+        }
+        
     } else {
-        overlay.classList.remove('hidden');
+        // Restaurar paginación
+        const paginacion = document.querySelector('.paginacion-container');
+        if (paginacion) {
+            paginacion.style.opacity = '1';
+        }
     }
 }
 
-function ocultarCargando() {
-    const overlay = document.getElementById('cargando-overlay');
-    if (overlay) {
-        overlay.classList.add('hidden');
-    }
-}
-
-// Función para mostrar mensajes
+// ✅ FUNCIÓN MEJORADA: Mostrar mensajes más bonitos
 function mostrarMensaje(texto, esError = false) {
     let mensaje = document.getElementById("mensaje-equipos");
     if (!mensaje) {
         mensaje = document.createElement("div");
         mensaje.id = "mensaje-equipos";
-        mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50";
+        mensaje.className = "fixed top-4 right-4 px-4 py-3 rounded-lg shadow-xl z-50 animate-slide-in";
         document.body.appendChild(mensaje);
     }
 
-    mensaje.textContent = texto;
-    mensaje.className = `fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${esError ? 'bg-red-100 text-red-800 border-l-4 border-red-500' : 'bg-green-100 text-green-800 border-l-4 border-green-500'}`;
+    const icono = esError ? '❌' : '✅';
+    mensaje.innerHTML = `
+        <div class="flex items-center gap-3">
+            <div class="text-xl">${icono}</div>
+            <div>
+                <p class="font-medium">${texto}</p>
+                <div class="h-1 w-full mt-2 ${esError ? 'bg-red-500' : 'bg-green-500'} rounded-full animate-progress"></div>
+            </div>
+        </div>
+    `;
 
     setTimeout(() => {
-        mensaje.textContent = "";
-        mensaje.className = "fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 hidden";
+        mensaje.style.opacity = '0';
+        mensaje.style.transform = 'translateX(100%)';
+        mensaje.style.transition = 'all 0.3s ease';
+        setTimeout(() => {
+            mensaje.remove();
+        }, 300);
     }, 4000);
 }
 
-
+// ✅ FUNCIÓN: Actualizar título cuando la pestaña pierde foco
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        actualizarEstadoBotonNotificaciones();
+        
+        // Si hay notificaciones activas, verificar inmediatamente
+        if (notificacionesActivas) {
+            setTimeout(verificarYMostrarNotificaciones, 1000);
+        }
+    } else {
+        // Limpiar título cuando la pestaña no está visible
+        if (document.title.includes('⚠️')) {
+            document.title = "Inventario IPS - Equipos";
+        }
+    }
+});
 
 // ========================= Hacer funciones disponibles globalmente =========================
 

@@ -11,7 +11,7 @@ const PERMISOS_POR_ROL = {
     'nuevaArea.html', 'nuevoPuesto.html', 'nuevoTipoEquipo.html',
     'verSede.html', 'verArea.html', 'verPuesto.html',
     'verEquipo.html', 'editarSede.html', 'editarArea.html',
-    'editarPuesto.html', 'editarEquipo.html'
+    'editarPuesto.html', 'editarEquipo.html', 'suspendidos.html'
   ],
   'supervisor': ['chequeos.html'],
   'auxiliar': ['entrada_salida.html'],
