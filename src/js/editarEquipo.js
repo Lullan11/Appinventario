@@ -626,19 +626,30 @@ async function renderizarFormulario() {
         </div>
 
         <!-- Estado - ✅ SOLO LECTURA, siempre activo en edición -->
+        <!-- Estado - ✅ SOLO LECTURA, muestra el estado REAL del equipo -->
         <div>
             <label class="block text-[#0F172A] font-medium mb-1">Estado</label>
-            <div class="flex items-center gap-3 p-3 bg-green-50 rounded-md border border-green-200">
-                <span class="flex items-center gap-2 text-green-700 font-semibold">
-                    <i class="fas fa-check-circle"></i>
-                    Activo
+            
+            <!-- Contenedor dinámico según el estado real -->
+            <div id="estado-container" class="p-3 rounded-md border flex items-center gap-3">
+                <span id="estado-texto" class="flex items-center gap-2 font-semibold">
+                    <!-- Icono y texto se llenarán con JS -->
                 </span>
-                <input type="hidden" id="estado" name="estado" value="activo">
+                <input type="hidden" id="estado" name="estado" value="${equipoData?.estado || 'activo'}">
             </div>
-            <p class="text-sm text-gray-600 mt-2">
-                <i class="fas fa-info-circle text-blue-500"></i>
-                Para inactivar este equipo, usa el botón "Inactivar" en el listado de equipos.
-            </p>
+            
+            <!-- Mensaje informativo dinámico -->
+            <div id="info-estado" class="text-sm mt-2 space-y-1">
+                <p id="mensaje-estado" class="flex items-start gap-2">
+                    <i class="fas fa-info-circle mt-0.5"></i>
+                    <span id="texto-mensaje-estado">
+                        <!-- Se llenará dinámicamente -->
+                    </span>
+                </p>
+                <p id="accion-estado" class="text-sm ml-6">
+                    <!-- Acción recomendada se llenará aquí -->
+                </p>
+            </div>
         </div>
 
         <!-- Configuración de Mantenimientos -->
@@ -829,6 +840,7 @@ function configurarEventos() {
 }
 
 // ✅ FUNCIÓN ACTUALIZADA: Actualizar equipo con documento del responsable
+// ✅ FUNCIÓN CORREGIDA: Actualizar equipo MANTENIENDO el estado actual
 async function actualizarEquipo() {
     const submitBtn = document.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
@@ -859,7 +871,7 @@ async function actualizarEquipo() {
             responsable_nombre: document.getElementById("responsable").value.trim(),
             responsable_documento: documentoResponsable, // ✅ INCLUIR DOCUMENTO
             id_tipo_equipo: parseInt(document.getElementById("tipoEquipo").value),
-            estado: "activo" // ✅ SIEMPRE activo en edición
+            estado: equipoData.estado // ✅ CORRECCIÓN: Usar el estado actual del equipo, NO siempre "activo"
         };
 
         // Agregar datos de imagen si hay cambios
@@ -885,8 +897,9 @@ async function actualizarEquipo() {
         });
         formData.campos_personalizados = camposPersonalizados;
 
-        console.log("📤 Enviando datos:", {
+        console.log("📤 Enviando datos (manteniendo estado):", {
             ...formData,
+            estado_original: equipoData.estado,
             documento_responsable: documentoResponsable
         });
 
@@ -1183,6 +1196,83 @@ function agregarMantenimiento() {
     console.log('➕ Mantenimientos actuales:', mantenimientosConfigurados);
 }
 
+function mostrarEstadoEquipo() {
+    if (!equipoData || !equipoData.estado) return;
+    
+    const estadoContainer = document.getElementById('estado-container');
+    const estadoTexto = document.getElementById('estado-texto');
+    const estadoInput = document.getElementById('estado');
+    const mensajeEstado = document.getElementById('texto-mensaje-estado');
+    const accionEstado = document.getElementById('accion-estado');
+    
+    if (!estadoContainer || !estadoTexto || !estadoInput || !mensajeEstado) return;
+    
+    const estadoActual = equipoData.estado.toLowerCase();
+    estadoInput.value = estadoActual;
+    
+    // Configurar según el estado
+    switch(estadoActual) {
+        case 'activo':
+            estadoContainer.className = 'p-3 bg-green-50 rounded-md border border-green-200 flex items-center gap-3';
+            estadoTexto.innerHTML = `
+                <i class="fas fa-check-circle text-green-600"></i>
+                <span class="text-green-700 font-semibold">Activo</span>
+            `;
+            mensajeEstado.innerHTML = 'Este equipo está en funcionamiento normal.';
+            accionEstado.innerHTML = `
+                <span class="text-green-600">
+                    <i class="fas fa-check"></i> Puede ser usado normalmente
+                </span>
+            `;
+            break;
+            
+        case 'inactivo':
+            estadoContainer.className = 'p-3 bg-red-50 rounded-md border border-red-200 flex items-center gap-3';
+            estadoTexto.innerHTML = `
+                <i class="fas fa-ban text-red-600"></i>
+                <span class="text-red-700 font-semibold">Inactivo</span>
+            `;
+            mensajeEstado.innerHTML = 'Este equipo está dado de baja del sistema.';
+            accionEstado.innerHTML = `
+                <span class="text-red-600">
+                    <i class="fas fa-exclamation-triangle"></i> No está disponible para uso
+                </span>
+            `;
+            break;
+            
+        case 'suspendido':
+            estadoContainer.className = 'p-3 bg-yellow-50 rounded-md border border-yellow-200 flex items-center gap-3';
+            estadoTexto.innerHTML = `
+                <i class="fas fa-pause text-yellow-600"></i>
+                <span class="text-yellow-700 font-semibold">Suspendido</span>
+            `;
+            mensajeEstado.innerHTML = 'Este equipo está temporalmente fuera de servicio.';
+            accionEstado.innerHTML = `
+                <span class="text-yellow-600">
+                    <i class="fas fa-clock"></i> En espera de reintegro
+                </span>
+            `;
+            
+            // Agregar detalles de suspensión si están disponibles
+            agregarDetallesSuspension(estadoContainer);
+            break;
+            
+        default:
+            estadoContainer.className = 'p-3 bg-gray-50 rounded-md border border-gray-200 flex items-center gap-3';
+            estadoTexto.innerHTML = `
+                <i class="fas fa-question-circle text-gray-600"></i>
+                <span class="text-gray-700 font-semibold">${estadoActual}</span>
+            `;
+            mensajeEstado.innerHTML = 'Estado desconocido.';
+            accionEstado.innerHTML = `
+                <span class="text-gray-600">
+                    <i class="fas fa-exclamation-circle"></i> Contacta al administrador
+                </span>
+            `;
+    }
+}
+
+
 // Inicializar
 async function inicializar() {
     console.log("🔄 Inicializando edición de equipo...");
@@ -1191,7 +1281,9 @@ async function inicializar() {
         cargarDatosEquipo()
     ]);
     await renderizarFormulario();
+    mostrarEstadoEquipo();
     console.log("✅ Edición de equipo inicializada correctamente");
+    
 }
 
 // Hacer funciones globales

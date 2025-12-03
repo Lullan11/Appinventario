@@ -49,6 +49,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         // ✅ 4. Solicitar permisos de notificación
         await inicializarNotificaciones();
+
+        crearModalSuspension();
+        console.log('✅ Modal de suspensión creado al inicio');
         
         // ✅ 5. Cargar equipos y tipos de equipo en paralelo
         const [equiposRes, tiposRes] = await Promise.all([
@@ -1044,11 +1047,10 @@ function mostrarAlertasMantenimiento(equipos) {
 
 // ========================= FUNCIONES PARA SUSPENDER EQUIPOS =========================
 
-// Esta función debe ir al final del archivo equipos.js, después de las otras funciones globales
-
-// Modal de suspensión (copiado de equipos-suspendidos.js pero adaptado para equipos.js)
 async function mostrarModalSuspender(id) {
     try {
+        console.log('🔍 Mostrando modal para suspender equipo ID:', id);
+        
         // ✅ MOSTRAR LOADING
         mostrarLoadingEquipos(true);
         
@@ -1056,14 +1058,32 @@ async function mostrarModalSuspender(id) {
         if (!res.ok) throw new Error("Error al obtener datos del equipo");
         
         const equipo = await res.json();
+        console.log('📊 Equipo cargado:', equipo.nombre);
         
         // Crear modal si no existe
         if (!document.getElementById('modal-suspender')) {
+            console.log('🛠️ Creando modal...');
             crearModalSuspension();
         }
         
-        document.getElementById('equipo-id-suspender').value = id;
-        document.getElementById('info-equipo-suspender').innerHTML = `
+        // Obtener elementos del DOM
+        const equipoIdInput = document.getElementById('equipo-id-suspender');
+        const infoEquipo = document.getElementById('info-equipo-suspender');
+        const fechaEstimada = document.getElementById('fecha-reintegro-estimada');
+        
+        console.log('🔍 Elementos del DOM:', {
+            equipoIdInput: !!equipoIdInput,
+            infoEquipo: !!infoEquipo,
+            fechaEstimada: !!fechaEstimada
+        });
+        
+        if (!equipoIdInput || !infoEquipo || !fechaEstimada) {
+            throw new Error('Elementos del modal no encontrados');
+        }
+        
+        // Configurar información
+        equipoIdInput.value = id;
+        infoEquipo.innerHTML = `
             <p><strong>Nombre:</strong> ${equipo.nombre}</p>
             <p><strong>Código:</strong> ${equipo.codigo_interno}</p>
             <p><strong>Ubicación:</strong> ${equipo.ubicacion === 'puesto' ? 
@@ -1073,109 +1093,47 @@ async function mostrarModalSuspender(id) {
             <p><strong>Tipo:</strong> ${equipo.tipo_equipo_nombre || '-'}</p>
         `;
         
-        const fechaSuspension = document.getElementById('fecha-suspension');
-        fechaSuspension.valueAsDate = new Date();
-        
         // Establecer fecha estimada de reintegro (por defecto 7 días)
-        const fechaEstimada = new Date();
-        fechaEstimada.setDate(fechaEstimada.getDate() + 7);
-        document.getElementById('fecha-reintegro-estimada').valueAsDate = fechaEstimada;
+        const fechaHoy = new Date();
+        const fecha7Dias = new Date();
+        fecha7Dias.setDate(fechaHoy.getDate() + 7);
         
-        document.getElementById('modal-suspender').classList.remove('hidden');
+        fechaEstimada.valueAsDate = fecha7Dias;
+        console.log('📅 Fecha estimada seteada:', fecha7Dias.toISOString().split('T')[0]);
+        
+        // Mostrar modal
+        const modal = document.getElementById('modal-suspender');
+        modal.classList.remove('hidden');
+        console.log('✅ Modal mostrado');
         
         // ✅ OCULTAR LOADING
         mostrarLoadingEquipos(false);
         
     } catch (err) {
-        console.error("Error al cargar datos para suspender:", err);
+        console.error("❌ Error al cargar datos para suspender:", err);
         mostrarLoadingEquipos(false);
-        mostrarMensaje("❌ Error al cargar datos del equipo", true);
+        mostrarMensaje("❌ Error: " + err.message, true);
     }
-}
-
-function crearModalSuspension() {
-    const modalHTML = `
-        <div id="modal-suspender" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-lg max-w-600px w-90% max-h-90vh overflow-y-auto border-3 border-[#0F172A] p-6">
-                <h2 class="text-2xl font-bold text-[#0F172A] mb-4">Suspender Equipo</h2>
-                <form id="form-suspender">
-                    <input type="hidden" id="equipo-id-suspender">
-                    
-                    <div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                        <h3 class="font-semibold text-lg text-gray-700 mb-2">Información del Equipo</h3>
-                        <div id="info-equipo-suspender" class="text-sm text-gray-600 space-y-1"></div>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Motivo de suspensión *</label>
-                            <select id="motivo-suspension" class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                                <option value="">Seleccionar motivo...</option>
-                                <option value="Mantenimiento programado">Mantenimiento programado</option>
-                                <option value="Reparación">Reparación</option>
-                                <option value="Calibración">Calibración</option>
-                                <option value="Verificación técnica">Verificación técnica</option>
-                                <option value="Actualización de software">Actualización de software</option>
-                                <option value="Cambio de ubicación">Cambio de ubicación</option>
-                                <option value="Otro">Otro</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de suspensión *</label>
-                            <input type="date" id="fecha-suspension" class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha estimada de reintegro *</label>
-                            <input type="date" id="fecha-reintegro-estimada" class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                            <textarea id="observaciones-suspension" rows="3" class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" placeholder="Detalles adicionales sobre la suspensión..."></textarea>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por *</label>
-                            <input type="text" id="realizado-por-suspension" class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                        <button type="button" onclick="cerrarModalSuspender()" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                            Cancelar
-                        </button>
-                        <button type="submit" class="px-4 py-2 bg-[#f59e0b] text-white rounded-lg hover:bg-[#d97706]">
-                            <i class="fas fa-pause mr-2"></i> Suspender Equipo
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
-    // Configurar evento del formulario
-    document.getElementById('form-suspender').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await suspenderEquipoDesdeModal();
-    });
 }
 
 async function suspenderEquipoDesdeModal() {
     const id = document.getElementById('equipo-id-suspender').value;
+    
+    // Obtener fecha - si el checkbox está marcado o el campo está vacío, enviar null
+    const fechaIndefinida = document.getElementById('fecha-indefinida').checked;
+    const fechaInput = document.getElementById('fecha-reintegro-estimada').value;
+    
     const formData = {
         motivo: document.getElementById('motivo-suspension').value,
         observaciones: document.getElementById('observaciones-suspension').value,
-        fecha_suspension: document.getElementById('fecha-suspension').value,
         realizado_por: document.getElementById('realizado-por-suspension').value.trim(),
-        fecha_reintegro_estimada: document.getElementById('fecha-reintegro-estimada').value
+        fecha_reintegro_estimada: fechaIndefinida || !fechaInput ? null : fechaInput
     };
 
-    if (!formData.motivo || !formData.fecha_suspension || !formData.realizado_por || !formData.fecha_reintegro_estimada) {
-        mostrarMensaje("❌ Complete todos los campos requeridos", true);
+    console.log('📤 Datos para suspender:', formData);
+
+    if (!formData.motivo || !formData.realizado_por) {
+        mostrarMensaje("❌ Complete motivo y realizado por", true);
         return;
     }
 
@@ -1183,16 +1141,34 @@ async function suspenderEquipoDesdeModal() {
         // ✅ MOSTRAR LOADING
         mostrarLoadingEquipos(true);
         
+        console.log(`📤 Enviando solicitud de suspensión para equipo ${id}...`);
+        
         const res = await fetch(`${API_EQUIPOS}/${id}/suspender`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
             body: JSON.stringify(formData)
         });
 
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || "Error al suspender equipo");
+        // Obtener la respuesta como texto primero para debugging
+        const responseText = await res.text();
+        console.log(`📥 Respuesta del servidor (${res.status}):`, responseText);
+
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error("❌ Error parseando JSON:", e);
+            throw new Error(`Respuesta inválida del servidor: ${responseText.substring(0, 100)}...`);
         }
+
+        if (!res.ok) {
+            throw new Error(data.error || data.detalle || `Error ${res.status}: ${res.statusText}`);
+        }
+
+        console.log('✅ Respuesta exitosa:', data);
 
         mostrarMensaje("✅ Equipo suspendido correctamente");
         cerrarModalSuspender();
@@ -1201,13 +1177,116 @@ async function suspenderEquipoDesdeModal() {
         mostrarLoadingEquipos(false);
         
         // Recargar la página después de un momento
-        setTimeout(() => location.reload(), 2000);
+        setTimeout(() => {
+            console.log('🔄 Recargando página...');
+            location.reload();
+        }, 1500);
 
     } catch (err) {
-        console.error("Error al suspender equipo:", err);
+        console.error("❌ Error al suspender equipo:", err);
         mostrarLoadingEquipos(false);
-        mostrarMensaje("❌ Error al suspender equipo: " + err.message, true);
+        mostrarMensaje("❌ Error: " + err.message, true);
     }
+}
+
+// Actualiza solo la función crearModalSuspension() en equipos.js
+function crearModalSuspension() {
+    console.log('🔧 Creando modal de suspensión...');
+    
+    // Verificar si ya existe
+    if (document.getElementById('modal-suspender')) {
+        console.log('✅ Modal ya existe');
+        return;
+    }
+    
+    const modalHTML = `
+        <div id="modal-suspender" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-lg max-w-md w-full max-h-90vh overflow-y-auto border-2 border-[#0F172A] p-6">
+                <h2 class="text-2xl font-bold text-[#0F172A] mb-6">Suspender Equipo</h2>
+                <form id="form-suspender">
+                    <input type="hidden" id="equipo-id-suspender">
+                    
+                    <div class="mb-4 p-3 bg-gray-50 rounded">
+                        <h3 class="font-semibold text-gray-700 mb-2">Información del Equipo</h3>
+                        <div id="info-equipo-suspender" class="text-sm text-gray-600"></div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Motivo de suspensión *</label>
+                            <select id="motivo-suspension" class="w-full px-3 py-2 border border-gray-300 rounded" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="Mantenimiento">Mantenimiento</option>
+                                <option value="Reparación">Reparación</option>
+                                <option value="Sin_Uso">Sin uso</option>
+                                <option value="En_espera">En espera</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+                            <textarea id="observaciones-suspension" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded" placeholder="Detalles..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por *</label>
+                            <input type="text" id="realizado-por-suspension" class="w-full px-3 py-2 border border-gray-300 rounded" required placeholder="Nombre">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Fecha estimada reintegro 
+                                <span class="text-xs text-gray-500 font-normal">(opcional - dejar vacío para indefinido)</span>
+                            </label>
+                            <input type="date" id="fecha-reintegro-estimada" class="w-full px-3 py-2 border border-gray-300 rounded">
+                        </div>
+                        
+                        <div class="flex items-center text-sm text-gray-600">
+                            <input type="checkbox" id="fecha-indefinida" class="mr-2">
+                            <label for="fecha-indefinida">Sin fecha definida de reintegro</label>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                        <button type="button" onclick="cerrarModalSuspender()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">
+                            <i class="fas fa-pause mr-2"></i> Suspender
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    console.log('✅ Modal creado exitosamente');
+    
+    // Configurar evento del formulario
+    document.getElementById('form-suspender').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await suspenderEquipoDesdeModal();
+    });
+    
+    // Configurar checkbox para limpiar fecha
+    document.getElementById('fecha-indefinida').addEventListener('change', function() {
+        const fechaInput = document.getElementById('fecha-reintegro-estimada');
+        if (this.checked) {
+            fechaInput.value = '';
+            fechaInput.disabled = true;
+        } else {
+            fechaInput.disabled = false;
+            // Si está vacío, poner fecha por defecto (7 días)
+            if (!fechaInput.value) {
+                const fechaHoy = new Date();
+                const fecha7Dias = new Date();
+                fecha7Dias.setDate(fechaHoy.getDate() + 7);
+                fechaInput.valueAsDate = fecha7Dias;
+            }
+        }
+    });
 }
 
 function cerrarModalSuspender() {
@@ -1218,11 +1297,6 @@ function cerrarModalSuspender() {
         if (form) form.reset();
     }
 }
-
-// Agregar al objeto window
-window.mostrarModalSuspender = mostrarModalSuspender;
-window.cerrarModalSuspender = cerrarModalSuspender;
-
 
 
 
@@ -1497,3 +1571,7 @@ window.cerrarModalInactivar = cerrarModalInactivar;
 window.toggleNotificaciones = toggleNotificaciones;
 window.aplicarFiltros = aplicarFiltros;
 window.limpiarFiltros = limpiarFiltros;
+// ========================= Hacer funciones disponibles globalmente =========================
+window.mostrarModalSuspender = mostrarModalSuspender;
+window.suspenderEquipoDesdeModal = suspenderEquipoDesdeModal;
+window.cerrarModalSuspender = cerrarModalSuspender;

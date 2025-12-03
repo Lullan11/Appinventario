@@ -4,17 +4,15 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Historial - Inventario</title>
+    <title>Equipos Suspendidos - Inventario</title>
     <link href="../../dist/output.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Favicon para modo claro -->
+    <!-- Favicon -->
     <link rel="icon" href="../assets/faviBlack.ico" media="(prefers-color-scheme: light)">
-
-    <!-- Favicon para modo oscuro -->
     <link rel="icon" href="../assets/faviWhite.ico" media="(prefers-color-scheme: dark)">
 
-    <!-- Fuente moderna (Google Fonts) -->
+    <!-- Fuente -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -40,18 +38,38 @@
             font-size: 0.875rem;
         }
 
+        .table-container {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
         .modal-suspender {
             background: rgba(0, 0, 0, 0.5);
         }
 
-        .modal-content-suspender {
+        .modal-content-ancho {
             background: white;
             border-radius: 12px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
+            max-width: 800px !important;
+            /* Más ancho */
+            width: 95% !important;
+            /* Más ancho */
+            max-height: 85vh;
             overflow-y: auto;
             border: 3px solid #0F172A;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .grid-columnas-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .grid-columnas-2 {
+                grid-template-columns: 1fr;
+            }
         }
 
         .btn-suspender {
@@ -72,6 +90,21 @@
             background-color: #059669;
         }
 
+        .estado-vencido {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .estado-proximo {
+            color: #d97706;
+            font-weight: 600;
+        }
+
+        .estado-al-dia {
+            color: #059669;
+            font-weight: 600;
+        }
+
         .skeleton-row {
             height: 60px;
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -90,13 +123,103 @@
                 background-position: -200% 0;
             }
         }
-    </style>
 
+        .alert-empty {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+
+        /* Agrega esto a tu CSS existente o crea un archivo suspendidos.css */
+
+        /* Estilos para estados de reintegro */
+        .estado-vencido {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .estado-proximo {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fbbf24;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .estado-al-dia {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Animaciones */
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .animate-slide-in {
+            animation: slide-in 0.3s ease-out;
+        }
+
+        /* Estilos de tarjetas de estadísticas */
+        .estadistica-card {
+            transition: all 0.3s ease;
+        }
+
+        .estadistica-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #639A33;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Modal estilos */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+        }
+    </style>
 </head>
 
-<body class="bg-white text-[#0F172A] min-h-screen flex">
-    <div class="flex flex-1 h-screen overflow-hidden">
-
+<body class="bg-white text-[#0F172A] min-h-screen">
+    <div class="flex">
         <!-- Sidebar -->
         <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
             <div>
@@ -159,7 +282,7 @@
                         <i class="fas fa-clock"></i> Cronograma
                     </a>
                     <a href="#" data-view="temperatura.html"
-                        class="view-link block py-2 px-3 rounded bg-[#639A33] text-[#0F172A] font-semibold text-sm md:text-xs flex items-center gap-2">
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
                         <i class="fas fa-temperature-high"></i> Temperatura
                     </a>
                     <a href="#" data-view="entrada_salida.html"
@@ -193,177 +316,304 @@
             </div>
         </aside>
 
+
         <!-- Contenido principal -->
-        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
-            <div>
-                <!-- Título y Logo -->
-                <header class="mb-6 flex items-center justify-between">
-                    <h1 class="text-4xl font-semibold text-[#0F172A]">Suspendidos</h1>
-                    <div class="flex items-center gap-4">
-                        <img src="../assets/logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
-                        <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
+        <main class="flex-1 p-6 bg-gray-50 min-h-screen">
+            <!-- Encabezado -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h1 class="text-3xl font-bold text-[#0F172A]">Equipos Suspendidos</h1>
+                        <p class="text-gray-600">Gestión de equipos temporalmente fuera de servicio</p>
                     </div>
-                </header>
+                    <div class="flex items-center gap-4">
+                        <img src="../assets/logo_ips.png" alt="Logo IPS Progresando" class="h-20 w-20 object-contain" />
+                        <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-20 w-20 object-contain" />
+                    </div>
+                </div>
 
-
-                <div id="navbar-container"></div>
-                <div class="min-h-screen bg-gray-100 pt-16">
-                    <div id="contenido-dinamico" class="p-4 md:p-6">
-                        <!-- Skeleton loading -->
-                        <div id="skeleton-loading" class="space-y-4">
-                            <div class="flex justify-between items-center">
-                                <div class="h-8 bg-gray-200 rounded w-48"></div>
-                                <div class="h-6 bg-gray-200 rounded w-24"></div>
+                <!-- Estadísticas rápidas -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500">Total Suspendidos</p>
+                                <p id="total-suspendidos" class="text-2xl font-bold text-[#0F172A]">0</p>
                             </div>
-                            <div class="h-10 bg-gray-200 rounded w-full max-w-md"></div>
-                            <div class="space-y-2">
-                                <div class="skeleton-row"></div>
-                                <div class="skeleton-row"></div>
-                                <div class="skeleton-row"></div>
-                                <div class="skeleton-row"></div>
-                                <div class="skeleton-row"></div>
+                            <div class="bg-yellow-100 p-3 rounded-full">
+                                <i class="fas fa-pause text-yellow-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500">Próximos a Reintegrar</p>
+                                <p id="proximos-reintegrar" class="text-2xl font-bold text-orange-600">0</p>
+                            </div>
+                            <div class="bg-orange-100 p-3 rounded-full">
+                                <i class="fas fa-clock text-orange-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500">Reintegro Vencido</p>
+                                <p id="reintegro-vencido" class="text-2xl font-bold text-red-600">0</p>
+                            </div>
+                            <div class="bg-red-100 p-3 rounded-full">
+                                <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Modal para suspender equipo -->
-                <div id="modal-suspender"
-                    class="modal-suspender fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-                    <div class="modal-content-suspender p-6">
-                        <h2 class="text-2xl font-bold text-[#0F172A] mb-4">Suspender Equipo</h2>
-                        <form id="form-suspender">
-                            <input type="hidden" id="equipo-id-suspender">
-
-                            <div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                                <h3 class="font-semibold text-lg text-gray-700 mb-2">Información del Equipo</h3>
-                                <div id="info-equipo-suspender" class="text-sm text-gray-600 space-y-1"></div>
+            <!-- Filtros -->
+            <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Buscar por código</label>
+                                <input type="text" id="filtro-codigo" placeholder="Código interno..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#639A33] focus:border-[#639A33]">
                             </div>
-
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Motivo de suspensión
-                                        *</label>
-                                    <select id="motivo-suspension"
-                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                                        <option value="">Seleccionar motivo...</option>
-                                        <option value="Mantenimiento programado">Mantenimiento programado</option>
-                                        <option value="Reparación">Reparación</option>
-                                        <option value="Calibración">Calibración</option>
-                                        <option value="Verificación técnica">Verificación técnica</option>
-                                        <option value="Actualización de software">Actualización de software</option>
-                                        <option value="Cambio de ubicación">Cambio de ubicación</option>
-                                        <option value="Otro">Otro</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de suspensión
-                                        *</label>
-                                    <input type="date" id="fecha-suspension"
-                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha estimada de
-                                        reintegro *</label>
-                                    <input type="date" id="fecha-reintegro-estimada"
-                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                                    <textarea id="observaciones-suspension" rows="3"
-                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg"
-                                        placeholder="Detalles adicionales sobre la suspensión..."></textarea>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por
-                                        *</label>
-                                    <input type="text" id="realizado-por-suspension"
-                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                                </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Buscar por nombre</label>
+                                <input type="text" id="filtro-nombre" placeholder="Nombre del equipo..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#639A33] focus:border-[#639A33]">
                             </div>
-
-                            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                                <button type="button" onclick="cerrarModalSuspender()"
-                                    class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                                    Cancelar
-                                </button>
-                                <button type="submit"
-                                    class="px-4 py-2 bg-[#f59e0b] text-white rounded-lg hover:bg-[#d97706]">
-                                    <i class="fas fa-pause mr-2"></i> Suspender Equipo
-                                </button>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Filtrar por sede</label>
+                                <select id="filtro-sede"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                    <option value="">Todas las sedes</option>
+                                </select>
                             </div>
-                        </form>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="aplicarFiltros()"
+                            class="px-4 py-2 bg-[#639A33] text-white rounded-lg hover:bg-[#4a7a26] transition-colors flex items-center gap-2">
+                            <i class="fas fa-filter"></i> Filtrar
+                        </button>
+                        <button onclick="limpiarFiltros()"
+                            class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2">
+                            <i class="fas fa-undo"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de equipos suspendidos -->
+            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-[#0F172A]">Lista de Equipos Suspendidos</h2>
+                    <div class="text-sm text-gray-500">
+                        <span id="contador-resultados">0</span> equipos encontrados
                     </div>
                 </div>
 
-                <!-- Modal para reintegrar equipo -->
-                <div id="modal-reintegrar"
-                    class="modal-suspender fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-                    <div class="modal-content-suspender p-6">
-                        <h2 class="text-2xl font-bold text-[#0F172A] mb-4">Reintegrar Equipo</h2>
-                        <form id="form-reintegrar">
-                            <input type="hidden" id="equipo-id-reintegrar">
+                <div class="table-container">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Código</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nombre</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Ubicación</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Motivo</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fechas</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaSuspendidos" class="divide-y divide-gray-200">
+                            <!-- Se llenará con JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
 
-                            <div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                                <h3 class="font-semibold text-lg text-gray-700 mb-2">Información del Equipo
-                                    Suspendido</h3>
-                                <div id="info-equipo-reintegrar" class="text-sm text-gray-600 space-y-1"></div>
-                            </div>
-
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones de
-                                        reintegro *</label>
-                                    <textarea id="observaciones-reintegro" rows="3"
-                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required
-                                        placeholder="Describa el estado del equipo al reintegrarlo..."></textarea>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de reintegro
-                                        real *</label>
-                                    <input type="date" id="fecha-reintegro-real"
-                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por
-                                        *</label>
-                                    <input type="text" id="realizado-por-reintegro"
-                                        class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
-                                </div>
-                            </div>
-
-                            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                                <button type="button" onclick="cerrarModalReintegrar()"
-                                    class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                                    Cancelar
-                                </button>
-                                <button type="submit"
-                                    class="px-4 py-2 bg-[#10b981] text-white rounded-lg hover:bg-[#059669]">
-                                    <i class="fas fa-play mr-2"></i> Reintegrar Equipo
-                                </button>
-                            </div>
-                        </form>
+                <!-- Mensaje cuando no hay equipos -->
+                <div id="mensaje-vacio" class="hidden p-8 text-center">
+                    <div class="inline-block p-6 rounded-xl alert-empty">
+                        <i class="fas fa-check-circle text-4xl mb-4"></i>
+                        <h3 class="text-xl font-bold mb-2">¡Excelente!</h3>
+                        <p class="mb-4">No hay equipos suspendidos en este momento.</p>
+                        <p class="text-sm opacity-90">Todos los equipos están activos y operativos.</p>
                     </div>
                 </div>
 
+                <!-- Loading skeleton -->
+                <div id="skeleton-container" class="p-4">
+                    <div class="skeleton-row mb-2"></div>
+                    <div class="skeleton-row mb-2"></div>
+                    <div class="skeleton-row mb-2"></div>
+                    <div class="skeleton-row mb-2"></div>
+                    <div class="skeleton-row"></div>
+                </div>
+            </div>
 
-
-                <footer class="text-center mt-6 py-4 border-t border-gray-200">
-                    <p class="text-sm text-[#0F172A] font-medium">Módulo de Equipos Suspendidos</p>
-                </footer>
+            <!-- Paginación -->
+            <div class="mt-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="text-sm text-gray-600" id="info-paginacion">
+                    Mostrando 0-0 de 0 equipos
+                </div>
+                <div class="flex items-center gap-2" id="controles-paginacion">
+                    <!-- Se generará con JavaScript -->
+                </div>
+            </div>
         </main>
     </div>
 
+    <!-- Modal para reintegrar equipo (MÁS ANCHO) -->
+    <div id="modal-reintegrar"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content-ancho p-6">
+            <h2 class="text-2xl font-bold text-[#0F172A] mb-4">Reintegrar Equipo</h2>
+            <form id="form-reintegrar">
+                <input type="hidden" id="equipo-id-reintegrar">
+
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-semibold text-lg text-gray-700 mb-2">Información del Equipo Suspendido</h3>
+                    <div id="info-equipo-reintegrar" class="text-sm text-gray-600 space-y-1"></div>
+                </div>
+
+                <div class="grid-columnas-2 mb-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Motivo original</label>
+                            <div id="motivo-original" class="p-3 bg-gray-100 rounded-lg text-sm"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha suspensión</label>
+                            <div id="fecha-suspension-original" class="p-3 bg-gray-100 rounded-lg text-sm"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha estimada reintegro</label>
+                            <div id="fecha-estimada-reintegro" class="p-3 bg-gray-100 rounded-lg text-sm"></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones de reintegro
+                                *</label>
+                            <textarea id="observaciones-reintegro" rows="3"
+                                class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required
+                                placeholder="Describa el estado del equipo al reintegrarlo..."></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de reintegro real
+                                *</label>
+                            <input type="date" id="fecha-reintegro-real"
+                                class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por *</label>
+                            <input type="text" id="realizado-por-reintegro"
+                                class="w-full px-3 py-2 border-2 border-[#0F172A] rounded-lg" required
+                                placeholder="Nombre de quien reintegra">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                    <button type="button" onclick="cerrarModalReintegrar()"
+                        class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 bg-[#10b981] text-white rounded-lg hover:bg-[#059669] transition-colors flex items-center gap-2">
+                        <i class="fas fa-play"></i> Reintegrar Equipo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para ver detalles de suspensión -->
+    <div id="modal-detalles"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content-ancho p-6">
+            <h2 class="text-2xl font-bold text-[#0F172A] mb-4">Detalles de Suspensión</h2>
+
+            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-semibold text-lg text-gray-700 mb-2">Información del Equipo</h3>
+                <div id="detalles-equipo-info" class="text-sm text-gray-600"></div>
+            </div>
+
+            <div class="grid-columnas-2 gap-6 mb-6">
+                <div>
+                    <h3 class="font-semibold text-lg text-gray-700 mb-3">Información de Suspensión</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">Motivo</label>
+                            <div id="detalles-motivo" class="p-3 bg-white border rounded-lg"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">Observaciones</label>
+                            <div id="detalles-observaciones" class="p-3 bg-white border rounded-lg"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">Realizado por</label>
+                            <div id="detalles-realizado-por" class="p-3 bg-white border rounded-lg"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold text-lg text-gray-700 mb-3">Fechas</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">Fecha de suspensión</label>
+                            <div id="detalles-fecha-suspension" class="p-3 bg-white border rounded-lg"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">Fecha estimada de
+                                reintegro</label>
+                            <div id="detalles-fecha-estimada" class="p-3 bg-white border rounded-lg"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 mb-1">Días transcurridos</label>
+                            <div id="detalles-dias-transcurridos" class="p-3 bg-white border rounded-lg"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                <button type="button" onclick="cerrarModalDetalles()"
+                    class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                    Cerrar
+                </button>
+                <button type="button" id="btn-reintegrar-desde-detalles"
+                    class="px-4 py-2 bg-[#10b981] text-white rounded-lg hover:bg-[#059669] transition-colors flex items-center gap-2">
+                    <i class="fas fa-play"></i> Reintegrar Este Equipo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading discreto -->
+    <div id="loading-suspendidos" class="fixed top-4 right-4 z-50 hidden">
+        <div class="bg-white rounded-lg p-4 shadow-xl border border-gray-200">
+            <div class="flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-5 w-5 border-2 border-[#639A33] border-t-transparent"></div>
+                <div>
+                    <p class="text-sm font-medium text-gray-800">Cargando equipos</p>
+                    <p class="text-xs text-gray-600">Obteniendo datos...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/auth.js"></script>
-    <!-- <script src="../js/navegacion.js"></script> -->
     <script src="../js/roles.js"></script>
-    <!-- Futuro script para cargar el historial desde la base de datos -->
-    <!-- <script src="../js/historial.js"></script> -->
+    <script src="../js/suspendidos.js"></script>
 </body>
+
 </html>
