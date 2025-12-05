@@ -1123,14 +1123,18 @@ async function suspenderEquipoDesdeModal() {
     const fechaIndefinida = document.getElementById('fecha-indefinida').checked;
     const fechaInput = document.getElementById('fecha-reintegro-estimada').value;
     
+    // ✅ CORRECCIÓN: Enviar fecha de suspensión EXPLÍCITA en formato YYYY-MM-DD
+    const fechaSuspension = obtenerFechaHoyISO();
+    
     const formData = {
         motivo: document.getElementById('motivo-suspension').value,
         observaciones: document.getElementById('observaciones-suspension').value,
         realizado_por: document.getElementById('realizado-por-suspension').value.trim(),
-        fecha_reintegro_estimada: fechaIndefinida || !fechaInput ? null : fechaInput
+        fecha_reintegro_estimada: fechaIndefinida || !fechaInput ? null : fechaInput,
+        fecha_suspension: fechaSuspension // ✅ Enviar fecha explícita
     };
 
-    console.log('📤 Datos para suspender:', formData);
+    console.log('📤 Datos para suspender (con fecha explícita):', formData);
 
     if (!formData.motivo || !formData.realizado_por) {
         mostrarMensaje("❌ Complete motivo y realizado por", true);
@@ -1187,6 +1191,16 @@ async function suspenderEquipoDesdeModal() {
         mostrarLoadingEquipos(false);
         mostrarMensaje("❌ Error: " + err.message, true);
     }
+}
+
+// ✅ FUNCIÓN AUXILIAR: Obtener fecha actual en formato YYYY-MM-DD
+function obtenerFechaHoyISO() {
+    const hoy = new Date();
+    // Usar UTC para evitar problemas de zona horaria
+    const año = hoy.getUTCFullYear();
+    const mes = String(hoy.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(hoy.getUTCDate()).padStart(2, '0');
+    return `${año}-${mes}-${dia}`;
 }
 
 // Actualiza solo la función crearModalSuspension() en equipos.js

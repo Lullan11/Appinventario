@@ -26,6 +26,58 @@ const elementos = {
   pendingCount: document.getElementById('pending-count')
 };
 
+// ========================= FUNCIÓN CORREGIDA PARA FORMATEAR FECHAS =========================
+
+function formatearFecha(fechaString) {
+    if (!fechaString) return 'No especificada';
+    
+    try {
+        // ✅ CORRECCIÓN: Crear fecha desde string ISO
+        const fecha = new Date(fechaString);
+        
+        // ✅ VERIFICAR SI LA FECHA ES VÁLIDA
+        if (isNaN(fecha.getTime())) {
+            // Si no es una fecha válida, intentar parsear directamente
+            const partes = fechaString.split('-');
+            if (partes.length === 3) {
+                // Asumir formato YYYY-MM-DD
+                return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+            return 'Fecha inválida';
+        }
+        
+        // ✅ CORRECCIÓN: Usar UTC para evitar problemas de zona horaria
+        // Obtener día, mes y año en UTC
+        const dia = fecha.getUTCDate().toString().padStart(2, '0');
+        const mes = (fecha.getUTCMonth() + 1).toString().padStart(2, '0');
+        const año = fecha.getUTCFullYear();
+        
+        return `${dia}/${mes}/${año}`;
+        
+    } catch (e) {
+        console.error('Error formateando fecha:', e, 'Fecha original:', fechaString);
+        // Si hay error, devolver la fecha original sin formato
+        return fechaString;
+    }
+}
+
+// ========================= FUNCIÓN PARA FORMATEAR FECHA INPUT (al crear movimiento) =========================
+
+function formatearFechaInput(fechaString) {
+    if (!fechaString) return '';
+    
+    try {
+        // Convertir de formato YYYY-MM-DD (input date) a DD/MM/YYYY
+        const partes = fechaString.split('-');
+        if (partes.length === 3) {
+            return `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+        return fechaString;
+    } catch (e) {
+        return fechaString;
+    }
+}
+
 // Inicialización
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -305,12 +357,10 @@ async function crearMovimiento(e) {
   movimientoData.id_responsable_envio = parseInt(movimientoData.id_responsable_envio);
   movimientoData.id_responsable_recepcion = parseInt(movimientoData.id_responsable_recepcion);
 
-  // CORRECCIÓN: SOLUCIONAR PROBLEMA DE FECHA (ZONA HORARIA)
-  // Asegurar que la fecha se envíe exactamente como la seleccionó el usuario
+  // ✅ CORRECCIÓN: Enviar fecha en formato ISO (YYYY-MM-DD)
   const fechaInput = document.querySelector('input[name="fecha_salida"]');
   if (fechaInput) {
-    // Usar el valor directamente del input, no del objeto
-    movimientoData.fecha_salida = fechaInput.value;
+    movimientoData.fecha_salida = fechaInput.value; // Esto ya está en formato YYYY-MM-DD
   }
 
   console.log('📅 Fecha enviada a la API:', movimientoData.fecha_salida);
@@ -435,15 +485,13 @@ function renderizarTablaMovimientos() {
 
   // Crear filas de la tabla
   tbody.innerHTML = movimientosPagina.map(mov => {
-    // CORRECCIÓN: Formatear fecha localmente para evitar problemas de zona horaria
+    // ✅ CORRECCIÓN: Usar la función formatearFecha corregida
     let fechaSalida = 'N/A';
-    if (mov.fecha_salida_formateada) {
-      // Si ya viene formateada desde la API
-      fechaSalida = mov.fecha_salida_formateada;
-    } else if (mov.fecha_salida) {
-      // Si viene como string, convertir a fecha local
-      const fecha = new Date(mov.fecha_salida);
-      fechaSalida = fecha.toLocaleDateString('es-ES');
+    if (mov.fecha_salida) {
+      fechaSalida = formatearFecha(mov.fecha_salida);
+    } else if (mov.fecha_salida_formateada) {
+      // Si viene formateada desde la API, usar la función corregida
+      fechaSalida = formatearFecha(mov.fecha_salida_formateada);
     }
 
     return `
@@ -629,13 +677,12 @@ async function cargarPendientes() {
     }
     
     content.innerHTML = pendientesParaRecepcion.map(mov => {
-      // Formatear fecha localmente
+      // ✅ CORRECCIÓN: Usar la función formatearFecha corregida
       let fechaSalida = 'No especificada';
-      if (mov.fecha_salida_formateada) {
-        fechaSalida = mov.fecha_salida_formateada;
-      } else if (mov.fecha_salida) {
-        const fecha = new Date(mov.fecha_salida);
-        fechaSalida = fecha.toLocaleDateString('es-ES');
+      if (mov.fecha_salida) {
+        fechaSalida = formatearFecha(mov.fecha_salida);
+      } else if (mov.fecha_salida_formateada) {
+        fechaSalida = formatearFecha(mov.fecha_salida_formateada);
       }
       
       return `
@@ -722,60 +769,6 @@ function actualizarContadorPendientes() {
   }
 }
 
-// NUEVA FUNCIÓN PARA CANCELAR MOVIMIENTO
-async function cancelarMovimiento(id) {
-  if (!confirm('¿Está seguro de cancelar este movimiento? Esta acción notificará al responsable de recepción.')) {
-    return;
-  }
-
-  try {
-    console.log(`❌ Cancelando movimiento ${id}...`);
-
-    const response = await fetch(`${API_URL}/movimientos-equipos/${id}/estado`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ estado: 'cancelado' })
-    });
-
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      console.error('❌ Error de API:', responseData);
-      throw new Error(responseData.error || 'Error al cancelar movimiento');
-    }
-
-    // Actualizar localmente el array de movimientos
-    const index = todosLosMovimientos.findIndex(m => m.id == id);
-    if (index !== -1) {
-      todosLosMovimientos[index].estado = 'cancelado';
-    }
-
-    mostrarMensaje('✅ Movimiento cancelado exitosamente');
-
-    // Recargar datos
-    await cargarMovimientos();
-    
-    // Actualizar vista actual
-    const tabActive = document.querySelector('.tab-movimientos.active');
-    if (tabActive) {
-      if (tabActive.id === 'tab-listar') {
-        renderizarTablaMovimientos();
-      } else if (tabActive.id === 'tab-pendientes') {
-        cargarPendientes();
-      }
-    }
-
-    // Actualizar contador de pendientes
-    actualizarContadorPendientes();
-
-  } catch (error) {
-    console.error('❌ Error cancelando movimiento:', error);
-    mostrarMensaje(`❌ Error: ${error.message}`, true);
-  }
-}
-
 // FUNCIÓN PARA ACTUALIZAR ESTADO (ENVIADO O RECIBIDO)
 async function actualizarEstado(id, nuevoEstado) {
   // Obtener el movimiento actual primero
@@ -801,6 +794,7 @@ async function actualizarEstado(id, nuevoEstado) {
 
     // Solo agregar fecha de recepción si es recibido
     if (nuevoEstado === 'recibido') {
+      // ✅ CORRECCIÓN: Usar fecha en formato ISO
       updateData.fecha_recepcion = new Date().toISOString().split('T')[0];
     }
 
@@ -871,21 +865,25 @@ async function verDetallesMovimiento(id) {
 
     const contenido = document.getElementById('detalles-contenido');
     if (contenido) {
-      // Formatear fechas localmente
+      // ✅ CORRECCIÓN: Usar la función formatearFecha corregida
       let fechaSalida = 'No especificada';
-      if (movimiento.fecha_salida_formateada) {
-        fechaSalida = movimiento.fecha_salida_formateada;
-      } else if (movimiento.fecha_salida) {
-        const fecha = new Date(movimiento.fecha_salida);
-        fechaSalida = fecha.toLocaleDateString('es-ES');
+      if (movimiento.fecha_salida) {
+        fechaSalida = formatearFecha(movimiento.fecha_salida);
+      } else if (movimiento.fecha_salida_formateada) {
+        fechaSalida = formatearFecha(movimiento.fecha_salida_formateada);
       }
 
       let fechaRecepcion = 'Pendiente';
-      if (movimiento.fecha_recepcion_formateada) {
-        fechaRecepcion = movimiento.fecha_recepcion_formateada;
-      } else if (movimiento.fecha_recepcion) {
-        const fecha = new Date(movimiento.fecha_recepcion);
-        fechaRecepcion = fecha.toLocaleDateString('es-ES');
+      if (movimiento.fecha_recepcion) {
+        fechaRecepcion = formatearFecha(movimiento.fecha_recepcion);
+      } else if (movimiento.fecha_recepcion_formateada) {
+        fechaRecepcion = formatearFecha(movimiento.fecha_recepcion_formateada);
+      }
+
+      // ✅ CORRECCIÓN: Fecha de creación también
+      let fechaCreacion = 'N/A';
+      if (movimiento.creado_en) {
+        fechaCreacion = formatearFecha(movimiento.creado_en);
       }
 
       contenido.innerHTML = `
@@ -942,7 +940,7 @@ async function verDetallesMovimiento(id) {
             <p><strong class="text-[#0F172A]">Embalaje:</strong> ${movimiento.embalaje || 'No especificado'}</p>
           </div>
           <div>
-            <p><strong class="text-[#0F172A]">Creado:</strong> ${movimiento.creado_en ? new Date(movimiento.creado_en).toLocaleDateString('es-ES') : 'N/A'}</p>
+            <p><strong class="text-[#0F172A]">Creado:</strong> ${fechaCreacion}</p>
             <p><strong class="text-[#0F172A]">Condición:</strong> ${movimiento.condicion_salida || 'No especificada'}</p>
           </div>
         </div>
@@ -953,10 +951,6 @@ async function verDetallesMovimiento(id) {
             <button onclick="actualizarEstado(${movimiento.id}, 'enviado')"
                     class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition flex items-center gap-2">
               <i class="fas fa-paper-plane"></i> Marcar como Enviado
-            </button>
-            <button onclick="cancelarMovimiento(${movimiento.id})"
-                    class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition flex items-center gap-2">
-              <i class="fas fa-times"></i> Cancelar Movimiento
             </button>
           ` : ''}
           
@@ -984,7 +978,6 @@ async function verDetallesMovimiento(id) {
     mostrarMensaje('❌ Error al cargar detalles del movimiento', true);
   }
 }
-
 
 // FUNCIÓN PARA ELIMINAR MOVIMIENTO (OPCIONAL)
 async function eliminarMovimiento(id) {
@@ -1024,8 +1017,7 @@ async function eliminarMovimiento(id) {
   }
 }
 
-
-// Función para generar documento PDF del movimiento (mantén tu versión actual)
+// Función para generar documento PDF del movimiento
 async function generarDocumentoMovimiento(id) {
     try {
     console.log(`📄 Generando documento para movimiento ${id}...`);
@@ -1046,27 +1038,27 @@ async function generarDocumentoMovimiento(id) {
     }
 
     const fechaActual = new Date();
+    // ✅ CORRECCIÓN: Usar UTC para la fecha de generación
     const fechaFormateada = fechaActual.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: 'UTC'
     });
 
-    // CORRECCIÓN: Formatear fechas localmente
+    // ✅ CORRECCIÓN: Usar la función formatearFecha corregida
     let fechaSalida = 'No especificada';
-    if (movimiento.fecha_salida_formateada) {
-      fechaSalida = movimiento.fecha_salida_formateada;
-    } else if (movimiento.fecha_salida) {
-      const fecha = new Date(movimiento.fecha_salida);
-      fechaSalida = fecha.toLocaleDateString('es-ES');
+    if (movimiento.fecha_salida) {
+      fechaSalida = formatearFecha(movimiento.fecha_salida);
+    } else if (movimiento.fecha_salida_formateada) {
+      fechaSalida = formatearFecha(movimiento.fecha_salida_formateada);
     }
 
     let fechaRecepcion = 'Pendiente';
-    if (movimiento.fecha_recepcion_formateada) {
-      fechaRecepcion = movimiento.fecha_recepcion_formateada;
-    } else if (movimiento.fecha_recepcion) {
-      const fecha = new Date(movimiento.fecha_recepcion);
-      fechaRecepcion = fecha.toLocaleDateString('es-ES');
+    if (movimiento.fecha_recepcion) {
+      fechaRecepcion = formatearFecha(movimiento.fecha_recepcion);
+    } else if (movimiento.fecha_recepcion_formateada) {
+      fechaRecepcion = formatearFecha(movimiento.fecha_recepcion_formateada);
     }
 
     const tipoDocumento = movimiento.estado === 'recibido' ? 'ACTA DE RECEPCIÓN' : 'ACTA DE MOVIMIENTO';
@@ -1540,6 +1532,19 @@ async function generarDocumentoMovimiento(id) {
                   </div>
                   
                   <!-- Firmas -->
+                  <div class="signatures">
+                      <div class="signature-box">
+                          <div class="signature-line"></div>
+                          <div class="signature-name">${movimiento.responsable_envio_nombre || 'Responsable Envío'}</div>
+                          <div class="signature-role">Responsable de Envío</div>
+                      </div>
+                      <div class="signature-box">
+                          <div class="signature-line"></div>
+                          <div class="signature-name">${movimiento.responsable_recepcion_nombre || 'Responsable Recepción'}</div>
+                          <div class="signature-role">Responsable de Recepción</div>
+                      </div>
+                  </div>
+              </div>
 
               <!-- Footer -->
               <div class="footer">
@@ -1550,7 +1555,7 @@ async function generarDocumentoMovimiento(id) {
                       </div>
                       <div class="footer-item">
                           <div class="label">Hora de generación</div>
-                          <div class="value">${fechaActual.toLocaleTimeString('es-ES')}</div>
+                          <div class="value">${fechaActual.toLocaleTimeString('es-ES', { timeZone: 'UTC' })}</div>
                       </div>
                       <div class="footer-item">
                           <div class="label">Estado del movimiento</div>
@@ -1707,7 +1712,6 @@ function cerrarModalDetalles() {
 // Hacer funciones disponibles globalmente
 window.verDetallesMovimiento = verDetallesMovimiento;
 window.actualizarEstado = actualizarEstado;
-window.cancelarMovimiento = cancelarMovimiento;
 window.cerrarModalDetalles = cerrarModalDetalles;
 window.generarDocumentoMovimiento = generarDocumentoMovimiento;
 

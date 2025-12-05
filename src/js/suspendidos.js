@@ -745,7 +745,7 @@ async function reintegrarEquipo(e) {
     const id = elementosDOM.equipoIdReintegrar?.value;
     const observaciones = document.getElementById('observaciones-reintegro')?.value.trim() || '';
     const realizadoPor = document.getElementById('realizado-por-reintegro')?.value.trim() || '';
-    const fechaReintegro = document.getElementById('fecha-reintegro-real')?.value;
+    const fechaReintegroInput = document.getElementById('fecha-reintegro-real')?.value;
 
     if (!id) {
         mostrarError('ID de equipo no válido');
@@ -763,7 +763,7 @@ async function reintegrarEquipo(e) {
         return;
     }
 
-    if (!fechaReintegro) {
+    if (!fechaReintegroInput) {
         mostrarError('Por favor seleccione la fecha de reintegro real');
         return;
     }
@@ -771,6 +771,7 @@ async function reintegrarEquipo(e) {
     try {
         mostrarLoading(true);
 
+        // ✅ CORRECCIÓN: Usar fechaReintegroInput directamente (ya viene en YYYY-MM-DD)
         const response = await fetch(`${API_REINTEGRAR}/${id}/reintegrar`, {
             method: 'PUT',
             headers: {
@@ -779,7 +780,7 @@ async function reintegrarEquipo(e) {
             body: JSON.stringify({
                 observaciones_reintegro: observaciones,
                 realizado_por_reintegro: realizadoPor,
-                fecha_reintegro_real: fechaReintegro
+                fecha_reintegro_real: fechaReintegroInput // ✅ Ya está en formato correcto
             })
         });
 
@@ -811,6 +812,67 @@ async function reintegrarEquipo(e) {
         console.error('Error al reintegrar equipo:', err);
         mostrarLoading(false);
         mostrarError(`Error al reintegrar equipo: ${err.message}`);
+    }
+}
+
+// ✅ ACTUALIZAR: Configurar fecha por defecto en modal de reintegración
+async function mostrarModalReintegrar(id) {
+    try {
+        mostrarLoading(true);
+
+        // Buscar el equipo en los datos ya cargados
+        const equipo = equiposFiltrados.find(e => e.id == id);
+
+        if (!equipo) {
+            throw new Error('Equipo no encontrado');
+        }
+
+        // Configurar información en el modal
+        if (elementosDOM.equipoIdReintegrar) {
+            elementosDOM.equipoIdReintegrar.value = id;
+        }
+
+        // Información del equipo
+        const infoEquipo = document.getElementById('info-equipo-reintegrar');
+        if (infoEquipo) {
+            infoEquipo.innerHTML = `
+                <p><strong>Nombre:</strong> ${equipo.nombre || '-'}</p>
+                <p><strong>Código:</strong> ${equipo.codigo_interno || '-'}</p>
+                <p><strong>Ubicación:</strong> ${equipo.ubicacion === 'puesto'
+                    ? `Puesto: ${equipo.puesto_codigo || '-'}`
+                    : `Área: ${equipo.area_nombre || '-'}`}</p>
+                <p><strong>Responsable:</strong> ${equipo.responsable_nombre || '-'}</p>
+                <p><strong>Sede:</strong> ${equipo.sede_nombre || '-'}</p>
+            `;
+        }
+
+        // Información de suspensión
+        const motivoOriginal = document.getElementById('motivo-original');
+        if (motivoOriginal) motivoOriginal.textContent = equipo.motivo || 'No especificado';
+
+        const fechaSuspension = document.getElementById('fecha-suspension-original');
+        if (fechaSuspension) fechaSuspension.textContent = formatearFecha(equipo.fecha_suspension);
+
+        const fechaEstimada = document.getElementById('fecha-estimada-reintegro');
+        if (fechaEstimada) fechaEstimada.textContent = formatearFecha(equipo.fecha_reintegro_estimada);
+
+        // ✅ CORRECCIÓN: Configurar fecha de reintegro real (por defecto hoy en YYYY-MM-DD)
+        const fechaReintegro = document.getElementById('fecha-reintegro-real');
+        if (fechaReintegro) {
+            fechaReintegro.value = obtenerFechaHoyISO(); // ✅ Usar función auxiliar
+        }
+
+        // Mostrar modal
+        if (elementosDOM.modalReintegrar) {
+            elementosDOM.modalReintegrar.classList.remove('hidden');
+        }
+
+        mostrarLoading(false);
+
+    } catch (err) {
+        console.error('Error al cargar datos para reintegrar:', err);
+        mostrarLoading(false);
+        mostrarError('Error al cargar datos del equipo: ' + err.message);
     }
 }
 
@@ -1207,20 +1269,64 @@ function determinarEstadoReintegro(equipo) {
     }
 }
 
+// ✅ FUNCIÓN CORREGIDA: Formatear fecha sin problemas de zona horaria
 function formatearFecha(fechaString) {
     if (!fechaString) return 'No especificada';
 
     try {
+        // Si ya es una fecha formateada como YYYY-MM-DD, usarla directamente
+        if (fechaString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = fechaString.split('-');
+            return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+        }
+        
+        // Si viene con hora, extraer solo la parte de la fecha
         const fecha = new Date(fechaString);
-        if (isNaN(fecha.getTime())) return 'Fecha inválida';
+        
+        // Ajustar para evitar problemas de zona horaria
+        const fechaLocal = new Date(
+            fecha.getUTCFullYear(),
+            fecha.getUTCMonth(),
+            fecha.getUTCDate()
+        );
+        
+        if (isNaN(fechaLocal.getTime())) return 'Fecha inválida';
 
-        return fecha.toLocaleDateString('es-ES', {
+        return fechaLocal.toLocaleDateString('es-ES', {
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric'
+            year: 'numeric',
+            timeZone: 'UTC' // ✅ Forzar UTC para evitar ajustes
         });
     } catch (e) {
+        console.warn('Error formateando fecha:', fechaString, e);
         return 'Fecha inválida';
+    }
+}
+
+// ✅ FUNCIÓN AUXILIAR: Obtener fecha actual en formato ISO (YYYY-MM-DD)
+function obtenerFechaHoyISO() {
+    const hoy = new Date();
+    const año = hoy.getFullYear();
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    return `${año}-${mes}-${dia}`;
+}
+
+// ✅ FUNCIÓN NUEVA: Convertir fecha a formato ISO (sin hora)
+function fechaToISO(fecha) {
+    if (!fecha) return null;
+    
+    try {
+        // Si ya está en formato YYYY-MM-DD, devolverlo
+        if (fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            return fecha;
+        }
+        
+        const date = new Date(fecha);
+        return date.toISOString().split('T')[0];
+    } catch (e) {
+        return null;
     }
 }
 
@@ -1228,14 +1334,27 @@ function calcularDiasTranscurridos(fechaString) {
     if (!fechaString) return 0;
 
     try {
-        const fecha = new Date(fechaString);
+        // Si la fecha viene en formato YYYY-MM-DD, convertirla directamente
+        let fecha;
+        if (fechaString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = fechaString.split('-');
+            fecha = new Date(year, month - 1, day);
+        } else {
+            fecha = new Date(fechaString);
+        }
+        
         const hoy = new Date();
-
+        
+        // Resetear horas para comparar solo fechas
+        fecha.setHours(0, 0, 0, 0);
+        hoy.setHours(0, 0, 0, 0);
+        
         if (isNaN(fecha.getTime())) return 0;
 
-        const diferencia = hoy - fecha;
+        const diferencia = hoy.getTime() - fecha.getTime();
         return Math.floor(diferencia / (1000 * 60 * 60 * 24));
     } catch (e) {
+        console.warn('Error calculando días transcurridos:', fechaString, e);
         return 0;
     }
 }
