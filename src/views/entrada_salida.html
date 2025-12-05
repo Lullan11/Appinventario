@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Historial - Inventario</title>
+    <title>Movimientos de Equipos - Inventario</title>
     <link href="../../dist/output.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -14,251 +14,247 @@
     <!-- Favicon para modo oscuro -->
     <link rel="icon" href="../assets/faviWhite.ico" media="(prefers-color-scheme: dark)">
 
-    <!-- Fuente moderna (Google Fonts) -->
+    <!-- Fuente Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
+        body,
+        button,
+        input,
+        textarea,
+        select,
+        table,
+        th,
+        td,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        p,
+        a,
+        span {
+            font-family: 'Poppins', sans-serif !important;
         }
 
-        .card {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 20px;
+        /* Estilos específicos para movimientos */
+        .tab-movimientos {
+            transition: all 0.3s ease;
         }
 
-        .btn-primary {
-            background-color: #639A33;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            border: none;
-            cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.3s;
+        .tab-movimientos.active {
+            background-color: #639A33 !important;
+            color: white !important;
+            border-color: #639A33 !important;
         }
 
-        .btn-primary:hover {
-            background-color: #4d7a28;
-        }
-
-        .btn-secondary {
-            background-color: #f1f5f9;
-            color: #0F172A;
-            padding: 10px 20px;
-            border-radius: 5px;
-            border: 1px solid #cbd5e1;
-            cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.3s;
-        }
-
-        .btn-secondary:hover {
-            background-color: #e2e8f0;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: #0F172A;
-        }
-
-        .form-input,
-        .form-select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #cbd5e1;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        .form-input:focus,
-        .form-select:focus {
-            outline: none;
-            border-color: #639A33;
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        .table th,
-        .table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .table th {
-            background-color: #f8fafc;
-            font-weight: 600;
-            color: #0F172A;
-        }
-
-        .table tr:hover {
-            background-color: #f8fafc;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .badge-success {
-            background-color: #dcfce7;
-            color: #166534;
-        }
-
-        .badge-warning {
+        .badge-pendiente {
             background-color: #fef3c7;
             color: #92400e;
         }
 
-        .badge-error {
+        .badge-enviado {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-recibido {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-cancelado {
             background-color: #fee2e2;
             color: #991b1b;
         }
 
-        .tabs {
-            display: flex;
-            border-bottom: 1px solid #cbd5e1;
-            margin-bottom: 20px;
+        /* Animaciones para el módulo de movimientos */
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
 
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            font-weight: 500;
-            border-bottom: 2px solid transparent;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .tab.active {
-            border-bottom-color: #639A33;
-            color: #639A33;
+        .animate-slide-in {
+            animation: slide-in 0.3s ease-out;
         }
 
-        .tab-content {
-            display: none;
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
         }
 
-        .tab-content.active {
-            display: block;
+        /* Estilos para skeleton */
+        .skeleton-row {
+            background: linear-gradient(90deg,
+                    #f5f5f5 25%,
+                    #e8e8e8 50%,
+                    #f5f5f5 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
         }
 
-        .search-container {
-            display: flex;
-            margin-bottom: 20px;
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
         }
 
-        .search-input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #cbd5e1;
-            border-radius: 5px 0 0 5px;
-            font-size: 14px;
-        }
-
-        .search-button {
-            background-color: #639A33;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 0 5px 5px 0;
-            cursor: pointer;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .equipment-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 15px;
-            background-color: white;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-
-        .equipment-card h3 {
-            margin-top: 0;
-            color: #0F172A;
-        }
-
-        .equipment-card p {
-            margin: 5px 0;
-            color: #64748b;
-        }
-
-        .equipment-card .actions {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background-color: white;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 600px;
+        /* Estilos para formularios */
+        .form-section {
+            background: #f8fafc;
+            border-radius: 10px;
             padding: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 20px;
+            border-left: 4px solid #639A33;
         }
 
-        .modal-title {
-            font-size: 1.25rem;
-            font-weight: 600;
+        .form-section h3 {
             color: #0F172A;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
         }
 
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #64748b;
+        /* Modal de detalles */
+        .modal-detalles {
+            background: rgba(0, 0, 0, 0.5);
         }
 
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
+        .modal-content-detalles {
+            background: white;
+            border-radius: 12px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 3px solid #0F172A;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .table-responsive {
+                overflow-x: auto;
+            }
+
+            .action-buttons {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* Estilos adicionales para mejor presentación */
+        .equipo-card {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 3px solid #639A33;
+        }
+
+        .equipo-card:hover {
+            background: #f1f5f9;
+        }
+
+        .equipo-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .equipo-info p {
+            margin: 0;
+        }
+
+        /* Mejoras para el select de equipos */
+        #equipo-select option {
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        /* Animaciones mejoradas */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        /* Estilos para estados */
+        .badge-pendiente {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #f59e0b;
+        }
+
+        .badge-enviado {
+            background-color: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+        }
+
+        .badge-recibido {
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #10b981;
+        }
+
+        .badge-cancelado {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+
+        /* Mejoras responsive */
+        @media (max-width: 640px) {
+            .equipo-info {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .action-buttons button {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -266,9 +262,10 @@
 <body class="bg-white text-[#0F172A] min-h-screen flex">
     <div class="flex flex-1 h-screen overflow-hidden">
 
-        <!-- Sidebar -->
+
         <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
             <div>
+                <!-- Header -->
                 <div class="flex items-center gap-2 mb-6">
                     <div class="bg-[#639A33] p-2 rounded-md">
                         <i class="fas fa-boxes-stacked text-white text-lg"></i>
@@ -278,6 +275,8 @@
                         <p class="sidebar-subtitle text-white/70">Sistema de gestión</p>
                     </div>
                 </div>
+
+                <!-- Navigation -->
                 <nav class="space-y-2">
                     <a href="#" data-view="dashboard.html"
                         class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
@@ -337,7 +336,7 @@
                     </a>
                 </nav>
             </div>
-            <!-- Footer -->
+
             <div class="text-sm mt-6 bg-[#0F172A]/50 p-3 rounded-lg">
                 <div class="flex items-center gap-2 mb-3">
                     <div class="bg-[#639A33] p-1.5 rounded-full">
@@ -363,523 +362,378 @@
             </div>
         </aside>
 
+
         <!-- Contenido principal -->
         <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
             <div>
-                <!-- Título y Logo -->
+                <!-- Encabezado -->
                 <header class="mb-6 flex items-center justify-between">
-                    <h1 class="text-4xl font-semibold text-[#0F172A]">Entrada y salidas de equipos</h1>
+                    <div>
+                        <h1 class="text-4xl font-semibold text-[#0F172A]">Movimientos de Equipos</h1>
+                        <p class="text-gray-600 mt-2">Gestión de entradas, salidas y transferencias de equipos médicos
+                        </p>
+                    </div>
                     <div class="flex items-center gap-4">
                         <img src="../assets/logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
                         <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
                     </div>
                 </header>
 
-                <!-- Pestañas para Equipos Médicos y de Cómputo -->
-                <div class="tabs">
-                    <div class="tab active" data-tab="medicos">Equipos Médicos</div>
-                    <div class="tab" data-tab="computo">Equipos de Cómputo</div>
-                </div>
-
-                <!-- Contenido de Equipos Médicos -->
-                <div id="medicos" class="tab-content active">
-                    <div class="card">
-                        <h2 class="text-xl font-semibold mb-4">Gestión de Equipos Médicos</h2>
-
-                        <!-- Filtros y búsqueda -->
-                        <div class="search-container">
-                            <input type="text" class="search-input" placeholder="Buscar equipos médicos...">
-                            <button class="search-button">
-                                <i class="fas fa-search"></i>
-                            </button>
-                        </div>
-
-                        <!-- Botones de acción -->
-                        <div class="flex gap-3 mb-4">
-                            <button class="btn-primary" onclick="openModal('registrar-medico')">
-                                <i class="fas fa-plus"></i> Registrar Entrada
-                            </button>
-                            <button class="btn-secondary" onclick="openModal('salida-medico')">
-                                <i class="fas fa-right-from-bracket"></i> Registrar Salida
-                            </button>
-                        </div>
-
-                        <!-- Lista de equipos médicos -->
-                        <div class="grid" id="lista-equipos-medicos">
-                            <!-- Los equipos se cargarán dinámicamente aquí -->
-                        </div>
+                <!-- Pestañas de Navegación -->
+                <div class="mb-6">
+                    <div class="flex border-b border-gray-200">
+                        <button id="tab-crear"
+                            class="tab-movimientos py-3 px-6 border-b-2 border-transparent font-medium text-gray-600 hover:text-[#639A33] hover:border-[#639A33] active">
+                            <i class="fas fa-plus-circle mr-2"></i>Crear Movimiento
+                        </button>
+                        <button id="tab-listar"
+                            class="tab-movimientos py-3 px-6 border-b-2 border-transparent font-medium text-gray-600 hover:text-[#639A33] hover:border-[#639A33]">
+                            <i class="fas fa-list mr-2"></i>Listar Movimientos
+                        </button>
+                        <button id="tab-pendientes"
+                            class="tab-movimientos py-3 px-6 border-b-2 border-transparent font-medium text-gray-600 hover:text-[#639A33] hover:border-[#639A33]">
+                            <i class="fas fa-clock mr-2"></i>Pendientes
+                            <span id="pending-count"
+                                class="badge-pendiente ml-2 px-2 py-1 rounded-full text-xs font-bold">0</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Contenido de Equipos de Cómputo -->
-                <div id="computo" class="tab-content">
-                    <div class="card">
-                        <h2 class="text-xl font-semibold mb-4">Gestión de Equipos de Cómputo</h2>
+                <!-- Contenido de las pestañas -->
+                <div id="contenido-tabs">
+                    <!-- Pestaña: Crear Movimiento -->
+                    <div id="contenido-crear" class="animate-fade-in">
+                        <section class="max-w-7xl mx-auto bg-white p-6 border-2 border-[#0F172A] rounded-xl shadow-md">
+                            <h2 class="text-2xl font-semibold text-[#0F172A] mb-6">Registrar Nuevo Movimiento</h2>
 
-                        <!-- Filtros y búsqueda -->
-                        <div class="search-container">
-                            <input type="text" class="search-input" placeholder="Buscar equipos de cómputo...">
-                            <button class="search-button">
-                                <i class="fas fa-search"></i>
-                            </button>
-                        </div>
+                            <form id="movimiento-form" class="space-y-6">
+                                <!-- Información Básica -->
+                                <div class="form-section">
+                                    <h3><i class="fas fa-info-circle mr-2"></i>Información Básica</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <!-- Tipo de Movimiento -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Tipo de Movimiento <span class="text-red-500">*</span>
+                                            </label>
+                                            <select id="tipo-movimiento-select" name="id_tipo_movimiento" required
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                                <option value="">Seleccionar tipo</option>
+                                            </select>
+                                        </div>
 
-                        <!-- Botones de acción -->
-                        <div class="flex gap-3 mb-4">
-                            <button class="btn-primary" onclick="openModal('registrar-computo')">
-                                <i class="fas fa-plus"></i> Registrar Entrada
-                            </button>
-                            <button class="btn-secondary" onclick="openModal('salida-computo')">
-                                <i class="fas fa-right-from-bracket"></i> Registrar Salida
-                            </button>
-                        </div>
+                                        <!-- Fecha de Salida -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Fecha de Salida <span class="text-red-500">*</span>
+                                            </label>
+                                            <input type="date" name="fecha_salida" required
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <!-- Lista de equipos de cómputo -->
-                        <div class="grid" id="lista-equipos-computo">
-                            <!-- Los equipos se cargarán dinámicamente aquí -->
-                        </div>
+                                <!-- Origen del Equipo -->
+                                <div class="form-section">
+                                    <h3><i class="fas fa-map-marker-alt mr-2"></i>Origen</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <!-- Sede Origen -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Sede Origen <span class="text-red-500">*</span>
+                                            </label>
+                                            <select id="sede-select" name="id_sede_origen" required
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                                <option value="">Seleccionar sede</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Equipo -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Equipo <span class="text-red-500">*</span>
+                                            </label>
+                                            <select id="equipo-select" name="id_equipo" required disabled
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                                <option value="">Primero seleccione una sede</option>
+                                            </select>
+                                            <div id="equipo-details" class="hidden mt-2 p-3 bg-gray-50 rounded text-sm">
+                                            </div>
+                                        </div>
+
+                                        <!-- Responsable Envío -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Responsable de Envío <span class="text-red-500">*</span>
+                                            </label>
+                                            <select id="responsable-envio-select" name="id_responsable_envio" required
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                                <option value="">Seleccionar responsable</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Condición del Equipo -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Condición del
+                                                Equipo</label>
+                                            <select name="condicion_salida"
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                                <option value="buena">Buena</option>
+                                                <option value="regular">Regular</option>
+                                                <option value="mala">Mala</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Destino -->
+                                <div class="form-section">
+                                    <h3><i class="fas fa-map-marked-alt mr-2"></i>Destino</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <!-- Sede Destino -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Sede Destino <span class="text-red-500">*</span>
+                                            </label>
+                                            <select id="sede-destino-select" name="id_sede_destino" required
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                                <option value="">Seleccionar sede destino</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Responsable Recepción -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Responsable de Recepción <span class="text-red-500">*</span>
+                                            </label>
+                                            <select id="responsable-recepcion-select" name="id_responsable_recepcion"
+                                                required
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                                <option value="">Seleccionar responsable</option>
+                                            </select>
+                                            <p class="text-xs text-gray-500 mt-1">Debe seleccionar un responsable para
+                                                la recepción</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Información Adicional -->
+                                <div class="form-section">
+                                    <h3><i class="fas fa-clipboard-list mr-2"></i>Información Adicional</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <!-- Transporte -->
+                                        <div>
+                                            <label
+                                                class="block text-sm font-medium text-gray-700 mb-1">Transporte</label>
+                                            <select name="transporte"
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                                <option value="interno">Interno</option>
+                                                <option value="proveedor">Proveedor</option>
+                                                <option value="especial">Especial</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Embalaje -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Embalaje</label>
+                                            <select name="embalaje"
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]">
+                                                <option value="original">Original</option>
+                                                <option value="adecuado">Adecuado</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Motivo -->
+                                        <div class="md:col-span-2">
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Motivo <span class="text-red-500">*</span>
+                                            </label>
+                                            <textarea name="motivo" rows="3" required
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]"
+                                                placeholder="Describa el motivo del movimiento..."></textarea>
+                                        </div>
+
+                                        <!-- Accesorios -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Accesorios
+                                                Entregados</label>
+                                            <textarea name="accesorios" rows="2"
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]"
+                                                placeholder="Lista de accesorios incluidos..."></textarea>
+                                        </div>
+
+                                        <!-- Compromiso de Retorno -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Compromiso de
+                                                Retorno</label>
+                                            <textarea name="compromiso_retorno" rows="2"
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]"
+                                                placeholder="Compromiso de retorno del equipo..."></textarea>
+                                        </div>
+
+                                        <!-- Observaciones -->
+                                        <div class="md:col-span-2">
+                                            <label
+                                                class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+                                            <textarea name="observaciones" rows="2"
+                                                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-[#639A33] focus:border-[#639A33]"
+                                                placeholder="Observaciones adicionales..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Botones del Formulario -->
+                                <div class="flex justify-end gap-3 pt-4 border-t">
+                                    <button type="reset"
+                                        class="px-6 py-2 bg-gray-200 text-gray-800 font-medium rounded hover:bg-gray-300 transition flex items-center gap-2">
+                                        <i class="fas fa-redo"></i> Limpiar
+                                    </button>
+                                    <button type="submit"
+                                        class="px-6 py-2 bg-[#639A33] text-white font-medium rounded hover:bg-green-700 transition flex items-center gap-2">
+                                        <i class="fas fa-save"></i> Registrar Movimiento
+                                    </button>
+                                </div>
+                            </form>
+                        </section>
                     </div>
-                </div>
 
-                <!-- Historial de movimientos -->
-                <div class="card mt-6">
-                    <h2 class="text-xl font-semibold mb-4">Historial de Movimientos</h2>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Tipo</th>
-                                <th>Equipo</th>
-                                <th>Responsable</th>
-                                <th>Ubicación</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="historial-movimientos">
-                            <!-- Los registros se cargarán dinámicamente aquí -->
-                        </tbody>
-                    </table>
+                    <!-- Pestaña: Listar Movimientos -->
+                    <div id="contenido-listar" class="hidden animate-fade-in">
+                        <section class="max-w-7xl mx-auto bg-white p-6 border-2 border-[#0F172A] rounded-xl shadow-md">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-semibold text-[#0F172A]">Movimientos Registrados</h2>
+                                <div class="flex gap-2">
+                                    <select id="filter-estado"
+                                        class="border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                                        <option value="">Todos los estados</option>
+                                        <option value="pendiente">Pendiente</option>
+                                        <option value="enviado">Enviado</option>
+                                        <option value="recibido">Recibido</option>
+                                        <option value="cancelado">Cancelado</option>
+                                    </select>
+                                    <button id="btn-refresh"
+                                        class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">
+                                        <i class="fas fa-redo"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Tabla de Movimientos -->
+                            <div class="overflow-x-auto table-responsive">
+                                <table class="min-w-full text-left border border-[#0F172A]">
+                                    <thead class="bg-[#0F172A] text-white">
+                                        <tr>
+                                            <th class="px-4 py-3 border border-[#0F172A]">Código</th>
+                                            <th class="px-4 py-3 border border-[#0F172A]">Equipo</th>
+                                            <th class="px-4 py-3 border border-[#0F172A]">Origen</th>
+                                            <th class="px-4 py-3 border border-[#0F172A]">Destino</th>
+                                            <th class="px-4 py-3 border border-[#0F172A]">Fecha Salida</th>
+                                            <th class="px-4 py-3 border border-[#0F172A]">Estado</th>
+                                            <th class="px-4 py-3 border border-[#0F172A] text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="movimientos-table-body">
+                                        <!-- Los movimientos se cargarán aquí dinámicamente -->
+                                        <tr>
+                                            <td colspan="7" class="text-center py-8 text-gray-500">
+                                                <div class="animate-pulse">
+                                                    <div class="h-4 bg-gray-200 rounded w-32 mx-auto mb-2"></div>
+                                                    <p>Cargando movimientos...</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Paginación -->
+                            <div
+                                class="flex flex-col sm:flex-row items-center justify-between mt-4 px-4 py-3 bg-white border border-gray-200 rounded-lg">
+                                <div class="flex items-center space-x-4 mb-3 sm:mb-0">
+                                    <span id="info-paginacion" class="text-sm text-gray-700">Mostrando 0 de 0
+                                        movimientos</span>
+                                    <select id="items-por-pagina"
+                                        class="text-sm border border-gray-300 rounded px-2 py-1">
+                                        <option value="10">10 por página</option>
+                                        <option value="20" selected>20 por página</option>
+                                        <option value="50">50 por página</option>
+                                        <option value="100">100 por página</option>
+                                    </select>
+                                </div>
+
+                                <div class="flex items-center space-x-2">
+                                    <button id="btn-paginacion-anterior"
+                                        class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <i class="fas fa-chevron-left"></i> Anterior
+                                    </button>
+
+                                    <div id="numeros-paginacion" class="flex items-center space-x-1"></div>
+
+                                    <button id="btn-paginacion-siguiente"
+                                        class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Siguiente <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Pestaña: Pendientes -->
+                    <div id="contenido-pendientes" class="hidden animate-fade-in">
+                        <section class="max-w-7xl mx-auto bg-white p-6 border-2 border-[#0F172A] rounded-xl shadow-md">
+                            <div class="mb-6">
+                                <h2 class="text-2xl font-semibold text-[#0F172A]">Movimientos Pendientes</h2>
+                                <p class="text-gray-600">Equipos que están pendientes por ser recibidos</p>
+                            </div>
+
+                            <div id="pendientes-content" class="space-y-4">
+                                <!-- Los movimientos pendientes se cargarán aquí dinámicamente -->
+                                <div class="text-center py-8 text-gray-500">
+                                    <div class="animate-pulse">
+                                        <div class="h-8 bg-gray-200 rounded w-48 mx-auto mb-4"></div>
+                                        <p>Cargando movimientos pendientes...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
                 </div>
             </div>
 
-            <!-- Modal para registrar entrada de equipo médico -->
-            <div id="registrar-medico" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Registrar Entrada de Equipo Médico</h3>
-                        <button class="close-modal" onclick="closeModal('registrar-medico')">&times;</button>
-                    </div>
-                    <form id="form-entrada-medico">
-                        <div class="form-group">
-                            <label class="form-label">Tipo de Equipo</label>
-                            <select class="form-select" required>
-                                <option value="">Seleccionar tipo</option>
-                                <option value="monitor">Monitor de signos vitales</option>
-                                <option value="bomba">Bomba de infusión</option>
-                                <option value="electrocardiografo">Electrocardiógrafo</option>
-                                <option value="ventilador">Ventilador</option>
-                                <option value="desfibrilador">Desfibrilador</option>
-                                <option value="otro">Otro</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Modelo</label>
-                            <input type="text" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Número de Serie</label>
-                            <input type="text" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Ubicación</label>
-                            <select class="form-select" required>
-                                <option value="">Seleccionar ubicación</option>
-                                <option value="urgencias">Urgencias</option>
-                                <option value="uci">UCI</option>
-                                <option value="quirófano">Quirófano</option>
-                                <option value="hospitalizacion">Hospitalización</option>
-                                <option value="almacen">Almacén</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Estado</label>
-                            <select class="form-select" required>
-                                <option value="activo">Activo</option>
-                                <option value="mantenimiento">En mantenimiento</option>
-                                <option value="baja">Dado de baja</option>
-                            </select>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn-secondary"
-                                onclick="closeModal('registrar-medico')">Cancelar</button>
-                            <button type="submit" class="btn-primary">Registrar Entrada</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Modal para registrar salida de equipo médico -->
-            <div id="salida-medico" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Registrar Salida de Equipo Médico</h3>
-                        <button class="close-modal" onclick="closeModal('salida-medico')">&times;</button>
-                    </div>
-                    <form id="form-salida-medico">
-                        <div class="form-group">
-                            <label class="form-label">Seleccionar Equipo</label>
-                            <select class="form-select" required>
-                                <option value="">Seleccionar equipo</option>
-                                <!-- Las opciones se cargarán dinámicamente -->
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Motivo de Salida</label>
-                            <select class="form-select" required>
-                                <option value="">Seleccionar motivo</option>
-                                <option value="mantenimiento">Mantenimiento</option>
-                                <option value="prestamo">Préstamo</option>
-                                <option value="reparacion">Reparación externa</option>
-                                <option value="baja">Baja definitiva</option>
-                                <option value="otro">Otro</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Responsable</label>
-                            <input type="text" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Observaciones</label>
-                            <textarea class="form-input" rows="3"></textarea>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn-secondary"
-                                onclick="closeModal('salida-medico')">Cancelar</button>
-                            <button type="submit" class="btn-primary">Registrar Salida</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Modal para registrar entrada de equipo de cómputo -->
-            <div id="registrar-computo" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Registrar Entrada de Equipo de Cómputo</h3>
-                        <button class="close-modal" onclick="closeModal('registrar-computo')">&times;</button>
-                    </div>
-                    <form id="form-entrada-computo">
-                        <div class="form-group">
-                            <label class="form-label">Tipo de Equipo</label>
-                            <select class="form-select" required>
-                                <option value="">Seleccionar tipo</option>
-                                <option value="laptop">Laptop</option>
-                                <option value="desktop">Computadora de escritorio</option>
-                                <option value="monitor">Monitor</option>
-                                <option value="impresora">Impresora</option>
-                                <option value="tablet">Tablet</option>
-                                <option value="servidor">Servidor</option>
-                                <option value="otro">Otro</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Marca</label>
-                            <input type="text" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Modelo</label>
-                            <input type="text" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Número de Serie</label>
-                            <input type="text" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Ubicación</label>
-                            <select class="form-select" required>
-                                <option value="">Seleccionar ubicación</option>
-                                <option value="administracion">Administración</option>
-                                <option value="urgencias">Urgencias</option>
-                                <option value="enfermeria">Enfermería</option>
-                                <option value="consultorios">Consultorios</option>
-                                <option value="almacen">Almacén</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Estado</label>
-                            <select class="form-select" required>
-                                <option value="activo">Activo</option>
-                                <option value="mantenimiento">En mantenimiento</option>
-                                <option value="baja">Dado de baja</option>
-                            </select>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn-secondary"
-                                onclick="closeModal('registrar-computo')">Cancelar</button>
-                            <button type="submit" class="btn-primary">Registrar Entrada</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Modal para registrar salida de equipo de cómputo -->
-            <div id="salida-computo" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Registrar Salida de Equipo de Cómputo</h3>
-                        <button class="close-modal" onclick="closeModal('salida-computo')">&times;</button>
-                    </div>
-                    <form id="form-salida-computo">
-                        <div class="form-group">
-                            <label class="form-label">Seleccionar Equipo</label>
-                            <select class="form-select" required>
-                                <option value="">Seleccionar equipo</option>
-                                <!-- Las opciones se cargarán dinámicamente -->
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Motivo de Salida</label>
-                            <select class="form-select" required>
-                                <option value="">Seleccionar motivo</option>
-                                <option value="mantenimiento">Mantenimiento</option>
-                                <option value="prestamo">Préstamo</option>
-                                <option value="reparacion">Reparación externa</option>
-                                <option value="baja">Baja definitiva</option>
-                                <option value="otro">Otro</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Responsable</label>
-                            <input type="text" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Observaciones</label>
-                            <textarea class="form-input" rows="3"></textarea>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn-secondary"
-                                onclick="closeModal('salida-computo')">Cancelar</button>
-                            <button type="submit" class="btn-primary">Registrar Salida</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
+            <!-- Footer -->
             <footer class="text-center mt-6 py-4 border-t border-gray-200">
-                <p class="text-sm text-[#0F172A] font-medium">Módulo de Entrada y salidas de equipos</p>
+                <p class="text-sm text-[#0F172A] font-medium">Módulo de Movimientos de Equipos</p>
             </footer>
         </main>
     </div>
 
+    <!-- Modal de Detalles -->
+    <div id="modal-detalles" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden modal-detalles">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="modal-content-detalles">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-[#0F172A]">Detalles del Movimiento</h3>
+                        <button onclick="cerrarModalDetalles()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div id="detalles-contenido" class="space-y-4">
+                        <!-- Los detalles se cargarán aquí dinámicamente -->
+                    </div>
+                    <div class="flex justify-end gap-2 pt-4 border-t">
+                        <button onclick="cerrarModalDetalles()">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="../js/auth.js"></script>
-    <!-- <script src="../js/navegacion.js"></script> -->
     <script src="../js/roles.js"></script>
-
-    <script>
-        // Datos de ejemplo para equipos médicos
-        const equiposMedicos = [
-            { id: 1, tipo: "Monitor de signos vitales", modelo: "MX450", serie: "MSV-001", ubicacion: "Urgencias", estado: "activo" },
-            { id: 2, tipo: "Bomba de infusión", modelo: "BI-200", serie: "BI-002", ubicacion: "UCI", estado: "activo" },
-            { id: 3, tipo: "Electrocardiógrafo", modelo: "ECG-100", serie: "ECG-003", ubicacion: "Consultorios", estado: "mantenimiento" },
-            { id: 4, tipo: "Ventilador", modelo: "VT-500", serie: "VT-004", ubicacion: "UCI", estado: "activo" },
-            { id: 5, tipo: "Desfibrilador", modelo: "DF-300", serie: "DF-005", ubicacion: "Urgencias", estado: "activo" }
-        ];
-
-        // Datos de ejemplo para equipos de cómputo
-        const equiposComputo = [
-            { id: 1, tipo: "Laptop", marca: "Dell", modelo: "Latitude 5420", serie: "LT-001", ubicacion: "Administración", estado: "activo" },
-            { id: 2, tipo: "Computadora de escritorio", marca: "HP", modelo: "EliteDesk 800", serie: "DT-002", ubicacion: "Enfermería", estado: "activo" },
-            { id: 3, tipo: "Monitor", marca: "Samsung", modelo: "S24F350", serie: "MN-003", ubicacion: "Consultorios", estado: "activo" },
-            { id: 4, tipo: "Impresora", marca: "HP", modelo: "LaserJet Pro", serie: "PR-004", ubicacion: "Administración", estado: "mantenimiento" },
-            { id: 5, tipo: "Tablet", marca: "Apple", modelo: "iPad Air", serie: "TB-005", ubicacion: "Urgencias", estado: "activo" }
-        ];
-
-        // Datos de ejemplo para historial
-        const historialMovimientos = [
-            { fecha: "2023-10-15", tipo: "Entrada", equipo: "Monitor de signos vitales MX450", responsable: "Dr. García", ubicacion: "Urgencias", estado: "activo" },
-            { fecha: "2023-10-14", tipo: "Salida", equipo: "Laptop Dell Latitude 5420", responsable: "Ing. Martínez", ubicacion: "Mantenimiento", estado: "reparacion" },
-            { fecha: "2023-10-12", tipo: "Entrada", equipo: "Bomba de infusión BI-200", responsable: "Enf. Rodríguez", ubicacion: "UCI", estado: "activo" },
-            { fecha: "2023-10-10", tipo: "Salida", equipo: "Impresora HP LaserJet Pro", responsable: "Téc. López", ubicacion: "Proveedor externo", estado: "mantenimiento" },
-            { fecha: "2023-10-08", tipo: "Entrada", equipo: "Tablet Apple iPad Air", responsable: "Dr. Hernández", ubicacion: "Urgencias", estado: "activo" }
-        ];
-
-        // Función para cargar equipos médicos
-        function cargarEquiposMedicos() {
-            const lista = document.getElementById('lista-equipos-medicos');
-            lista.innerHTML = '';
-
-            equiposMedicos.forEach(equipo => {
-                const estadoClass = equipo.estado === 'activo' ? 'badge-success' :
-                    equipo.estado === 'mantenimiento' ? 'badge-warning' : 'badge-error';
-
-                const estadoText = equipo.estado === 'activo' ? 'Activo' :
-                    equipo.estado === 'mantenimiento' ? 'En mantenimiento' : 'Dado de baja';
-
-                const card = document.createElement('div');
-                card.className = 'equipment-card';
-                card.innerHTML = `
-                    <h3>${equipo.tipo}</h3>
-                    <p><strong>Modelo:</strong> ${equipo.modelo}</p>
-                    <p><strong>Serie:</strong> ${equipo.serie}</p>
-                    <p><strong>Ubicación:</strong> ${equipo.ubicacion}</p>
-                    <p><strong>Estado:</strong> <span class="badge ${estadoClass}">${estadoText}</span></p>
-                    <div class="actions">
-                        <button class="btn-primary" onclick="registrarSalidaMedico(${equipo.id})">
-                            <i class="fas fa-right-from-bracket"></i> Salida
-                        </button>
-                        <button class="btn-secondary" onclick="verDetallesMedico(${equipo.id})">
-                            <i class="fas fa-eye"></i> Detalles
-                        </button>
-                    </div>
-                `;
-                lista.appendChild(card);
-            });
-        }
-
-        // Función para cargar equipos de cómputo
-        function cargarEquiposComputo() {
-            const lista = document.getElementById('lista-equipos-computo');
-            lista.innerHTML = '';
-
-            equiposComputo.forEach(equipo => {
-                const estadoClass = equipo.estado === 'activo' ? 'badge-success' :
-                    equipo.estado === 'mantenimiento' ? 'badge-warning' : 'badge-error';
-
-                const estadoText = equipo.estado === 'activo' ? 'Activo' :
-                    equipo.estado === 'mantenimiento' ? 'En mantenimiento' : 'Dado de baja';
-
-                const card = document.createElement('div');
-                card.className = 'equipment-card';
-                card.innerHTML = `
-                    <h3>${equipo.tipo}</h3>
-                    <p><strong>Marca:</strong> ${equipo.marca}</p>
-                    <p><strong>Modelo:</strong> ${equipo.modelo}</p>
-                    <p><strong>Serie:</strong> ${equipo.serie}</p>
-                    <p><strong>Ubicación:</strong> ${equipo.ubicacion}</p>
-                    <p><strong>Estado:</strong> <span class="badge ${estadoClass}">${estadoText}</span></p>
-                    <div class="actions">
-                        <button class="btn-primary" onclick="registrarSalidaComputo(${equipo.id})">
-                            <i class="fas fa-right-from-bracket"></i> Salida
-                        </button>
-                        <button class="btn-secondary" onclick="verDetallesComputo(${equipo.id})">
-                            <i class="fas fa-eye"></i> Detalles
-                        </button>
-                    </div>
-                `;
-                lista.appendChild(card);
-            });
-        }
-
-        // Función para cargar historial de movimientos
-        function cargarHistorialMovimientos() {
-            const tbody = document.getElementById('historial-movimientos');
-            tbody.innerHTML = '';
-
-            historialMovimientos.forEach(movimiento => {
-                const estadoClass = movimiento.estado === 'activo' ? 'badge-success' :
-                    movimiento.estado === 'reparacion' ? 'badge-warning' : 'badge-error';
-
-                const estadoText = movimiento.estado === 'activo' ? 'Activo' :
-                    movimiento.estado === 'reparacion' ? 'En reparación' : 'Dado de baja';
-
-                const row = document.createElement('tr');
-                row.innerHTML = `<
-                    <td>${movimiento.fecha}</td>
-                    <td>${movimiento.tipo}</td>
-                    <td>${movimiento.equipo}</td>
-                    <td>${movimiento.responsable}</td>
-                    <td>${movimiento.ubicacion}</td>
-                    <td><span class="badge ${estadoClass}">${estadoText}</span></td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        // Funciones para abrir y cerrar modales
-        function openModal(modalId) {
-            document.getElementById(modalId).style.display = 'flex';
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
-
-        // Funciones para registrar salida (ejemplo)
-        function registrarSalidaMedico(id) {
-            const equipo = equiposMedicos.find(e => e.id === id);
-            if (equipo) {
-                alert(`Registrando salida de: ${equipo.tipo} - ${equipo.modelo}`);
-                // Aquí se abriría el modal correspondiente con los datos precargados
-                openModal('salida-medico');
-            }
-        }
-
-        function registrarSalidaComputo(id) {
-            const equipo = equiposComputo.find(e => e.id === id);
-            if (equipo) {
-                alert(`Registrando salida de: ${equipo.tipo} - ${equipo.marca} ${equipo.modelo}`);
-                // Aquí se abriría el modal correspondiente con los datos precargados
-                openModal('salida-computo');
-            }
-        }
-
-        // Funciones para ver detalles (ejemplo)
-        function verDetallesMedico(id) {
-            const equipo = equiposMedicos.find(e => e.id === id);
-            if (equipo) {
-                alert(`Detalles de: ${equipo.tipo}\nModelo: ${equipo.modelo}\nSerie: ${equipo.serie}\nUbicación: ${equipo.ubicacion}\nEstado: ${equipo.estado}`);
-            }
-        }
-
-        function verDetallesComputo(id) {
-            const equipo = equiposComputo.find(e => e.id === id);
-            if (equipo) {
-                alert(`Detalles de: ${equipo.tipo}\nMarca: ${equipo.marca}\nModelo: ${equipo.modelo}\nSerie: ${equipo.serie}\nUbicación: ${equipo.ubicacion}\nEstado: ${equipo.estado}`);
-            }
-        }
-
-        // Inicialización cuando se carga la página
-        document.addEventListener('DOMContentLoaded', function () {
-            // Cargar datos iniciales
-            cargarEquiposMedicos();
-            cargarEquiposComputo();
-            cargarHistorialMovimientos();
-
-            // Configurar pestañas
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', function () {
-                    const tabId = this.getAttribute('data-tab');
-
-                    // Remover clase activa de todas las pestañas y contenidos
-                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-                    // Activar la pestaña y contenido seleccionado
-                    this.classList.add('active');
-                    document.getElementById(tabId).classList.add('active');
-                });
-            });
-
-            // Configurar formularios para prevenir envío
-            document.querySelectorAll('form').forEach(form => {
-                form.addEventListener('submit', function (e) {
-                    e.preventDefault();
-                    alert('Formulario enviado correctamente');
-                    closeModal(this.id.replace('form-', ''));
-                });
-            });
-
-            // Cerrar modales al hacer clic fuera del contenido
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.addEventListener('click', function (e) {
-                    if (e.target === this) {
-                        this.style.display = 'none';
-                    }
-                });
-            });
-        });
-    </script>
+    <script src="../js/movimientos.js"></script>
 </body>
 
 </html>

@@ -1218,8 +1218,8 @@ function crearModalSuspension() {
                                 <option value="">Seleccionar...</option>
                                 <option value="Mantenimiento">Mantenimiento</option>
                                 <option value="Reparación">Reparación</option>
-                                <option value="Sin_Uso">Sin uso</option>
-                                <option value="En_espera">En espera</option>
+                                <option value="Sin Uso">Sin uso</option>
+                                <option value="En espera">En espera</option>
                                 <option value="Otro">Otro</option>
                             </select>
                         </div>
