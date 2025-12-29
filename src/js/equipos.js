@@ -730,13 +730,20 @@ function actualizarEstadoBotonNotificaciones() {
 
 // ========================= FUNCIONES DE FILTRADO CON PAGINACIÓN =========================
 
+// ========================= FUNCIONES DE FILTRADO CON PAGINACIÓN =========================
+
 function cargarTiposEquipoEnFiltro() {
     const filtroTipo = document.getElementById('filtro-tipo');
     if (!filtroTipo) return;
 
     filtroTipo.innerHTML = '<option value="">Todos los tipos</option>';
     
-    tiposEquipoDisponibles.forEach(tipo => {
+    // Ordenar alfabéticamente los tipos de equipo por su nombre
+    const tiposOrdenados = [...tiposEquipoDisponibles].sort((a, b) => {
+        return a.nombre.localeCompare(b.nombre);
+    });
+    
+    tiposOrdenados.forEach(tipo => {
         const option = document.createElement('option');
         option.value = tipo.nombre;
         option.textContent = tipo.nombre;
