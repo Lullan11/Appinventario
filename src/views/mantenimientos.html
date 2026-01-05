@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mantenimientos - Inventario</title>
+    <link href="../../dist/output.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Favicon para modo claro -->
+    <link rel="icon" href="../assets/faviBlack.ico" media="(prefers-color-scheme: light)">
+
+    <!-- Favicon para modo oscuro -->
+    <link rel="icon" href="../assets/faviWhite.ico" media="(prefers-color-scheme: dark)">
+
+    <!-- Fuente moderna (Google Fonts: Poppins) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body,
+        button,
+        input,
+        textarea,
+        select,
+        table,
+        th,
+        td,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        p,
+        a,
+        span {
+            font-family: 'Poppins', sans-serif !important;
+        }
+
+        /* Animaciones para el módulo */
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes progress {
+            0% {
+                width: 100%;
+            }
+
+            100% {
+                width: 0%;
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .animate-slide-in {
+            animation: slide-in 0.3s ease-out;
+        }
+
+        .animate-progress {
+            animation: progress 4s linear forwards;
+        }
+
+        .animate-pulse {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* Estilos para skeleton */
+        .skeleton-row {
+            background: linear-gradient(90deg,
+                    #f5f5f5 25%,
+                    #e8e8e8 50%,
+                    #f5f5f5 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        /* Estilos para el loading en esquina */
+        .loading-mantenimientos {
+            backdrop-filter: blur(3px);
+            border: 1px solid rgba(229, 231, 235, 0.8);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Modal de mantenimiento */
+        .modal-mantenimiento {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content-mantenimiento {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 3px solid #0F172A;
+        }
+
+        /* Badge para estado de mantenimiento */
+        .badge-mantenimiento {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-vencido {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .badge-proximo {
+            background: #fef3c7;
+            color: #d97706;
+            border: 1px solid #fde68a;
+        }
+
+        .badge-al-dia {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .badge-sin-datos {
+            background: #e5e7eb;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+    </style>
+</head>
+
+<body class="bg-white text-[#0F172A] min-h-screen flex">
+    <div class="flex flex-1 h-screen overflow-hidden">
+
+        <!-- Sidebar -->
+        <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-2 mb-6">
+                    <div class="bg-[#639A33] p-2 rounded-md">
+                        <i class="fas fa-boxes-stacked text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="sidebar-title font-bold text-[#639A33]">Inventario SIGIPS</h1>
+                        <p class="sidebar-subtitle text-white/70">Sistema de gestión</p>
+                    </div>
+                </div>
+                <nav class="space-y-2">
+                    <a href="#" data-view="dashboard.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-home"></i> Inicio
+                    </a>
+                    <a href="#" data-view="sedes.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-building"></i> Sedes
+                    </a>
+                    <a href="#" data-view="areas.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt"></i> Áreas
+                    </a>
+                    <a href="#" data-view="puestos.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-briefcase"></i> Puestos de trabajo
+                    </a>
+                    <a href="#" data-view="equipos.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-laptop"></i> Equipos
+                    </a>
+                    <a href="#" data-view="chequeos.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-list-check"></i> Chequeos diarios
+                    </a>
+                    <a href="#" data-view="excel.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
+                    <a href="#" data-view="suspendidos.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-power-off"></i> Suspendidos
+                    </a>
+                    <a href="#" data-view="inactivos.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-ban"></i> Inactivos
+                    </a>
+                    <a href="#" data-view="usuarios.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-users"></i> Usuarios
+                    </a>
+                    <a href="#" data-view="usuarios.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-boxes"></i> Insumos
+                    </a>
+                    <a href="#" data-view="cronograma.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-clock"></i> Cronograma
+                    </a>
+                    <a href="#" data-view="temperatura.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-temperature-high"></i> Temperatura
+                    </a>
+                    <a href="#" data-view="entrada_salida.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-[#639A33] hover:text-[#0F172A] text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-right-left"></i> Entrada y salidas
+                    </a>
+                    <a href="#" data-view="mantenimientos.html"
+                        class="view-link block py-2 px-3 rounded bg-[#639A33] text-[#0F172A] font-semibold text-sm md:text-xs flex items-center gap-2">
+                        <i class="fas fa-tools"></i> Mantenimientos
+                    </a>
+                </nav>
+            </div>
+            <div class="text-sm mt-6 bg-[#0F172A]/50 p-3 rounded-lg">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="bg-[#639A33] p-1.5 rounded-full">
+                        <i class="fas fa-user text-white text-xs"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-white font-medium truncate" id="user-name">Cargando...</p>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs text-gray-300">Rol:</span>
+                            <span id="user-role"
+                                class="text-xs bg-[#639A33]/20 text-[#639A33] px-2 py-0.5 rounded-full font-medium">
+                                Cargando...
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="logout()"
+                    class="w-full bg-[#639A33] text-[#0F172A] font-semibold py-2 px-4 rounded hover:bg-green-100 transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
+            <div>
+                <!-- Encabezado -->
+                <header class="mb-6 flex items-center justify-between">
+                    <h1 class="text-4xl font-semibold text-[#0F172A]">Registro de Mantenimientos</h1>
+                    <div class="flex items-center gap-4">
+                        <img src="../assets/logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
+                        <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
+                    </div>
+                </header>
+
+                <!-- Descripción -->
+                <div class="mb-6">
+                    <h2 class="text-lg font-semibold text-[#0F172A] mb-2">Equipos para Mantenimiento</h2>
+                    <p class="text-gray-600">En este módulo puedes ver todos los equipos y registrar mantenimientos
+                        (preventivos, calibraciones o correctivos). Solo técnicos autorizados pueden acceder.</p>
+                </div>
+
+                <!-- Tabla -->
+                <section class="max-w-7xl mx-auto bg-white p-6 border-2 border-[#0F172A] rounded-xl shadow-md">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-semibold text-[#0F172A]">Listado de Equipos</h3>
+                        <div class="text-sm text-gray-600">
+                            <span id="contador-resultados">0</span> equipos encontrados
+                        </div>
+                    </div>
+
+                    <!-- Barra de búsqueda avanzada -->
+                    <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-[#0F172A]">Búsqueda Avanzada</h4>
+                            <button onclick="limpiarFiltros()"
+                                class="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1">
+                                <i class="fas fa-times"></i> Limpiar
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Filtro por código -->
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Código</label>
+                                <input type="text" id="filtro-codigo" placeholder="Buscar por código..."
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                            </div>
+
+                            <!-- Filtro por nombre -->
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Nombre</label>
+                                <input type="text" id="filtro-nombre" placeholder="Buscar por nombre..."
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                            </div>
+
+                            <!-- Filtro por ubicación -->
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Ubicación</label>
+                                <select id="filtro-ubicacion"
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                                    <option value="">Todas las ubicaciones</option>
+                                    <option value="puesto">Puestos</option>
+                                    <option value="area">Áreas</option>
+                                </select>
+                            </div>
+
+                            <!-- Filtro por estado de mantenimiento -->
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Estado Mantenimiento</label>
+                                <select id="filtro-estado"
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                                    <option value="">Todos los estados</option>
+                                    <option value="VENCIDO">Vencido</option>
+                                    <option value="PRÓXIMO">Próximo</option>
+                                    <option value="OK">Al Día</option>
+                                    <option value="SIN_DATOS">Sin Configuración</option>
+                                </select>
+                            </div>
+
+                            <!-- Filtro por sede -->
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Sede</label>
+                                <input type="text" id="filtro-sede" placeholder="Buscar por sede..."
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                            </div>
+
+                            <!-- Filtro por área -->
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Área</label>
+                                <input type="text" id="filtro-area" placeholder="Buscar por área..."
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                            </div>
+
+                            <!-- Filtro por responsable -->
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Responsable</label>
+                                <input type="text" id="filtro-responsable" placeholder="Buscar responsable..."
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                            </div>
+
+                            <!-- Filtro por tipo de equipo -->
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Tipo de Equipo</label>
+                                <select id="filtro-tipo"
+                                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-[#639A33] focus:border-[#639A33]">
+                                    <option value="">Todos los tipos</option>
+                                    <!-- Se llenará dinámicamente -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-left border border-[#0F172A]">
+                            <thead class="bg-[#0F172A] text-white">
+                                <tr>
+                                    <th class="px-4 py-2 border border-[#0F172A]">Código</th>
+                                    <th class="px-4 py-2 border border-[#0F172A]">Nombre</th>
+                                    <th class="px-4 py-2 border border-[#0F172A]">Ubicación</th>
+                                    <th class="px-4 py-2 border border-[#0F172A]">Responsable</th>
+                                    <th class="px-4 py-2 border border-[#0F172A]">Estado Mantenimiento</th>
+                                    <th class="px-4 py-2 border border-[#0F172A]">Último Mantenimiento</th>
+                                    <th class="px-4 py-2 border border-[#0F172A] text-center">Acciones</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="tablaEquipos">
+                                <!-- Se llenará dinámicamente -->
+                            </tbody>
+                        </table>
+
+                        <!-- Controles de paginación -->
+                        <div
+                            class="flex flex-col sm:flex-row items-center justify-between mt-4 px-4 py-3 bg-white border border-gray-200 rounded-lg">
+                            <div class="flex items-center space-x-4 mb-3 sm:mb-0">
+                                <span id="info-paginacion" class="text-sm text-gray-700"></span>
+                                <select id="items-por-pagina" class="text-sm border border-gray-300 rounded px-2 py-1">
+                                    <option value="10">10 por página</option>
+                                    <option value="20" selected>20 por página</option>
+                                    <option value="50">50 por página</option>
+                                    <option value="100">100 por página</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center space-x-2">
+                                <button id="btn-paginacion-anterior"
+                                    class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-chevron-left"></i> Anterior
+                                </button>
+
+                                <div id="numeros-paginacion" class="flex items-center space-x-1"></div>
+
+                                <button id="btn-paginacion-siguiente"
+                                    class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Siguiente <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Modal para agregar mantenimiento -->
+            <div id="modal-mantenimiento"
+                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+                <div class="modal-content-mantenimiento">
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-semibold text-[#0F172A]" id="modal-titulo">Registrar Mantenimiento
+                            </h3>
+                            <button onclick="cerrarModalMantenimiento()" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+
+                        <form id="form-mantenimiento" class="space-y-4">
+                            <input type="hidden" id="equipo-id-mantenimiento">
+                            <input type="hidden" id="mantenimiento-tipo">
+
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <h4 class="font-semibold text-blue-800 mb-2">Información del Equipo</h4>
+                                <div id="info-equipo-mantenimiento" class="text-sm text-blue-700">
+                                    <!-- Se llenará dinámicamente -->
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Tipo de Mantenimiento *</label>
+                                <select id="tipo-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300"
+                                    required>
+                                    <option value="">Seleccionar tipo...</option>
+                                    <option value="preventivo">Preventivo</option>
+                                    <option value="calibracion">Calibración</option>
+                                    <option value="correctivo">Correctivo</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Fecha realizado *</label>
+                                <input type="date" id="fecha-realizado"
+                                    class="w-full border rounded px-3 py-2 border-gray-300" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Realizado por *</label>
+                                <input type="text" id="realizado-por"
+                                    class="w-full border rounded px-3 py-2 border-gray-300"
+                                    placeholder="Nombre del técnico" required>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Descripción *</label>
+                                <textarea id="descripcion-mantenimiento" rows="3"
+                                    class="w-full border rounded px-3 py-2 border-gray-300"
+                                    placeholder="Describa el mantenimiento realizado..." required></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Observaciones</label>
+                                <textarea id="observaciones-mantenimiento" rows="2"
+                                    class="w-full border rounded px-3 py-2 border-gray-300"
+                                    placeholder="Observaciones adicionales..."></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Documento PDF (opcional)</label>
+                                <input type="file" id="documento-mantenimiento" accept=".pdf"
+                                    class="w-full border rounded px-3 py-2 border-gray-300">
+                                <p class="text-xs text-gray-500 mt-1">Suba un PDF con detalles del mantenimiento (máx.
+                                    10MB)</p>
+                            </div>
+
+                            <div class="flex justify-end gap-2 pt-4">
+                                <button type="button" onclick="cerrarModalMantenimiento()"
+                                    class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">
+                                    Cancelar
+                                </button>
+                                <button type="submit"
+                                    class="px-4 py-2 bg-[#639A33] text-white rounded hover:bg-green-600">
+                                    <i class="fas fa-save mr-2"></i>
+                                    Guardar Mantenimiento
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="text-center mt-6 py-4 border-t border-gray-200">
+                <p class="text-sm text-[#0F172A] font-medium">Módulo de Mantenimientos - Solo personal técnico
+                    autorizado</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script src="../js/roles.js"></script>
+    <script src="../js/mantenimientos.js"></script>
+</body>
+
+</html>

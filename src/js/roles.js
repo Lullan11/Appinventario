@@ -11,19 +11,12 @@ const PERMISOS_POR_ROL = {
     'nuevaArea.html', 'nuevoPuesto.html', 'nuevoTipoEquipo.html',
     'verSede.html', 'verArea.html', 'verPuesto.html',
     'verEquipo.html', 'editarSede.html', 'editarArea.html',
-    'editarPuesto.html', 'editarEquipo.html', 'suspendidos.html'
+    'editarPuesto.html', 'editarEquipo.html', 'suspendidos.html',
+    'mantenimientos.html', 'mantenimientos.html'
   ],
   'supervisor': ['chequeos.html'],
   'auxiliar': ['entrada_salida.html'],
-  'tecnico': [
-    'dashboard.html', 'sedes.html', 'areas.html', 'puestos.html',
-    'equipos.html', 'chequeos.html', 'inactivos.html',
-    'cronograma.html', 'temperatura.html', 'entrada_salida.html', 'nuevoEquipo.html', 'NuevaSede.html',
-    'nuevaArea.html', 'nuevoPuesto.html', 'nuevoTipoEquipo.html',
-    'verSede.html', 'verArea.html', 'verPuesto.html',
-    'verEquipo.html', 'editarSede.html', 'editarArea.html',
-    'editarPuesto.html', 'editarEquipo.html'
-  ],
+  'tecnico': ['mantenimientos.html'],
   'doctor': ['chequeos.html']
 };
 
@@ -31,7 +24,7 @@ const PAGINA_INICIO_POR_ROL = {
   'admin': 'dashboard.html',
   'supervisor': 'chequeos.html',
   'auxiliar': 'entrada_salida.html',
-  'tecnico': 'dashboard.html',
+  'tecnico': 'mantenimientos.html',
   'doctor': 'chequeos.html'
 };
 
@@ -50,6 +43,7 @@ const GRUPOS_PAGINAS = {
   'chequeos.html': [], // Puedes agregar páginas relacionadas si las tienes
   'usuarios.html': [], // Puedes agregar páginas relacionadas si las tienes
   'insumos.html': [], // Puedes agregar páginas relacionadas si las tienes
+  'mantenimientos.html' : [],
 };
 
 // Función para obtener el grupo al que pertenece una página
