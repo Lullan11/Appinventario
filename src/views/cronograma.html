@@ -20,12 +20,38 @@
     <style>
         body {
             font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+            /* Prevenir scroll horizontal */
+        }
+
+        /* Estilos para el ícono de PDF */
+        .file-icon {
+            background-color: #fee2e2;
+            color: #dc2626;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        /* Asegurar que las tarjetas no se desborden */
+        .documento-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .documento-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 
-<body class="bg-white text-[#0F172A] min-h-screen flex">
-    <div class="flex flex-1 h-screen overflow-hidden">
+<body class="bg-white text-[#0F172A] min-h-screen">
+    <div class="flex h-screen overflow-hidden">
 
         <!-- Sidebar -->
         <aside class="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between">
@@ -127,32 +153,161 @@
             </div>
         </aside>
 
-        <!-- Contenido principal -->
-        <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-white flex flex-col justify-between">
-            <div>
-                <!-- Título y Logo -->
-                <header class="mb-6 flex items-center justify-between">
-                    <h1 class="text-4xl font-semibold text-[#0F172A]">Cronograma</h1>
-                    <div class="flex items-center gap-4">
-                        <img src="../assets/logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
-                        <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
-                    </div>
-                </header>
+
+        <!-- Contenido principal CON MARGEN CORRECTO -->
+        <main class="ml-64 flex-1 p-6 min-h-screen w-[calc(100%-16rem)] overflow-y-auto">
+            <!-- Header -->
+            <!-- Encabezado -->
+            <header class="mb-6 flex items-center justify-between">
+                <h1 class="text-2xl md:text-3xl font-bold text-[#0F172A]">Cronogramas de Mantenimiento</h1>
+                <div class="flex items-center gap-4">
+                    <img src="../assets/logo_ips.png" alt="Logo IPS Progresando" class="h-25 w-24 object-contain" />
+                    <img src="../assets/logo_coop.png" alt="Logo Cooperativa" class="h-25 w-24 object-contain" />
+                </div>
+            </header>
 
 
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div class="flex-1">
+                    <p class="text-gray-600 mt-1">Sube, visualiza y descarga documentos de cronogramas</p>
+                </div>
+                <button onclick="mostrarModalSubir()"
+                    class="bg-[#639A33] text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2 whitespace-nowrap">
+                    <i class="fas fa-upload"></i>
+                    Subir Cronograma
+                </button>
+            </div>
 
-                <footer class="text-center mt-6 py-4 border-t border-gray-200">
-                    <p class="text-sm text-[#0F172A] font-medium">Módulo de Cronograma</p>
-                </footer>
+            <!-- Buscador -->
+            <div class="mb-6">
+                <div class="relative">
+                    <input type="text" id="buscar-documento" placeholder="Buscar cronograma por nombre..."
+                        class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#639A33] focus:border-transparent">
+                    <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- Lista de documentos -->
+            <div id="lista-documentos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                <!-- Los documentos se cargarán aquí -->
+                <div class="text-center py-10 col-span-3">
+                    <i class="fas fa-spinner fa-spin text-3xl text-[#639A33] mb-4"></i>
+                    <p>Cargando cronogramas...</p>
+                </div>
+            </div>
+
+            <!-- Mensaje cuando no hay documentos -->
+            <div id="sin-documentos" class="hidden text-center py-16">
+                <i class="fas fa-file-alt text-5xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">No hay cronogramas</h3>
+                <p class="text-gray-500 mb-6">Comienza subiendo tu primer documento de cronograma</p>
+                <button onclick="mostrarModalSubir()"
+                    class="bg-[#639A33] text-white px-6 py-3 rounded-lg hover:bg-green-700">
+                    <i class="fas fa-upload mr-2"></i>Subir primer documento
+                </button>
+            </div>
+
+            <footer class="text-center mt-12 pt-8 border-t border-gray-200">
+                <p class="text-sm text-[#0F172A] font-medium">Módulo de Cronogramas de Mantenimiento</p>
+            </footer>
         </main>
     </div>
 
-    <script src="../js/auth.js"></script>
-    <!-- <script src="../js/navegacion.js"></script> -->
-    <script src="../js/roles.js"></script>
+    <!-- Modal para subir documento -->
+    <div id="modal-subir" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-md mx-4">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-xl font-semibold">Subir Cronograma</h2>
+                <button onclick="cerrarModalSubir()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    &times;
+                </button>
+            </div>
 
-    <!-- Futuro script para cargar el historial desde la base de datos -->
-    <!-- <script src="../js/historial.js"></script> -->
+            <div class="p-6">
+                <form id="form-subir">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 mb-2">Nombre del documento *</label>
+                        <input type="text" id="nombre-documento" required
+                            class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#639A33] focus:border-transparent">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-gray-700 mb-2">Descripción (opcional)</label>
+                        <textarea id="descripcion-documento" rows="3"
+                            class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#639A33] focus:border-transparent"></textarea>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-gray-700 mb-2">Archivo PDF *</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <input type="file" id="archivo-documento" accept=".pdf" class="hidden">
+
+                            <div id="area-arrastrar" class="cursor-pointer">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+                                <p class="text-gray-600">Haz clic para seleccionar archivo</p>
+                                <p class="text-sm text-gray-500 mt-1">Solo PDF (máx. 10MB)</p>
+                            </div>
+
+                            <div id="nombre-archivo" class="hidden mt-4 p-3 bg-gray-50 rounded">
+                                <i class="fas fa-file-pdf text-red-500 mr-2"></i>
+                                <span id="texto-nombre-archivo" class="truncate"></span>
+                                <button type="button" onclick="limpiarArchivo()" class="text-red-500 ml-2">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button type="button" onclick="cerrarModalSubir()"
+                            class="flex-1 border border-gray-300 text-gray-700 py-2 rounded hover:bg-gray-50">
+                            Cancelar
+                        </button>
+                        <button type="button" id="btn-subir"
+                            class="flex-1 bg-[#639A33] text-white py-2 rounded hover:bg-green-700">
+                            <i class="fas fa-upload mr-2"></i>Subir Documento
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para ver documento -->
+    <div id="modal-ver" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden mx-4">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 id="modal-titulo" class="text-xl font-semibold truncate pr-4"></h2>
+                <button onclick="cerrarModalVer()" class="text-gray-500 hover:text-gray-700 text-2xl flex-shrink-0">
+                    &times;
+                </button>
+            </div>
+
+            <div class="p-4">
+                <div class="flex flex-wrap gap-3 mb-4">
+                    <button onclick="descargarDocumento()"
+                        class="bg-[#639A33] text-white px-4 py-2 rounded hover:bg-green-700">
+                        <i class="fas fa-download mr-2"></i>Descargar
+                    </button>
+                    <button onclick="abrirEnNuevaPestana()"
+                        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        <i class="fas fa-external-link-alt mr-2"></i>Abrir en nueva pestaña
+                    </button>
+                </div>
+
+                <div class="border rounded-lg h-[60vh]">
+                    <iframe id="visor-pdf" class="w-full h-full" frameborder="0"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast para mensajes -->
+    <div id="toast" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg hidden z-50 max-w-xs"></div>
+
+    <script src="../js/auth.js"></script>
+    <script src="../js/cronograma.js"></script>
+    <script src="../js/roles.js"></script>
 </body>
 
 </html>

@@ -6,8 +6,8 @@ const API_TIPOS_EQUIPO = "https://inventario-api-gw73.onrender.com/tipos-equipo"
 const API_MANTENIMIENTOS = "https://inventario-api-gw73.onrender.com/mantenimientos";
 const API_TIPOS_MANTENIMIENTO = "https://inventario-api-gw73.onrender.com/tipos-mantenimiento/todos";
 
-// ✅ CONFIGURACIÓN CLOUDINARY
-const CLOUDINARY_CONFIG = {
+// ✅ CONFIGURACIÓN CLOUDINARY CORREGIDA - DEFINICIÓN GLOBAL
+window.CLOUDINARY_CONFIG = window.CLOUDINARY_CONFIG || {
     cloudName: 'dzkccjhn9',
     uploadPreset: 'inventario'
 };
@@ -46,6 +46,8 @@ let elementosPaginacion = {
     contenedorNumeros: null,
     selectItemsPorPagina: null
 };
+
+
 
 // ========================= INICIALIZACIÓN =========================
 
