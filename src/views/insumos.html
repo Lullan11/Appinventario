@@ -604,11 +604,26 @@
                                     <input id="costo" type="number" class="kardex-input" placeholder="Costo unitario"
                                         step="0.01" min="0">
                                 </div>
+                                <!-- NUEVO: CAMPO IVA -->
+                                <div class="campo-contenedor">
+                                    <label class="filtro-label">💵 IVA (%)</label>
+                                    <input id="iva" type="number" class="kardex-input" placeholder="IVA %" value="0"
+                                        step="0.01" min="0" max="100">
+                                </div>
                                 <div class="campo-contenedor">
                                     <label class="filtro-label">📅 Fecha de vencimiento</label>
                                     <input id="fecha-vencimiento" type="date" class="kardex-input">
                                 </div>
-                                <div class="lg:col-span-2 campo-contenedor">
+                                <!-- NUEVO: VALOR CON IVA -->
+                                <div class="campo-contenedor lg:col-span-2">
+                                    <div class="p-3 bg-gray-50 rounded-md border border-gray-300">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm font-medium text-gray-700">💰 Valor unitario con IVA:</span>
+                                            <span id="valor-con-iva" class="text-lg font-bold text-green-600">$0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="lg:col-span-1 campo-contenedor">
                                     <div id="info-stock" class="text-sm p-3 bg-gray-50 rounded border hidden">
                                         <span class="font-semibold">Stock actual: </span>
                                         <span id="stock-actual">0</span>
@@ -638,7 +653,7 @@
                                 </button>
                             </div>
 
-                            <!-- FILTROS PARA MOVIMIENTOS - CORREGIDOS (SOLO 2 FECHAS) -->
+                            <!-- FILTROS PARA MOVIMIENTOS -->
                             <div class="filtros-container mb-4">
                                 <h3 class="text-lg font-semibold text-gray-700 mb-3">🔍 Filtros de Búsqueda</h3>
                                 <div class="filtros-grid">
@@ -683,18 +698,21 @@
                                             <th class="px-4 py-2 border">Fecha</th>
                                             <th class="px-4 py-2 border">Hora</th>
                                             <th class="px-4 py-2 border">Producto</th>
+                                            <th class="px-4 py-2 border">Marca</th>
                                             <th class="px-4 py-2 border">Movimiento</th>
                                             <th class="px-4 py-2 border">Descripción</th>
                                             <th class="px-4 py-2 border">Ubicación</th>
                                             <th class="px-4 py-2 border">Cantidad</th>
                                             <th class="px-4 py-2 border">Stock</th>
                                             <th class="px-4 py-2 border">Vencimiento</th>
+                                            <th class="px-4 py-2 border">Valor Unit. con IVA</th>
+                                            <th class="px-4 py-2 border">Proveedor</th>
                                             <th class="px-4 py-2 border">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td colspan="10" class="px-4 py-4 text-center text-gray-500">
+                                            <td colspan="13" class="px-4 py-4 text-center text-gray-500">
                                                 Seleccione una sede para ver los movimientos
                                             </td>
                                         </tr>
@@ -719,7 +737,7 @@
                                 </div>
                             </div>
 
-                            <!-- FILTROS PARA PRODUCTOS - CORREGIDOS -->
+                            <!-- FILTROS PARA PRODUCTOS -->
                             <div class="filtros-container mb-4">
                                 <h3 class="text-lg font-semibold text-gray-700 mb-3">🔍 Filtros de Búsqueda</h3>
                                 <div class="filtros-grid">
@@ -732,6 +750,11 @@
                                         <label class="filtro-label">📁 Categoría</label>
                                         <input id="filtro-categoria-producto" type="text" class="kardex-input"
                                             placeholder="Buscar por categoría">
+                                    </div>
+                                    <div>
+                                        <label class="filtro-label">🏷️ Marca</label>
+                                        <input id="filtro-marca-producto" type="text" class="kardex-input"
+                                            placeholder="Buscar por marca">
                                     </div>
                                     <div>
                                         <label class="filtro-label">📊 Estado de stock</label>
@@ -771,13 +794,14 @@
                                 </div>
                             </div>
 
-                            <!-- Lista de productos con acciones - CORREGIDA (AGREGADO REGISTRO INVIMA) -->
+                            <!-- Lista de productos con acciones -->
                             <div class="tabla-container">
                                 <table id="tabla-productos" class="min-w-full text-left border border-[#0F172A]">
                                     <thead class="bg-[#0F172A] text-white sticky top-0">
                                         <tr>
                                             <th class="px-4 py-2 border">Producto</th>
                                             <th class="px-4 py-2 border">Categoría</th>
+                                            <th class="px-4 py-2 border">Marca</th>
                                             <th class="px-4 py-2 border">Unidad</th>
                                             <th class="px-4 py-2 border">Proveedor</th>
                                             <th class="px-4 py-2 border">Stock Total</th>
@@ -788,7 +812,7 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td colspan="8" class="px-4 py-4 text-center text-gray-500">
+                                            <td colspan="9" class="px-4 py-4 text-center text-gray-500">
                                                 Cargando productos...
                                             </td>
                                         </tr>
@@ -839,7 +863,6 @@
                             </div>
 
                             <!-- Tabla de proveedores -->
-                            <!-- Tabla de proveedores -->
                             <div class="tabla-container">
                                 <table id="tabla-proveedores" class="min-w-full text-left border border-[#0F172A]">
                                     <thead class="bg-[#0F172A] text-white sticky top-0">
@@ -877,6 +900,7 @@
                             required>
                         <input type="text" id="producto-descripcion" class="kardex-input" placeholder="Descripción">
                         <input type="text" id="producto-categoria" class="kardex-input" placeholder="Categoría">
+                        <input type="text" id="producto-marca" class="kardex-input" placeholder="Marca" required>
                         <select id="producto-unidad" class="kardex-input" required>
                             <option value="">Seleccionar unidad</option>
                             <option value="UNIDAD">UNIDAD</option>
@@ -914,6 +938,7 @@
                         <input type="text" id="editar-producto-descripcion" class="kardex-input"
                             placeholder="Descripción">
                         <input type="text" id="editar-producto-categoria" class="kardex-input" placeholder="Categoría">
+                        <input type="text" id="editar-producto-marca" class="kardex-input" placeholder="Marca" required>
                         <select id="editar-producto-unidad" class="kardex-input" required>
                             <option value="">Seleccionar unidad</option>
                             <option value="UNIDAD">UNIDAD</option>
@@ -940,7 +965,6 @@
                 </div>
             </div>
 
-
             <!-- MODAL NUEVO PROVEEDOR -->
             <div id="modalProveedor"
                 class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -951,7 +975,6 @@
                             required>
                         <input type="text" id="proveedor-nit" class="kardex-input" placeholder="NIT" required>
                         <input type="email" id="proveedor-correo" class="kardex-input" placeholder="Correo electrónico">
-                        <!-- AGREGAR CAMPOS NUEVOS -->
                         <input type="text" id="proveedor-telefono" class="kardex-input" placeholder="Teléfono">
                         <input type="text" id="proveedor-direccion" class="kardex-input" placeholder="Dirección">
                         <div class="flex gap-2 pt-4">
@@ -978,7 +1001,6 @@
                         <input type="text" id="editar-proveedor-nit" class="kardex-input" placeholder="NIT" required>
                         <input type="email" id="editar-proveedor-correo" class="kardex-input"
                             placeholder="Correo electrónico">
-                        <!-- AGREGAR CAMPOS NUEVOS -->
                         <input type="text" id="editar-proveedor-telefono" class="kardex-input" placeholder="Teléfono">
                         <input type="text" id="editar-proveedor-direccion" class="kardex-input" placeholder="Dirección">
                         <div class="flex gap-2 pt-4">
@@ -1017,8 +1039,7 @@
                 <div class="bg-white rounded-lg p-6 w-full max-w-md">
                     <h3 class="text-xl font-semibold mb-4 text-red-600">🗑️ Eliminar Proveedor</h3>
                     <p class="text-gray-600 mb-4" id="mensaje-confirmacion-proveedor">¿Está seguro de que desea eliminar
-                        este
-                        proveedor?</p>
+                        este proveedor?</p>
                     <div class="flex gap-2 pt-4">
                         <button type="button" id="btnConfirmarEliminarProveedor" class="btn-danger flex-1">
                             <i class="fas fa-trash mr-2"></i>Eliminar

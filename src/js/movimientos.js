@@ -1,3 +1,13 @@
+// ==================== CONFIGURACIÓN CLOUDINARY (CORREGIDO) ====================
+const CLOUDINARY_CONFIG = {
+  cloudName: 'dzkccjhn9',
+  uploadPreset: 'inventario'
+};
+
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}`;
+const CLOUDINARY_IMAGE_UPLOAD = `${CLOUDINARY_UPLOAD_URL}/image/upload`;
+const CLOUDINARY_RAW_UPLOAD = `${CLOUDINARY_UPLOAD_URL}/raw/upload`;
+
 // Constantes y variables globales
 const API_URL = "https://inventario-api-gw73.onrender.com";
 let todosLosMovimientos = [];
@@ -6,6 +16,9 @@ let sedes = [];
 let usuarios = [];
 let tiposMovimiento = [];
 let equipos = [];
+
+// Variables para cámara y firmas
+let cameraManager = null;
 
 // Variables de paginación
 let paginaActual = 1;
@@ -26,65 +39,118 @@ const elementos = {
   pendingCount: document.getElementById('pending-count')
 };
 
-// ========================= FUNCIÓN CORREGIDA PARA FORMATEAR FECHAS =========================
+// Resto del código JavaScript permanece igual...
 
+// ========================= FUNCIONES AUXILIARES =========================
+
+// Convertir Data URL a Blob
+function dataURLToBlob(dataURL) {
+  const arr = dataURL.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  
+  return new Blob([u8arr], { type: mime });
+}
+
+// Formatear fecha
 function formatearFecha(fechaString) {
-    if (!fechaString) return 'No especificada';
-    
-    try {
-        // ✅ CORRECCIÓN: Crear fecha desde string ISO
-        const fecha = new Date(fechaString);
-        
-        // ✅ VERIFICAR SI LA FECHA ES VÁLIDA
-        if (isNaN(fecha.getTime())) {
-            // Si no es una fecha válida, intentar parsear directamente
-            const partes = fechaString.split('-');
-            if (partes.length === 3) {
-                // Asumir formato YYYY-MM-DD
-                return `${partes[2]}/${partes[1]}/${partes[0]}`;
-            }
-            return 'Fecha inválida';
-        }
-        
-        // ✅ CORRECCIÓN: Usar UTC para evitar problemas de zona horaria
-        // Obtener día, mes y año en UTC
-        const dia = fecha.getUTCDate().toString().padStart(2, '0');
-        const mes = (fecha.getUTCMonth() + 1).toString().padStart(2, '0');
-        const año = fecha.getUTCFullYear();
-        
-        return `${dia}/${mes}/${año}`;
-        
-    } catch (e) {
-        console.error('Error formateando fecha:', e, 'Fecha original:', fechaString);
-        // Si hay error, devolver la fecha original sin formato
-        return fechaString;
+  if (!fechaString) return 'No especificada';
+
+  try {
+    const fecha = new Date(fechaString);
+
+    if (isNaN(fecha.getTime())) {
+      const partes = fechaString.split('-');
+      if (partes.length === 3) {
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+      }
+      return 'Fecha inválida';
     }
+
+    const dia = fecha.getUTCDate().toString().padStart(2, '0');
+    const mes = (fecha.getUTCMonth() + 1).toString().padStart(2, '0');
+    const año = fecha.getUTCFullYear();
+
+    return `${dia}/${mes}/${año}`;
+
+  } catch (e) {
+    console.error('Error formateando fecha:', e, 'Fecha original:', fechaString);
+    return fechaString;
+  }
 }
 
-// ========================= FUNCIÓN PARA FORMATEAR FECHA INPUT (al crear movimiento) =========================
+// ========================= SUBIR ARCHIVOS A CLOUDINARY =========================
 
-function formatearFechaInput(fechaString) {
-    if (!fechaString) return '';
+async function subirArchivoCloudinary(archivo, tipo = 'image') {
+  try {
+    console.log(`📤 Subiendo ${tipo}: ${archivo.name} (${(archivo.size / 1024).toFixed(2)}KB)`);
+
+    const formData = new FormData();
+    formData.append('file', archivo);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
     
-    try {
-        // Convertir de formato YYYY-MM-DD (input date) a DD/MM/YYYY
-        const partes = fechaString.split('-');
-        if (partes.length === 3) {
-            return `${partes[2]}/${partes[1]}/${partes[0]}`;
-        }
-        return fechaString;
-    } catch (e) {
-        return fechaString;
+    // Configurar según el tipo
+    if (tipo === 'image') {
+      formData.append('resource_type', 'image');
+      formData.append('folder', 'movimientos/imagenes');
+    } else if (tipo === 'signature') {
+      formData.append('resource_type', 'image');
+      formData.append('folder', 'movimientos/firmas');
+    } else if (tipo === 'pdf') {
+      formData.append('resource_type', 'raw');
+      formData.append('folder', 'movimientos/pdf');
     }
+
+    const uploadUrl = tipo === 'pdf' ? CLOUDINARY_RAW_UPLOAD : CLOUDINARY_IMAGE_UPLOAD;
+    
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || `Error ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    console.log(`✅ ${tipo.toUpperCase()} subido exitosamente:`, {
+      url: data.secure_url,
+      public_id: data.public_id,
+      nombre: data.original_filename
+    });
+
+    return {
+      url: data.secure_url,
+      public_id: data.public_id,
+      nombre_original: data.original_filename || archivo.name,
+      tamaño: data.bytes
+    };
+
+  } catch (error) {
+    console.error(`❌ Error subiendo ${tipo}:`, error);
+    throw error;
+  }
 }
 
-// Inicialización
+// ========================= INICIALIZACIÓN COMPLETA =========================
+
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log('🚀 Inicializando módulo de movimientos...');
 
     // Cargar datos del usuario
     cargarUsuario();
+
+    // Inicializar cámara y firmas
+    inicializarCamaraYFirmas();
 
     // Cargar datos iniciales
     await cargarDatosIniciales();
@@ -102,19 +168,82 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// Funciones principales
+// ========================= INICIALIZAR CÁMARA Y FIRMAS =========================
+
+function inicializarCamaraYFirmas() {
+  console.log('📸 Inicializando cámara y firmas...');
+
+  // Verificar si el navegador soporta la API de cámara
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    cameraManager = {
+      stream: null,
+      videoElement: null,
+
+      async initialize(videoId) {
+        try {
+          this.videoElement = document.getElementById(videoId);
+          if (!this.videoElement) {
+            console.error('Elemento de video no encontrado:', videoId);
+            return false;
+          }
+
+          this.stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' },
+            audio: false
+          });
+
+          this.videoElement.srcObject = this.stream;
+          return true;
+        } catch (error) {
+          console.error('Error accediendo a la cámara:', error);
+          return false;
+        }
+      },
+
+      capturePhoto(canvasId) {
+        if (!this.videoElement) return null;
+
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) {
+          console.error('Canvas no encontrado:', canvasId);
+          return null;
+        }
+
+        const context = canvas.getContext('2d');
+        canvas.width = this.videoElement.videoWidth;
+        canvas.height = this.videoElement.videoHeight;
+
+        context.drawImage(this.videoElement, 0, 0, canvas.width, canvas.height);
+
+        return canvas.toDataURL('image/jpeg', 0.8);
+      },
+
+      stopCamera() {
+        if (this.stream) {
+          this.stream.getTracks().forEach(track => track.stop());
+        }
+        if (this.videoElement) {
+          this.videoElement.srcObject = null;
+        }
+      }
+    };
+  }
+
+  console.log('✅ Cámara y firmas inicializadas');
+}
+
+// ========================= CARGAR DATOS INICIALES =========================
+
 async function cargarDatosIniciales() {
   try {
     console.log('📥 Cargando datos iniciales...');
 
-    // Cargar todos los datos en paralelo
     const [sedesRes, usuariosRes, tiposRes] = await Promise.all([
       fetch(`${API_URL}/sedes`),
       fetch(`${API_URL}/usuarios`),
       fetch(`${API_URL}/tipos-movimiento`)
     ]);
 
-    // Procesar respuestas
     if (!sedesRes.ok) throw new Error('Error al cargar sedes');
     if (!usuariosRes.ok) throw new Error('Error al cargar usuarios');
     if (!tiposRes.ok) throw new Error('Error al cargar tipos de movimiento');
@@ -123,8 +252,8 @@ async function cargarDatosIniciales() {
     usuarios = await usuariosRes.json();
     tiposMovimiento = await tiposRes.json();
 
-    // Cargar movimientos
-    await cargarMovimientos();
+    // Cargar movimientos con ubicación actual
+    await cargarMovimientosCompletos();
 
     console.log('✅ Datos cargados:', {
       sedes: sedes.length,
@@ -133,7 +262,6 @@ async function cargarDatosIniciales() {
       movimientos: todosLosMovimientos.length
     });
 
-    // Inicializar selects
     inicializarSelects();
 
   } catch (error) {
@@ -142,10 +270,98 @@ async function cargarDatosIniciales() {
   }
 }
 
+// ========================= CARGAR MOVIMIENTOS COMPLETOS =========================
+
+async function cargarMovimientosCompletos() {
+  try {
+    console.log('📥 Cargando movimientos completos...');
+    mostrarSkeletonTabla(true);
+
+    const response = await fetch(`${API_URL}/movimientos-equipos`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al cargar movimientos');
+    }
+
+    todosLosMovimientos = await response.json();
+
+    // CORRECCIÓN: Obtener ubicación actual correctamente
+    const movimientosConUbicacion = await Promise.all(
+      todosLosMovimientos.map(async (mov) => {
+        try {
+          // 1. Primero intentar obtener la ubicación desde la tabla ubicaciones_equipos
+          const ubicacionRes = await fetch(`${API_URL}/equipos/${mov.id_equipo}/ubicacion-actual`);
+
+          if (ubicacionRes.ok) {
+            const ubicacion = await ubicacionRes.json();
+            if (ubicacion && ubicacion.sede_nombre) {
+              mov.sede_actual_nombre = ubicacion.sede_nombre;
+            } else {
+              // 2. Si no hay ubicación registrada, usar el destino o estado del movimiento
+              if (mov.estado === 'recibido') {
+                mov.sede_actual_nombre = mov.sede_destino_nombre || 'N/A';
+              } else if (mov.estado === 'enviado') {
+                mov.sede_actual_nombre = `${mov.sede_destino_nombre} (En tránsito)`;
+              } else if (mov.estado === 'pendiente') {
+                mov.sede_actual_nombre = mov.sede_origen_nombre || 'N/A';
+              } else {
+                mov.sede_actual_nombre = mov.sede_destino_nombre || 'N/A';
+              }
+            }
+          } else {
+            // 3. Fallback basado en estado
+            if (mov.estado === 'recibido') {
+              mov.sede_actual_nombre = mov.sede_destino_nombre || 'N/A';
+            } else if (mov.estado === 'enviado') {
+              mov.sede_actual_nombre = `${mov.sede_destino_nombre} (En tránsito)`;
+            } else {
+              mov.sede_actual_nombre = mov.sede_origen_nombre || 'N/A';
+            }
+          }
+
+          // Verificar documentos adjuntos
+          mov.tiene_documentos = !!(mov.imagen_salida_url || mov.imagen_recepcion_url ||
+            mov.firma_envio_url || mov.firma_recepcion_url);
+
+          return mov;
+        } catch (error) {
+          console.error(`Error obteniendo ubicación para equipo ${mov.id_equipo}:`, error);
+
+          // Fallback: usar sede destino si está recibido, si no, sede origen
+          if (mov.estado === 'recibido') {
+            mov.sede_actual_nombre = mov.sede_destino_nombre || 'N/A';
+          } else {
+            mov.sede_actual_nombre = mov.sede_origen_nombre || 'N/A';
+          }
+
+          return mov;
+        }
+      })
+    );
+
+    todosLosMovimientos = movimientosConUbicacion;
+    movimientosFiltrados = [...todosLosMovimientos];
+
+    console.log(`✅ Movimientos completos cargados: ${todosLosMovimientos.length}`);
+
+    calcularPaginacion();
+    renderizarTablaMovimientos();
+    actualizarContadorPendientes();
+
+    mostrarSkeletonTabla(false);
+
+  } catch (error) {
+    console.error('❌ Error cargando movimientos completos:', error);
+    mostrarMensaje('❌ Error al cargar movimientos', true);
+    mostrarSkeletonTabla(false);
+  }
+}
+
+// ========================= INICIALIZAR SELECTS =========================
+
 function inicializarSelects() {
   console.log('⚙️ Inicializando selects...');
 
-  // Select de sedes
   const sedeSelect = document.getElementById('sede-select');
   const sedeDestinoSelect = document.getElementById('sede-destino-select');
 
@@ -157,14 +373,12 @@ function inicializarSelects() {
       sedes.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
   }
 
-  // Select de tipos de movimiento
   const tipoSelect = document.getElementById('tipo-movimiento-select');
   if (tipoSelect) {
     tipoSelect.innerHTML = '<option value="">Seleccionar tipo</option>' +
       tiposMovimiento.map(t => `<option value="${t.id}">${t.nombre}</option>`).join('');
   }
 
-  // Select de responsables
   const responsableSelects = ['responsable-envio-select', 'responsable-recepcion-select'];
   responsableSelects.forEach(selectId => {
     const select = document.getElementById(selectId);
@@ -177,33 +391,29 @@ function inicializarSelects() {
   console.log('✅ Selects inicializados');
 }
 
+// ========================= CONFIGURAR EVENTOS =========================
+
 function configurarEventos() {
   console.log('⚙️ Configurando eventos...');
 
-  // Eventos de pestañas
   elementos.tabCrear.addEventListener('click', () => mostrarTab('crear'));
   elementos.tabListar.addEventListener('click', () => mostrarTab('listar'));
   elementos.tabPendientes.addEventListener('click', () => mostrarTab('pendientes'));
 
-  // Evento para cambio de sede (cargar equipos)
   document.getElementById('sede-select')?.addEventListener('change', async function (e) {
     const sedeId = e.target.value;
     await cargarEquiposPorSede(sedeId);
   });
 
-  // Evento para el formulario
   elementos.movimientoForm?.addEventListener('submit', crearMovimiento);
 
-  // Evento para filtro de estado
   document.getElementById('filter-estado')?.addEventListener('change', filtrarMovimientos);
 
-  // Evento para botón refresh
   document.getElementById('btn-refresh')?.addEventListener('click', async () => {
-    await cargarMovimientos();
+    await cargarMovimientosCompletos();
     mostrarMensaje('Movimientos actualizados');
   });
 
-  // Eventos de paginación
   document.getElementById('btn-paginacion-anterior')?.addEventListener('click', () => cambiarPagina(paginaActual - 1));
   document.getElementById('btn-paginacion-siguiente')?.addEventListener('click', () => cambiarPagina(paginaActual + 1));
   document.getElementById('items-por-pagina')?.addEventListener('change', function () {
@@ -215,6 +425,8 @@ function configurarEventos() {
 
   console.log('✅ Eventos configurados');
 }
+
+// ========================= CARGAR EQUIPOS POR SEDE =========================
 
 async function cargarEquiposPorSede(sedeId) {
   console.log(`📦 Cargando equipos para sede ${sedeId}...`);
@@ -244,7 +456,6 @@ async function cargarEquiposPorSede(sedeId) {
       equipoSelect.disabled = true;
       if (detallesDiv) detallesDiv.classList.add('hidden');
     } else {
-      // Organizar equipos por tipo
       const equiposPorTipo = {};
       equipos.forEach(equipo => {
         const tipo = equipo.tipo_equipo_nombre || 'Sin tipo';
@@ -254,7 +465,6 @@ async function cargarEquiposPorSede(sedeId) {
         equiposPorTipo[tipo].push(equipo);
       });
 
-      // Construir opciones agrupadas
       let optionsHTML = '<option value="">Seleccionar equipo</option>';
 
       for (const tipo in equiposPorTipo) {
@@ -272,7 +482,6 @@ async function cargarEquiposPorSede(sedeId) {
       equipoSelect.innerHTML = optionsHTML;
       equipoSelect.disabled = false;
 
-      // Configurar evento para mostrar detalles del equipo
       equipoSelect.addEventListener('change', function (e) {
         const equipoId = e.target.value;
         if (equipoId && detallesDiv) {
@@ -313,6 +522,8 @@ async function cargarEquiposPorSede(sedeId) {
   }
 }
 
+// ========================= CREAR MOVIMIENTO =========================
+
 async function crearMovimiento(e) {
   e.preventDefault();
   console.log('📝 Creando movimiento...');
@@ -320,14 +531,12 @@ async function crearMovimiento(e) {
   const formData = new FormData(e.target);
   const movimientoData = {};
 
-  // Convertir FormData a objeto
   for (const [key, value] of formData.entries()) {
     movimientoData[key] = value;
   }
 
   console.log('📊 Datos del movimiento:', movimientoData);
 
-  // Validar campos requeridos
   const requiredFields = ['id_equipo', 'id_tipo_movimiento', 'id_sede_origen',
     'id_sede_destino', 'id_responsable_envio', 'id_responsable_recepcion', 'motivo', 'fecha_salida'];
 
@@ -349,7 +558,6 @@ async function crearMovimiento(e) {
     }
   }
 
-  // Convertir valores numéricos
   movimientoData.id_equipo = parseInt(movimientoData.id_equipo);
   movimientoData.id_tipo_movimiento = parseInt(movimientoData.id_tipo_movimiento);
   movimientoData.id_sede_origen = parseInt(movimientoData.id_sede_origen);
@@ -357,15 +565,11 @@ async function crearMovimiento(e) {
   movimientoData.id_responsable_envio = parseInt(movimientoData.id_responsable_envio);
   movimientoData.id_responsable_recepcion = parseInt(movimientoData.id_responsable_recepcion);
 
-  // ✅ CORRECCIÓN: Enviar fecha en formato ISO (YYYY-MM-DD)
   const fechaInput = document.querySelector('input[name="fecha_salida"]');
   if (fechaInput) {
-    movimientoData.fecha_salida = fechaInput.value; // Esto ya está en formato YYYY-MM-DD
+    movimientoData.fecha_salida = fechaInput.value;
   }
 
-  console.log('📅 Fecha enviada a la API:', movimientoData.fecha_salida);
-
-  // Agregar estado pendiente por defecto
   movimientoData.estado = 'pendiente';
 
   try {
@@ -388,27 +592,30 @@ async function crearMovimiento(e) {
     console.log('✅ Respuesta de API:', responseData);
     mostrarMensaje('✅ Movimiento creado exitosamente con estado PENDIENTE');
 
+    // Mostrar modal para adjuntar foto de salida
+    const movimientoId = responseData.movimiento?.id || responseData.id;
+    if (movimientoId) {
+      setTimeout(() => {
+        mostrarModalCamara('imagen_salida', movimientoId, 'Foto del equipo al salir');
+      }, 1000);
+    }
+
     // Limpiar formulario
     e.target.reset();
 
-    // Limpiar detalles del equipo
     const detallesDiv = document.getElementById('equipo-details');
     if (detallesDiv) {
       detallesDiv.innerHTML = '';
       detallesDiv.classList.add('hidden');
     }
 
-    // Resetear select de equipos
     const equipoSelect = document.getElementById('equipo-select');
     if (equipoSelect) {
       equipoSelect.innerHTML = '<option value="">Primero seleccione una sede</option>';
       equipoSelect.disabled = true;
     }
 
-    // Recargar movimientos
-    await cargarMovimientos();
-
-    // Cambiar a la pestaña de listar
+    await cargarMovimientosCompletos();
     mostrarTab('listar');
 
   } catch (error) {
@@ -417,34 +624,444 @@ async function crearMovimiento(e) {
   }
 }
 
-async function cargarMovimientos() {
-  try {
-    console.log('📥 Cargando movimientos...');
-    mostrarSkeletonTabla(true);
+// ========================= MOSTRAR MODAL CÁMARA =========================
 
-    const response = await fetch(`${API_URL}/movimientos-equipos`);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Error al cargar movimientos');
-    }
+function mostrarModalCamara(tipo, movimientoId, titulo = '') {
+  const modalHTML = `
+    <div id="modal-camara" class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-lg w-full max-w-2xl">
+        <div class="p-4 border-b flex justify-between items-center">
+          <h3 class="text-lg font-semibold">${titulo || 'Capturar imagen'}</h3>
+          <button onclick="cerrarModalCamara()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="p-4">
+          <div class="flex flex-col items-center">
+            ${tipo.includes('imagen') ? `
+              <div id="camera-container" class="w-full">
+                <video id="camera-preview" autoplay playsinline class="w-full h-64 bg-black rounded"></video>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+              </div>
+              <div class="mt-4">
+                <button onclick="capturarFoto('${tipo}', ${movimientoId})" 
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                  <i class="fas fa-camera"></i> Capturar foto
+                </button>
+              </div>
+            ` : `
+              <div class="w-full mb-4">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 mb-4 text-center">
+                  <p class="text-gray-600">Firma en el recuadro</p>
+                </div>
+                <canvas id="signature-canvas" 
+                        class="border border-gray-300 w-full h-48 bg-white touch-none"></canvas>
+              </div>
+              <div class="flex gap-2 mt-4">
+                <button onclick="limpiarFirma()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+                  Limpiar
+                </button>
+                <button onclick="guardarFirma('${tipo}', ${movimientoId})" 
+                        class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                  Guardar firma
+                </button>
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 
-    todosLosMovimientos = await response.json();
-    movimientosFiltrados = [...todosLosMovimientos];
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-    console.log(`✅ Movimientos cargados: ${todosLosMovimientos.length}`);
-
-    calcularPaginacion();
-    renderizarTablaMovimientos();
-    actualizarContadorPendientes();
-
-    mostrarSkeletonTabla(false);
-
-  } catch (error) {
-    console.error('❌ Error cargando movimientos:', error);
-    mostrarMensaje('❌ Error al cargar movimientos', true);
-    mostrarSkeletonTabla(false);
+  if (tipo.includes('imagen')) {
+    setTimeout(async () => {
+      if (cameraManager) {
+        const initialized = await cameraManager.initialize('camera-preview');
+        if (!initialized) {
+          mostrarMensaje('No se pudo acceder a la cámara', true);
+          // Mostrar input de archivo alternativo
+          const cameraContainer = document.getElementById('camera-container');
+          if (cameraContainer) {
+            cameraContainer.innerHTML = `
+              <div class="text-center p-8">
+                <i class="fas fa-camera-slash text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-600 mb-4">No se pudo acceder a la cámara</p>
+                <input type="file" id="file-input" accept="image/*" capture="environment" 
+                       class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4
+                              file:rounded-full file:border-0 file:text-sm file:font-semibold
+                              file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <button onclick="subirFotoArchivo('${tipo}', ${movimientoId})" 
+                        class="mt-4 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                  Subir imagen
+                </button>
+              </div>
+            `;
+          }
+        }
+      }
+    }, 100);
+  } else {
+    setTimeout(() => {
+      inicializarCanvasFirma();
+    }, 100);
   }
 }
+
+// ========================= CAPTURAR Y SUBIR FOTO =========================
+
+async function capturarFoto(tipo, movimientoId) {
+  try {
+    if (!cameraManager) {
+      mostrarMensaje('Cámara no disponible', true);
+      return;
+    }
+
+    mostrarMensaje('📸 Capturando foto...');
+
+    const photoData = cameraManager.capturePhoto('camera-canvas');
+
+    if (!photoData) {
+      mostrarMensaje('Error al capturar foto', true);
+      return;
+    }
+
+    // Convertir data URL a Blob
+    const blob = dataURLToBlob(photoData);
+    const archivo = new File([blob], `foto_${tipo}_${movimientoId}_${Date.now()}.jpg`, {
+      type: 'image/jpeg'
+    });
+
+    mostrarMensaje('📤 Subiendo foto a Cloudinary...');
+
+    // Subir a Cloudinary
+    const uploadResult = await subirArchivoCloudinary(archivo, 'image');
+
+    // Guardar en la base de datos
+    const response = await fetch(`${API_URL}/movimientos-equipos/${movimientoId}/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tipo: tipo,
+        url: uploadResult.url,
+        public_id: uploadResult.public_id,
+        nombre_original: uploadResult.nombre_original
+      })
+    });
+
+    if (response.ok) {
+      mostrarMensaje('✅ Foto guardada en Cloudinary correctamente');
+      cerrarModalCamara();
+
+      // Actualizar el movimiento localmente
+      const movimientoIndex = todosLosMovimientos.findIndex(m => m.id == movimientoId);
+      if (movimientoIndex !== -1) {
+        todosLosMovimientos[movimientoIndex][`${tipo}_url`] = uploadResult.url;
+      }
+
+      // Si es foto de salida, preguntar por firma de envío
+      if (tipo === 'imagen_salida') {
+        setTimeout(() => {
+          mostrarModalCamara('firma_envio', movimientoId, 'Firma del responsable de envío');
+        }, 1000);
+      }
+    } else {
+      throw new Error('Error guardando foto en la base de datos');
+    }
+  } catch (error) {
+    console.error('Error capturando y subiendo foto:', error);
+    mostrarMensaje(`❌ Error: ${error.message}`, true);
+  }
+}
+
+// ========================= INICIALIZAR CANVAS DE FIRMA =========================
+
+function inicializarCanvasFirma() {
+  const canvas = document.getElementById('signature-canvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  let isDrawing = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  // Configurar canvas
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Limpiar canvas
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Eventos para mouse
+  canvas.addEventListener('mousedown', (e) => {
+    isDrawing = true;
+    [lastX, lastY] = [e.offsetX, e.offsetY];
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!isDrawing) return;
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(e.offsetX, e.offsetY);
+    ctx.stroke();
+    [lastX, lastY] = [e.offsetX, e.offsetY];
+  });
+
+  canvas.addEventListener('mouseup', () => isDrawing = false);
+  canvas.addEventListener('mouseout', () => isDrawing = false);
+
+  // Eventos para touch
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    isDrawing = true;
+    [lastX, lastY] = [touch.clientX - rect.left, touch.clientY - rect.top];
+  });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    [lastX, lastY] = [x, y];
+  });
+
+  canvas.addEventListener('touchend', () => isDrawing = false);
+}
+
+// ========================= GUARDAR Y SUBIR FIRMA =========================
+
+async function guardarFirma(tipo, movimientoId) {
+  try {
+    const canvas = document.getElementById('signature-canvas');
+    if (!canvas) {
+      mostrarMensaje('Canvas de firma no encontrado', true);
+      return;
+    }
+
+    // Verificar si hay firma
+    const context = canvas.getContext('2d');
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const hasSignature = imageData.data.some(channel => channel !== 255);
+
+    if (!hasSignature) {
+      mostrarMensaje('Por favor, realice su firma primero', true);
+      return;
+    }
+
+    const signatureData = canvas.toDataURL('image/png');
+
+    mostrarMensaje('📤 Guardando firma en Cloudinary...');
+
+    // Convertir a Blob
+    const blob = dataURLToBlob(signatureData);
+    const archivo = new File([blob], `firma_${tipo}_${movimientoId}_${Date.now()}.png`, {
+      type: 'image/png'
+    });
+
+    // Subir a Cloudinary
+    const uploadResult = await subirArchivoCloudinary(archivo, 'signature');
+
+    // Guardar en la base de datos
+    const response = await fetch(`${API_URL}/movimientos-equipos/${movimientoId}/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tipo: tipo,
+        url: uploadResult.url,
+        public_id: uploadResult.public_id,
+        nombre_original: uploadResult.nombre_original
+      })
+    });
+
+    if (response.ok) {
+      mostrarMensaje('✅ Firma guardada en Cloudinary correctamente');
+      cerrarModalCamara();
+
+      // Actualizar el movimiento localmente
+      const movimientoIndex = todosLosMovimientos.findIndex(m => m.id == movimientoId);
+      if (movimientoIndex !== -1) {
+        todosLosMovimientos[movimientoIndex][`${tipo}_url`] = uploadResult.url;
+      }
+    } else {
+      throw new Error('Error guardando firma en la base de datos');
+    }
+  } catch (error) {
+    console.error('Error guardando firma:', error);
+    mostrarMensaje('❌ Error al guardar firma', true);
+  }
+}
+
+// ========================= LIMPIAR FIRMA =========================
+
+function limpiarFirma() {
+  const canvas = document.getElementById('signature-canvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+// ========================= CERRAR MODAL CÁMARA =========================
+
+function cerrarModalCamara() {
+  if (cameraManager) {
+    cameraManager.stopCamera();
+  }
+
+  const modal = document.getElementById('modal-camara');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+// ========================= SUBIR FOTO DESDE ARCHIVO =========================
+
+async function subirFotoArchivo(tipo, movimientoId) {
+  const fileInput = document.getElementById('file-input');
+  if (!fileInput || !fileInput.files[0]) {
+    mostrarMensaje('Seleccione una imagen primero', true);
+    return;
+  }
+
+  try {
+    const file = fileInput.files[0];
+    
+    mostrarMensaje('📤 Subiendo imagen a Cloudinary...');
+
+    // Subir a Cloudinary
+    const uploadResult = await subirArchivoCloudinary(file, 'image');
+
+    // Guardar en la base de datos
+    const response = await fetch(`${API_URL}/movimientos-equipos/${movimientoId}/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tipo: tipo,
+        url: uploadResult.url,
+        public_id: uploadResult.public_id,
+        nombre_original: uploadResult.nombre_original
+      })
+    });
+
+    if (response.ok) {
+      mostrarMensaje('✅ Imagen subida a Cloudinary correctamente');
+      cerrarModalCamara();
+    } else {
+      throw new Error('Error guardando imagen en la base de datos');
+    }
+  } catch (error) {
+    console.error('Error subiendo imagen:', error);
+    mostrarMensaje('❌ Error al subir imagen', true);
+  }
+}
+
+// ========================= DESCARGAR ARCHIVO =========================
+
+function descargarArchivo(url, nombreArchivo) {
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nombreArchivo || 'documento.pdf';
+    link.target = '_blank';
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    mostrarMensaje('📥 Descargando archivo...');
+  } catch (error) {
+    console.error('Error descargando archivo:', error);
+    // Fallback: abrir en nueva pestaña
+    window.open(url, '_blank');
+  }
+}
+
+// ========================= AMPLIAR IMAGEN =========================
+
+function ampliarImagen(url, titulo) {
+  if (!url) {
+    mostrarMensaje('No hay imagen para mostrar', true);
+    return;
+  }
+
+  // Crear modal mejorado
+  const modalHTML = `
+    <div id="modal-imagen-completa" class="fixed inset-0 bg-black bg-opacity-90 z-[100] flex flex-col items-center justify-center p-4">
+      <div class="w-full max-w-6xl max-h-[90vh] flex flex-col">
+        <!-- Header -->
+        <div class="bg-white rounded-t-lg p-4 flex justify-between items-center border-b">
+          <h3 class="text-lg font-semibold text-[#0F172A]">${titulo}</h3>
+          <div class="flex gap-2">
+            <button onclick="descargarArchivo('${url}', '${titulo.replace(/\s+/g, '_')}.jpg')" 
+                    class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded flex items-center gap-1">
+              <i class="fas fa-download"></i> Descargar
+            </button>
+            <button onclick="document.getElementById('modal-imagen-completa').remove()" 
+                    class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded">
+              <i class="fas fa-times"></i> Cerrar
+            </button>
+          </div>
+        </div>
+        
+        <!-- Contenido de la imagen -->
+        <div class="bg-black flex-1 overflow-hidden rounded-b-lg">
+          <img src="${url}" 
+               alt="${titulo}" 
+               class="w-full h-full object-contain"
+               id="imagen-ampliada"
+               onload="console.log('Imagen cargada correctamente')"
+               onerror="console.error('Error cargando imagen'); this.src='https://via.placeholder.com/800x600/cccccc/969696?text=Imagen+no+disponible'">
+        </div>
+        
+        <!-- Controles -->
+        <div class="mt-2 flex justify-center gap-4">
+          <button onclick="document.getElementById('imagen-ampliada').style.transform = 'scale(1)'" 
+                  class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+            <i class="fas fa-search-minus"></i> Normal
+          </button>
+          <button onclick="document.getElementById('imagen-ampliada').style.transform = 'scale(1.5)'" 
+                  class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+            <i class="fas fa-search-plus"></i> Ampliar 1.5x
+          </button>
+          <button onclick="document.getElementById('imagen-ampliada').style.transform = 'scale(2)'" 
+                  class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+            <i class="fas fa-search"></i> Ampliar 2x
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Remover modal anterior si existe
+  const modalAnterior = document.getElementById('modal-imagen-completa');
+  if (modalAnterior) {
+    modalAnterior.remove();
+  }
+  
+  // Agregar nuevo modal
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+// ========================= FILTRAR MOVIMIENTOS =========================
 
 function filtrarMovimientos() {
   const filtroEstado = document.getElementById('filter-estado').value;
@@ -460,6 +1077,8 @@ function filtrarMovimientos() {
   renderizarTablaMovimientos();
 }
 
+// ========================= RENDERIZAR TABLA DE MOVIMIENTOS =========================
+
 function renderizarTablaMovimientos() {
   const tbody = elementos.tablaMovimientos;
   if (!tbody) return;
@@ -467,7 +1086,7 @@ function renderizarTablaMovimientos() {
   if (movimientosFiltrados.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center py-8 text-gray-500">
+        <td colspan="8" class="text-center py-8 text-gray-500">
           <i class="fas fa-inbox text-4xl text-gray-300 mb-2"></i>
           <p>No hay movimientos registrados</p>
         </td>
@@ -478,19 +1097,15 @@ function renderizarTablaMovimientos() {
     return;
   }
 
-  // Calcular índices para la página actual
   const inicio = (paginaActual - 1) * itemsPorPagina;
   const fin = inicio + itemsPorPagina;
   const movimientosPagina = movimientosFiltrados.slice(inicio, fin);
 
-  // Crear filas de la tabla
   tbody.innerHTML = movimientosPagina.map(mov => {
-    // ✅ CORRECCIÓN: Usar la función formatearFecha corregida
     let fechaSalida = 'N/A';
     if (mov.fecha_salida) {
       fechaSalida = formatearFecha(mov.fecha_salida);
     } else if (mov.fecha_salida_formateada) {
-      // Si viene formateada desde la API, usar la función corregida
       fechaSalida = formatearFecha(mov.fecha_salida_formateada);
     }
 
@@ -513,42 +1128,60 @@ function renderizarTablaMovimientos() {
             ${getEstadoTexto(mov.estado)}
           </span>
         </td>
-        <td class="px-4 py-3 border border-gray-200 text-center">
-          <div class="flex justify-center gap-2 action-buttons">
+        <td class="px-4 py-3 border border-gray-200">
+          <div class="text-sm font-medium">${mov.sede_actual_nombre || 'N/A'}</div>
+          <div class="text-xs text-gray-500">Ubicación actual</div>
+        </td>
+        <td class="px-4 py-3 border border-gray-200">
+          <div class="flex flex-col gap-1">
+            <!-- Botón principal de detalles -->
             <button onclick="verDetallesMovimiento(${mov.id})" 
-                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded transition flex items-center gap-1 text-sm"
+                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded transition flex items-center justify-center gap-1 text-sm w-full"
                     title="Ver detalles">
               <i class="fas fa-eye text-xs"></i>
+              <span>Detalles</span>
             </button>
             
-            <!-- SOLO mostrar botón de enviar si está PENDIENTE -->
+            <!-- Botones según estado -->
             ${mov.estado === 'pendiente' ? `
-              <button onclick="actualizarEstado(${mov.id}, 'enviado')" 
-                      class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded transition flex items-center gap-1 text-sm"
-                      title="Marcar como enviado">
-                <i class="fas fa-paper-plane text-xs"></i>
-              </button>
-              <button onclick="eliminarMovimiento(${mov.id})" 
-                      class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded transition flex items-center gap-1 text-sm"
-                      title="Eliminar movimiento">
-                <i class="fas fa-trash text-xs"></i>
-              </button>
+              <div class="flex gap-1">
+                <button onclick="mostrarModalAdjuntos(${mov.id})" 
+                        class="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-2 py-1.5 rounded transition flex items-center justify-center gap-1 text-xs"
+                        title="Adjuntar documentos">
+                  <i class="fas fa-paperclip"></i>
+                </button>
+                <button onclick="solicitarFirmaYEnviar(${mov.id})" 
+                        class="flex-1 bg-green-500 hover:bg-green-600 text-white px-2 py-1.5 rounded transition flex items-center justify-center gap-1 text-xs"
+                        title="Marcar como enviado">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </div>
             ` : ''}
             
-            <!-- SOLO mostrar botón de recibido si está ENVIADO -->
             ${mov.estado === 'enviado' ? `
-              <button onclick="actualizarEstado(${mov.id}, 'recibido')" 
-                      class="bg-[#639A33] hover:bg-green-700 text-white px-3 py-1.5 rounded transition flex items-center gap-1 text-sm"
+              <button onclick="solicitarFirmaYRecibir(${mov.id})" 
+                      class="bg-[#639A33] hover:bg-green-700 text-white px-3 py-1.5 rounded transition flex items-center justify-center gap-1 text-sm w-full"
                       title="Marcar como recibido">
                 <i class="fas fa-check text-xs"></i>
+                <span>Recibir</span>
               </button>
             ` : ''}
             
-            ${mov.estado === 'recibido' ? `
-              <button onclick="generarDocumentoMovimiento(${mov.id})" 
-                      class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded transition flex items-center gap-1 text-sm"
-                      title="Generar documento PDF">
+            ${mov.estado === 'recibido' && mov.documento_pdf_url ? `
+              <a href="${mov.documento_pdf_url}" target="_blank"
+                 class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded transition flex items-center justify-center gap-1 text-sm w-full"
+                 title="Ver PDF">
                 <i class="fas fa-file-pdf text-xs"></i>
+                <span>Ver PDF</span>
+              </a>
+            ` : ''}
+            
+            ${mov.estado === 'recibido' && !mov.documento_pdf_url ? `
+              <button onclick="generarDocumentoMovimiento(${mov.id})" 
+                      class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded transition flex items-center justify-center gap-1 text-sm w-full"
+                      title="Generar PDF">
+                <i class="fas fa-file-pdf text-xs"></i>
+                <span>Generar PDF</span>
               </button>
             ` : ''}
           </div>
@@ -560,6 +1193,667 @@ function renderizarTablaMovimientos() {
   actualizarInfoPaginacion();
   actualizarControlesPaginacion();
 }
+
+// ========================= MOSTRAR MODAL ADJUNTOS =========================
+
+function mostrarModalAdjuntos(movimientoId) {
+  const modalHTML = `
+    <div id="modal-adjuntos" class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-lg w-full max-w-2xl">
+        <div class="p-4 border-b flex justify-between items-center">
+          <h3 class="text-lg font-semibold">Adjuntar documentos</h3>
+          <button onclick="cerrarModalAdjuntos()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="border rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer transition-colors"
+                 onclick="mostrarModalCamara('imagen_salida', ${movimientoId}, 'Foto del equipo al salir')">
+              <div class="text-3xl text-blue-500 mb-2">
+                <i class="fas fa-camera"></i>
+              </div>
+              <h4 class="font-medium mb-1">Foto del equipo (Salida)</h4>
+              <p class="text-sm text-gray-600">Tome foto del equipo al salir</p>
+            </div>
+            
+            <div class="border rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer transition-colors"
+                 onclick="mostrarModalCamara('firma_envio', ${movimientoId}, 'Firma del responsable de envío')">
+              <div class="text-3xl text-green-500 mb-2">
+                <i class="fas fa-signature"></i>
+              </div>
+              <h4 class="font-medium mb-1">Firma responsable envío</h4>
+              <p class="text-sm text-gray-600">Firma digital del remitente</p>
+            </div>
+            
+            <div class="border rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer transition-colors"
+                 onclick="mostrarModalCamara('imagen_recepcion', ${movimientoId}, 'Foto del equipo al recibir')">
+              <div class="text-3xl text-yellow-500 mb-2">
+                <i class="fas fa-camera"></i>
+              </div>
+              <h4 class="font-medium mb-1">Foto del equipo (Recepción)</h4>
+              <p class="text-sm text-gray-600">Tome foto al recibir el equipo</p>
+            </div>
+            
+            <div class="border rounded-lg p-4 text-center hover:bg-gray-50 cursor-pointer transition-colors"
+                 onclick="mostrarModalCamara('firma_recepcion', ${movimientoId}, 'Firma del responsable de recepción')">
+              <div class="text-3xl text-red-500 mb-2">
+                <i class="fas fa-signature"></i>
+              </div>
+              <h4 class="font-medium mb-1">Firma responsable recepción</h4>
+              <p class="text-sm text-gray-600">Firma digital del receptor</p>
+            </div>
+          </div>
+          
+          <div class="border-t pt-4">
+            <h4 class="font-medium mb-2">Documentos ya subidos:</h4>
+            <div id="lista-documentos-${movimientoId}" class="text-sm">
+              <div class="text-gray-500 italic">Cargando...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  // Cargar documentos existentes
+  cargarDocumentosExistente(movimientoId);
+}
+
+// ========================= CARGAR DOCUMENTOS EXISTENTES =========================
+
+async function cargarDocumentosExistente(movimientoId) {
+  try {
+    const response = await fetch(`${API_URL}/movimientos-equipos/${movimientoId}/completo`);
+    if (!response.ok) throw new Error('Error al cargar documentos');
+
+    const movimiento = await response.json();
+    const lista = document.getElementById(`lista-documentos-${movimientoId}`);
+
+    if (!lista) return;
+
+    let documentosHTML = '';
+    
+    // Documentos con imágenes (mostrar miniaturas)
+    const documentosConImagen = [
+      { 
+        nombre: 'Foto al salir', 
+        url: movimiento.imagen_salida_url, 
+        icon: 'camera',
+        tipo: 'imagen' 
+      },
+      { 
+        nombre: 'Firma remitente', 
+        url: movimiento.firma_envio_url, 
+        icon: 'signature',
+        tipo: 'imagen' 
+      },
+      { 
+        nombre: 'Foto al recibir', 
+        url: movimiento.imagen_recepcion_url, 
+        icon: 'camera',
+        tipo: 'imagen' 
+      },
+      { 
+        nombre: 'Firma receptor', 
+        url: movimiento.firma_recepcion_url, 
+        icon: 'signature',
+        tipo: 'imagen' 
+      }
+    ];
+
+    // Documentos sin imágenes (solo enlaces)
+    const documentosSinImagen = [
+      { 
+        nombre: 'Documento PDF', 
+        url: movimiento.documento_pdf_url, 
+        icon: 'file-pdf',
+        tipo: 'pdf' 
+      }
+    ];
+
+    // Procesar documentos con imágenes
+    documentosConImagen.forEach(doc => {
+      if (doc.url) {
+        documentosHTML += `
+          <div class="mb-3 p-3 bg-gray-50 rounded border">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <i class="fas fa-${doc.icon} text-gray-600"></i>
+                <span class="font-medium">${doc.nombre}</span>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="ampliarImagen('${doc.url}', '${doc.nombre}')" 
+                        class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50"
+                        title="Ver imagen">
+                  <i class="fas fa-expand"></i> Ampliar
+                </button>
+                <a href="${doc.url}" target="_blank" 
+                   class="text-green-600 hover:text-green-800 text-sm px-2 py-1 rounded hover:bg-green-50"
+                   title="Abrir en nueva pestaña">
+                  <i class="fas fa-external-link-alt"></i> Abrir
+                </a>
+              </div>
+            </div>
+            <div class="mt-2 border rounded p-2 bg-white">
+              <img src="${doc.url}" 
+                   alt="${doc.nombre}" 
+                   class="w-full h-32 object-contain cursor-pointer"
+                   onclick="ampliarImagen('${doc.url}', '${doc.nombre}')"
+                   style="cursor: pointer;">
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    // Procesar documentos sin imágenes
+    documentosSinImagen.forEach(doc => {
+      if (doc.url) {
+        documentosHTML += `
+          <div class="flex items-center justify-between p-3 bg-gray-50 rounded border mb-2">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-${doc.icon} text-gray-600"></i>
+              <span>${doc.nombre}</span>
+            </div>
+            <div class="flex gap-2">
+              <a href="${doc.url}" target="_blank" 
+                 class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50">
+                <i class="fas fa-eye"></i> Ver
+              </a>
+              <button onclick="descargarArchivo('${doc.url}', '${movimiento.codigo_movimiento || 'documento'}.pdf')" 
+                      class="text-green-600 hover:text-green-800 text-sm px-2 py-1 rounded hover:bg-green-50">
+                <i class="fas fa-download"></i> Descargar
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    if (documentosHTML === '') {
+      documentosHTML = `
+        <div class="text-center p-4 text-gray-500 italic">
+          <i class="fas fa-folder-open text-3xl mb-2"></i>
+          <p>No hay documentos adjuntos</p>
+        </div>
+      `;
+    }
+
+    lista.innerHTML = documentosHTML;
+
+  } catch (error) {
+    console.error('Error cargando documentos:', error);
+    const lista = document.getElementById(`lista-documentos-${movimientoId}`);
+    if (lista) {
+      lista.innerHTML = `
+        <div class="text-center p-4 text-red-500">
+          <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+          <p>Error al cargar documentos</p>
+        </div>
+      `;
+    }
+  }
+}
+
+// ========================= CERRAR MODAL ADJUNTOS =========================
+
+function cerrarModalAdjuntos() {
+  const modal = document.getElementById('modal-adjuntos');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+// ========================= SOLICITAR FIRMA Y ENVIAR =========================
+
+async function solicitarFirmaYEnviar(movimientoId) {
+  try {
+    const movimiento = todosLosMovimientos.find(m => m.id == movimientoId);
+    if (!movimiento) {
+      mostrarMensaje('Movimiento no encontrado', true);
+      return;
+    }
+
+    // Verificar si ya tiene foto y firma de envío
+    const tieneFotoSalida = movimiento.imagen_salida_url;
+    const tieneFirmaEnvio = movimiento.firma_envio_url;
+
+    if (!tieneFotoSalida || !tieneFirmaEnvio) {
+      const accionesFaltantes = [];
+      if (!tieneFotoSalida) accionesFaltantes.push('foto del equipo al salir');
+      if (!tieneFirmaEnvio) accionesFaltantes.push('firma del responsable de envío');
+
+      const confirmar = confirm(`Para marcar como ENVIADO, necesita:\n\n• ${accionesFaltantes.join('\n• ')}\n\n¿Desea proceder con estas acciones ahora?`);
+
+      if (confirmar) {
+        // Mostrar modal para completar acciones faltantes
+        mostrarModalAdjuntos(movimientoId);
+        return;
+      } else {
+        return;
+      }
+    }
+
+    // Si ya tiene todo, proceder con el envío
+    await actualizarEstado(movimientoId, 'enviado');
+
+  } catch (error) {
+    console.error('Error solicitando firma y enviar:', error);
+    mostrarMensaje('Error al procesar envío', true);
+  }
+}
+
+// ========================= SOLICITAR FIRMA Y RECIBIR =========================
+
+async function solicitarFirmaYRecibir(movimientoId) {
+  try {
+    const movimiento = todosLosMovimientos.find(m => m.id == movimientoId);
+    if (!movimiento) {
+      mostrarMensaje('Movimiento no encontrado', true);
+      return;
+    }
+
+    // Verificar si ya tiene foto y firma de recepción
+    const tieneFotoRecepcion = movimiento.imagen_recepcion_url;
+    const tieneFirmaRecepcion = movimiento.firma_recepcion_url;
+
+    if (!tieneFotoRecepcion || !tieneFirmaRecepcion) {
+      const accionesFaltantes = [];
+      if (!tieneFotoRecepcion) accionesFaltantes.push('foto del equipo al recibir');
+      if (!tieneFirmaRecepcion) accionesFaltantes.push('firma del responsable de recepción');
+
+      const confirmar = confirm(`Para marcar como RECIBIDO, necesita:\n\n• ${accionesFaltantes.join('\n• ')}\n\n¿Desea proceder con estas acciones ahora?`);
+
+      if (confirmar) {
+        // Mostrar modal para completar acciones faltantes
+        mostrarModalAdjuntos(movimientoId);
+        return;
+      } else {
+        return;
+      }
+    }
+
+    // Si ya tiene todo, proceder con la recepción
+    await actualizarEstado(movimientoId, 'recibido');
+
+  } catch (error) {
+    console.error('Error solicitando firma y recibir:', error);
+    mostrarMensaje('Error al procesar recepción', true);
+  }
+}
+
+// ========================= ACTUALIZAR ESTADO =========================
+
+async function actualizarEstado(id, nuevoEstado) {
+  const movimiento = todosLosMovimientos.find(m => m.id == id);
+  if (!movimiento) {
+    mostrarMensaje('Movimiento no encontrado', true);
+    return;
+  }
+
+  const mensajes = {
+    'enviado': '¿Confirmar envío del equipo? El responsable de recepción será notificado.',
+    'recibido': '¿Confirmar recepción del equipo? El responsable de envío será notificado.'
+  };
+
+  if (!confirm(mensajes[nuevoEstado] || `¿Confirmar cambio de estado a "${nuevoEstado}"?`)) return;
+
+  try {
+    console.log(`🔄 Actualizando estado del movimiento ${id} a ${nuevoEstado}...`);
+
+    const updateData = { estado: nuevoEstado };
+
+    if (nuevoEstado === 'recibido') {
+      updateData.fecha_recepcion = new Date().toISOString().split('T')[0];
+
+      // Actualizar ubicación del equipo
+      try {
+        await fetch(`${API_URL}/equipos/${movimiento.id_equipo}/actualizar-ubicacion`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id_sede: movimiento.id_sede_destino,
+            tipo_movimiento: 'recepcion',
+            id_movimiento: id,
+            observaciones: `Equipo recibido en ${movimiento.sede_destino_nombre}`
+          })
+        });
+
+        console.log('✅ Ubicación del equipo actualizada');
+      } catch (error) {
+        console.error('Error actualizando ubicación:', error);
+      }
+    }
+
+    const response = await fetch(`${API_URL}/movimientos-equipos/${id}/estado`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData)
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw new Error(responseData.error || 'Error al actualizar estado');
+    }
+
+    // Actualizar localmente
+    const index = todosLosMovimientos.findIndex(m => m.id == id);
+    if (index !== -1) {
+      todosLosMovimientos[index].estado = nuevoEstado;
+      if (nuevoEstado === 'recibido') {
+        todosLosMovimientos[index].fecha_recepcion = updateData.fecha_recepcion;
+
+        // Actualizar ubicación localmente
+        todosLosMovimientos[index].sede_actual_nombre = movimiento.sede_destino_nombre;
+      }
+    }
+
+    const mensajeExito = {
+      'enviado': '✅ Equipo marcado como ENVIADO',
+      'recibido': '✅ Equipo marcado como RECIBIDO'
+    };
+
+    mostrarMensaje(mensajeExito[nuevoEstado] || `Estado actualizado a ${nuevoEstado}`);
+
+    // Si es recibido, generar y guardar PDF
+    if (nuevoEstado === 'recibido') {
+      setTimeout(async () => {
+        await generarDocumentoMovimiento(id);
+      }, 1000);
+    }
+
+    await cargarMovimientosCompletos();
+
+  } catch (error) {
+    console.error('❌ Error actualizando estado:', error);
+    mostrarMensaje(`❌ Error: ${error.message}`, true);
+  }
+}
+
+// ========================= GENERAR Y GUARDAR PDF EN CLOUDINARY =========================
+
+async function generarDocumentoMovimiento(movimientoId) {
+  try {
+    console.log(`📄 Generando documento PDF para movimiento ${movimientoId}...`);
+    mostrarMensaje('📄 Generando PDF...');
+
+    // Obtener datos completos del movimiento
+    const response = await fetch(`${API_URL}/movimientos-equipos/${movimientoId}/completo`);
+    if (!response.ok) throw new Error('Error al cargar datos para PDF');
+
+    const movimiento = await response.json();
+
+    // Crear contenido HTML para el PDF
+    const contenidoHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta charset="UTF-8">
+          <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              .header { text-align: center; border-bottom: 2px solid #639A33; padding-bottom: 20px; margin-bottom: 30px; }
+              .logo { max-width: 150px; }
+              .title { color: #0F172A; font-size: 24px; font-weight: bold; margin: 10px 0; }
+              .subtitle { color: #666; font-size: 16px; }
+              .section { margin: 20px 0; }
+              .section-title { background-color: #f0f0f0; padding: 10px; font-weight: bold; border-left: 4px solid #639A33; }
+              .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 15px 0; }
+              .info-item { padding: 5px 0; }
+              .info-label { font-weight: bold; color: #0F172A; }
+              .signatures { display: flex; justify-content: space-between; margin-top: 50px; }
+              .signature-box { width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 10px; }
+              .qrcode { text-align: center; margin: 20px 0; }
+              .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; font-weight: bold; }
+              .pendiente { background-color: #fef3c7; color: #92400e; }
+              .enviado { background-color: #dbeafe; color: #1e40af; }
+              .recibido { background-color: #dcfce7; color: #166534; }
+              .footer { margin-top: 50px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 10px; }
+              .images-container { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
+              .image-box { width: 200px; border: 1px solid #ddd; padding: 10px; text-align: center; }
+              .image-preview { max-width: 180px; max-height: 150px; }
+          </style>
+      </head>
+      <body>
+          <div class="header">
+              <div class="title">ACTA DE MOVIMIENTO DE EQUIPO</div>
+              <div class="subtitle">Sistema de Inventario SIGIPS</div>
+              <div>Código: ${movimiento.codigo_movimiento || 'N/A'}</div>
+          </div>
+          
+          <div class="section">
+              <div class="section-title">INFORMACIÓN DEL MOVIMIENTO</div>
+              <div class="info-grid">
+                  <div class="info-item">
+                      <span class="info-label">Equipo:</span> ${movimiento.equipo_nombre || 'N/A'}
+                  </div>
+                  <div class="info-item">
+                      <span class="info-label">Código Interno:</span> ${movimiento.equipo_codigo || 'N/A'}
+                  </div>
+                  <div class="info-item">
+                      <span class="info-label">Tipo:</span> ${movimiento.tipo_movimiento_nombre || 'N/A'}
+                  </div>
+                  <div class="info-item">
+                      <span class="info-label">Estado:</span> 
+                      <span class="status-badge ${movimiento.estado || 'pendiente'}">
+                          ${movimiento.estado ? movimiento.estado.toUpperCase() : 'PENDIENTE'}
+                      </span>
+                  </div>
+              </div>
+          </div>
+          
+          <div class="section">
+              <div class="section-title">UBICACIONES</div>
+              <div class="info-grid">
+                  <div class="info-item">
+                      <span class="info-label">Origen:</span><br>
+                      ${movimiento.sede_origen_nombre || 'N/A'}<br>
+                      ${movimiento.sede_origen_direccion || ''}
+                  </div>
+                  <div class="info-item">
+                      <span class="info-label">Destino:</span><br>
+                      ${movimiento.sede_destino_nombre || 'N/A'}<br>
+                      ${movimiento.sede_destino_direccion || ''}
+                  </div>
+                  <div class="info-item">
+                      <span class="info-label">Ubicación Actual:</span><br>
+                      ${movimiento.sede_actual_nombre || movimiento.sede_destino_nombre || 'N/A'}
+                  </div>
+              </div>
+          </div>
+          
+          <div class="section">
+              <div class="section-title">FECHAS</div>
+              <div class="info-grid">
+                  <div class="info-item">
+                      <span class="info-label">Fecha de Salida:</span> ${formatearFecha(movimiento.fecha_salida) || 'N/A'}
+                  </div>
+                  <div class="info-item">
+                      <span class="info-label">Fecha de Recepción:</span> ${movimiento.fecha_recepcion ? formatearFecha(movimiento.fecha_recepcion) : 'Pendiente'}
+                  </div>
+              </div>
+          </div>
+          
+          ${movimiento.motivo ? `
+          <div class="section">
+              <div class="section-title">MOTIVO DEL MOVIMIENTO</div>
+              <p>${movimiento.motivo}</p>
+          </div>
+          ` : ''}
+          
+          ${movimiento.observaciones ? `
+          <div class="section">
+              <div class="section-title">OBSERVACIONES</div>
+              <p>${movimiento.observaciones}</p>
+          </div>
+          ` : ''}
+          
+          <div class="section">
+              <div class="section-title">RESPONSABLES</div>
+              <div class="info-grid">
+                  <div class="info-item">
+                      <span class="info-label">Responsable de Envío:</span><br>
+                      ${movimiento.responsable_envio_nombre || 'N/A'}<br>
+                      Documento: ${movimiento.responsable_envio_documento || ''}
+                  </div>
+                  <div class="info-item">
+                      <span class="info-label">Responsable de Recepción:</span><br>
+                      ${movimiento.responsable_recepcion_nombre || 'N/A'}<br>
+                      Documento: ${movimiento.responsable_recepcion_documento || ''}
+                  </div>
+              </div>
+          </div>
+          
+          ${(movimiento.imagen_salida_url || movimiento.imagen_recepcion_url) ? `
+          <div class="section">
+              <div class="section-title">DOCUMENTACIÓN ADJUNTA</div>
+              <div class="images-container">
+                  ${movimiento.imagen_salida_url ? `
+                  <div class="image-box">
+                      <div><strong>Foto Salida</strong></div>
+                      <img src="${movimiento.imagen_salida_url}" class="image-preview">
+                  </div>
+                  ` : ''}
+                  
+                  ${movimiento.imagen_recepcion_url ? `
+                  <div class="image-box">
+                      <div><strong>Foto Recepción</strong></div>
+                      <img src="${movimiento.imagen_recepcion_url}" class="image-preview">
+                  </div>
+                  ` : ''}
+              </div>
+          </div>
+          ` : ''}
+          
+          <div class="section">
+              <div class="section-title">FIRMAS</div>
+              <div class="signatures">
+                  <div class="signature-box">
+                      <div>Responsable de Envío</div>
+                      ${movimiento.firma_envio_url ?
+        `<img src="${movimiento.firma_envio_url}" style="max-width: 150px; max-height: 80px;">` :
+        '___________________'
+      }
+                      <div>${movimiento.responsable_envio_nombre || ''}</div>
+                      <div>${movimiento.responsable_envio_documento || ''}</div>
+                  </div>
+                  <div class="signature-box">
+                      <div>Responsable de Recepción</div>
+                      ${movimiento.firma_recepcion_url ?
+        `<img src="${movimiento.firma_recepcion_url}" style="max-width: 150px; max-height: 80px;">` :
+        '___________________'
+      }
+                      <div>${movimiento.responsable_recepcion_nombre || ''}</div>
+                      <div>${movimiento.responsable_recepcion_documento || ''}</div>
+                  </div>
+              </div>
+          </div>
+          
+          <div class="qrcode">
+              <div>Código QR del movimiento:</div>
+              <div style="font-family: monospace; font-size: 10px; margin-top: 10px;">
+                  ${movimiento.codigo_movimiento || 'N/A'}
+              </div>
+          </div>
+          
+          <div class="footer">
+              Documento generado automáticamente por SIGIPS<br>
+              Fecha de generación: ${new Date().toLocaleDateString('es-ES')}<br>
+              Este documento tiene validez legal y técnica
+          </div>
+      </body>
+      </html>
+    `;
+
+    // Crear un elemento temporal para el PDF
+    const element = document.createElement('div');
+    element.innerHTML = contenidoHTML;
+    document.body.appendChild(element);
+
+    // Configurar opciones para html2pdf
+    const opt = {
+      margin: 10,
+      filename: `movimiento_${movimiento.codigo_movimiento || movimientoId}_${new Date().getTime()}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: false
+      },
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait',
+        compress: true
+      }
+    };
+
+    mostrarMensaje('🔄 Generando PDF...');
+
+    // Generar PDF como Blob
+    const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+    
+    // Crear archivo para subir a Cloudinary
+    const pdfFile = new File([pdfBlob], 
+      `movimiento_${movimiento.codigo_movimiento || movimientoId}_${new Date().getTime()}.pdf`, 
+      { type: 'application/pdf' }
+    );
+
+    mostrarMensaje('📤 Subiendo PDF a Cloudinary...');
+
+    // Subir PDF a Cloudinary
+    const uploadResult = await subirArchivoCloudinary(pdfFile, 'pdf');
+
+    // Guardar URL del PDF en la base de datos
+    const saveResponse = await fetch(`${API_URL}/movimientos-equipos/${movimientoId}/generar-pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pdf_url: uploadResult.url,
+        pdf_public_id: uploadResult.public_id,
+        pdf_nombre: uploadResult.nombre_original
+      })
+    });
+
+    if (saveResponse.ok) {
+      // Limpiar elemento temporal
+      document.body.removeChild(element);
+      
+      // Actualizar movimiento localmente
+      const movimientoIndex = todosLosMovimientos.findIndex(m => m.id == movimientoId);
+      if (movimientoIndex !== -1) {
+        todosLosMovimientos[movimientoIndex].documento_pdf_url = uploadResult.url;
+      }
+
+      mostrarMensaje('✅ PDF generado y guardado en Cloudinary');
+
+      // Preguntar si quiere descargar el PDF
+      setTimeout(() => {
+        if (confirm('¿Desea descargar el PDF generado?')) {
+          descargarArchivo(uploadResult.url, pdfFile.name);
+        }
+      }, 500);
+    } else {
+      throw new Error('Error guardando PDF en la base de datos');
+    }
+
+  } catch (error) {
+    console.error('❌ Error generando PDF:', error);
+    mostrarMensaje(`❌ Error al generar PDF: ${error.message}`, true);
+    
+    // Limpiar elemento temporal si existe
+    const element = document.querySelector('div[style*="position: absolute"]');
+    if (element) {
+      element.remove();
+    }
+  }
+}
+
+// ========================= GET ESTADO CLASS/TEXTO =========================
 
 function getEstadoClass(estado) {
   switch (estado) {
@@ -581,7 +1875,8 @@ function getEstadoTexto(estado) {
   }
 }
 
-// Funciones de paginación
+// ========================= PAGINACIÓN =========================
+
 function calcularPaginacion() {
   totalPaginas = Math.max(1, Math.ceil(movimientosFiltrados.length / itemsPorPagina));
 
@@ -640,27 +1935,27 @@ function actualizarControlesPaginacion() {
   }
 }
 
+// ========================= CARGAR PENDIENTES =========================
+
 async function cargarPendientes() {
   try {
-    // Obtener usuario actual
     const userData = localStorage.getItem('currentUser');
     const currentUser = userData ? JSON.parse(userData) : null;
-    
-    // FILTRAR: SOLO movimientos ENVIADOS donde el usuario actual es responsable de recepción
+
     let pendientesParaRecepcion = [];
-    
+
     if (currentUser) {
-      pendientesParaRecepcion = todosLosMovimientos.filter(m => 
-        m.estado === 'enviado' && 
+      pendientesParaRecepcion = todosLosMovimientos.filter(m =>
+        m.estado === 'enviado' &&
         m.id_responsable_recepcion == currentUser.id
       );
     } else {
       pendientesParaRecepcion = todosLosMovimientos.filter(m => m.estado === 'enviado');
     }
-    
+
     const content = elementos.pendientesContent;
     if (!content) return;
-    
+
     if (pendientesParaRecepcion.length === 0) {
       content.innerHTML = `
         <div class="text-center py-8">
@@ -675,16 +1970,15 @@ async function cargarPendientes() {
       `;
       return;
     }
-    
+
     content.innerHTML = pendientesParaRecepcion.map(mov => {
-      // ✅ CORRECCIÓN: Usar la función formatearFecha corregida
       let fechaSalida = 'No especificada';
       if (mov.fecha_salida) {
         fechaSalida = formatearFecha(mov.fecha_salida);
       } else if (mov.fecha_salida_formateada) {
         fechaSalida = formatearFecha(mov.fecha_salida_formateada);
       }
-      
+
       return `
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200 animate-fade-in-up">
           <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -719,7 +2013,7 @@ async function cargarPendientes() {
                       class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded transition flex items-center gap-1 text-sm justify-center">
                 <i class="fas fa-eye"></i> Ver detalles
               </button>
-              <button onclick="actualizarEstado(${mov.id}, 'recibido')" 
+              <button onclick="solicitarFirmaYRecibir(${mov.id})" 
                       class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded transition flex items-center gap-1 text-sm justify-center">
                 <i class="fas fa-check-circle"></i> Confirmar recepción
               </button>
@@ -728,7 +2022,7 @@ async function cargarPendientes() {
         </div>
       `;
     }).join('');
-    
+
   } catch (error) {
     console.error('❌ Error cargando pendientes:', error);
     elementos.pendientesContent.innerHTML = `
@@ -742,16 +2036,14 @@ async function cargarPendientes() {
 
 function actualizarContadorPendientes() {
   if (elementos.pendingCount) {
-    // Obtener usuario actual
     const userData = localStorage.getItem('currentUser');
     const currentUser = userData ? JSON.parse(userData) : null;
 
-    // Contar SOLO movimientos ENVIADOS donde el usuario es responsable de recepción
     let pendientesParaRecepcion = [];
-    
+
     if (currentUser) {
-      pendientesParaRecepcion = todosLosMovimientos.filter(m => 
-        m.estado === 'enviado' && 
+      pendientesParaRecepcion = todosLosMovimientos.filter(m =>
+        m.estado === 'enviado' &&
         m.id_responsable_recepcion == currentUser.id
       );
     } else {
@@ -760,7 +2052,6 @@ function actualizarContadorPendientes() {
 
     elementos.pendingCount.textContent = pendientesParaRecepcion.length;
 
-    // Mostrar/ocultar contador
     if (pendientesParaRecepcion.length > 0) {
       elementos.pendingCount.classList.remove('hidden');
     } else {
@@ -769,92 +2060,14 @@ function actualizarContadorPendientes() {
   }
 }
 
-// FUNCIÓN PARA ACTUALIZAR ESTADO (ENVIADO O RECIBIDO)
-async function actualizarEstado(id, nuevoEstado) {
-  // Obtener el movimiento actual primero
-  const movimiento = todosLosMovimientos.find(m => m.id == id);
-  if (!movimiento) {
-    mostrarMensaje('Movimiento no encontrado', true);
-    return;
-  }
-
-  const mensajes = {
-    'enviado': '¿Confirmar envío del equipo? El responsable de recepción será notificado.',
-    'recibido': '¿Confirmar recepción del equipo? El responsable de envío será notificado.'
-  };
-
-  if (!confirm(mensajes[nuevoEstado] || `¿Confirmar cambio de estado a "${nuevoEstado}"?`)) return;
-
-  try {
-    console.log(`🔄 Actualizando estado del movimiento ${id} de ${movimiento.estado} a ${nuevoEstado}...`);
-
-    const updateData = {
-      estado: nuevoEstado
-    };
-
-    // Solo agregar fecha de recepción si es recibido
-    if (nuevoEstado === 'recibido') {
-      // ✅ CORRECCIÓN: Usar fecha en formato ISO
-      updateData.fecha_recepcion = new Date().toISOString().split('T')[0];
-    }
-
-    const response = await fetch(`${API_URL}/movimientos-equipos/${id}/estado`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updateData)
-    });
-
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      console.error('❌ Error de API:', responseData);
-      throw new Error(responseData.error || 'Error al actualizar estado');
-    }
-
-    // Actualizar localmente el array de movimientos
-    const index = todosLosMovimientos.findIndex(m => m.id == id);
-    if (index !== -1) {
-      todosLosMovimientos[index].estado = nuevoEstado;
-      if (nuevoEstado === 'recibido') {
-        todosLosMovimientos[index].fecha_recepcion = updateData.fecha_recepcion;
-      }
-    }
-
-    const mensajeExito = {
-      'enviado': '✅ Equipo marcado como ENVIADO. El responsable de recepción ha sido notificado.',
-      'recibido': '✅ Equipo marcado como RECIBIDO. El responsable de envío ha sido notificado.'
-    };
-
-    mostrarMensaje(mensajeExito[nuevoEstado] || `Estado actualizado a ${nuevoEstado}`);
-
-    // Recargar datos
-    await cargarMovimientos();
-    
-    // Actualizar vista actual
-    const tabActive = document.querySelector('.tab-movimientos.active');
-    if (tabActive) {
-      if (tabActive.id === 'tab-listar') {
-        renderizarTablaMovimientos();
-      } else if (tabActive.id === 'tab-pendientes') {
-        cargarPendientes();
-      }
-    }
-
-    // Actualizar contador de pendientes
-    actualizarContadorPendientes();
-
-  } catch (error) {
-    console.error('❌ Error actualizando estado:', error);
-    mostrarMensaje(`❌ Error: ${error.message}`, true);
-  }
-}
+// ========================= VER DETALLES MOVIMIENTO =========================
 
 async function verDetallesMovimiento(id) {
   try {
     console.log(`👁️ Cargando detalles del movimiento ${id}...`);
-    const response = await fetch(`${API_URL}/movimientos-equipos/${id}`);
+    mostrarMensaje('Cargando detalles...');
+
+    const response = await fetch(`${API_URL}/movimientos-equipos/${id}/completo`);
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Error al cargar detalles');
@@ -865,7 +2078,6 @@ async function verDetallesMovimiento(id) {
 
     const contenido = document.getElementById('detalles-contenido');
     if (contenido) {
-      // ✅ CORRECCIÓN: Usar la función formatearFecha corregida
       let fechaSalida = 'No especificada';
       if (movimiento.fecha_salida) {
         fechaSalida = formatearFecha(movimiento.fecha_salida);
@@ -880,98 +2092,259 @@ async function verDetallesMovimiento(id) {
         fechaRecepcion = formatearFecha(movimiento.fecha_recepcion_formateada);
       }
 
-      // ✅ CORRECCIÓN: Fecha de creación también
-      let fechaCreacion = 'N/A';
-      if (movimiento.creado_en) {
-        fechaCreacion = formatearFecha(movimiento.creado_en);
+      // Sección de documentos adjuntos mejorada
+      let documentosHTML = '';
+      const documentos = [
+        { 
+          nombre: 'Foto al salir', 
+          url: movimiento.imagen_salida_url, 
+          icon: 'camera',
+          tipo: 'imagen',
+          existe: !!movimiento.imagen_salida_url
+        },
+        { 
+          nombre: 'Firma remitente', 
+          url: movimiento.firma_envio_url, 
+          icon: 'signature',
+          tipo: 'imagen',
+          existe: !!movimiento.firma_envio_url
+        },
+        { 
+          nombre: 'Foto al recibir', 
+          url: movimiento.imagen_recepcion_url, 
+          icon: 'camera',
+          tipo: 'imagen',
+          existe: !!movimiento.imagen_recepcion_url
+        },
+        { 
+          nombre: 'Firma receptor', 
+          url: movimiento.firma_recepcion_url, 
+          icon: 'signature',
+          tipo: 'imagen',
+          existe: !!movimiento.firma_recepcion_url
+        },
+        { 
+          nombre: 'Documento PDF', 
+          url: movimiento.documento_pdf_url, 
+          icon: 'file-pdf',
+          tipo: 'pdf',
+          existe: !!movimiento.documento_pdf_url
+        }
+      ];
+
+      // Crear cards para cada documento
+      documentos.forEach(doc => {
+        if (doc.existe) {
+          if (doc.tipo === 'imagen') {
+            documentosHTML += `
+              <div class="border rounded-lg p-4 bg-gray-50">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <i class="fas fa-${doc.icon} text-blue-600"></i>
+                    <span class="font-medium">${doc.nombre}</span>
+                  </div>
+                  <button onclick="ampliarImagen('${doc.url}', '${doc.nombre}')" 
+                          class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 text-sm">
+                    <i class="fas fa-expand"></i> Ver completa
+                  </button>
+                </div>
+                <div class="border rounded overflow-hidden bg-white">
+                  <img src="${doc.url}" 
+                       alt="${doc.nombre}" 
+                       class="w-full h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                       onclick="ampliarImagen('${doc.url}', '${doc.nombre}')"
+                       onerror="this.src='https://via.placeholder.com/400x300/cccccc/969696?text=Imagen+no+disponible'">
+                </div>
+                <div class="mt-2 text-xs text-gray-500 text-center">
+                  Haz clic en la imagen para ampliar
+                </div>
+              </div>
+            `;
+          } else {
+            documentosHTML += `
+              <div class="border rounded-lg p-4 bg-gray-50">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <i class="fas fa-${doc.icon} text-red-600"></i>
+                    <span class="font-medium">${doc.nombre}</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <a href="${doc.url}" target="_blank" 
+                       class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 text-sm">
+                      <i class="fas fa-eye"></i> Ver
+                    </a>
+                    <button onclick="descargarArchivo('${doc.url}', 'movimiento_${movimiento.codigo_movimiento}.pdf')" 
+                            class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded flex items-center gap-1 text-sm">
+                      <i class="fas fa-download"></i> Descargar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        }
+      });
+
+      if (documentosHTML === '') {
+        documentosHTML = `
+          <div class="text-center p-6 border rounded-lg bg-gray-50">
+            <i class="fas fa-folder-open text-4xl text-gray-400 mb-3"></i>
+            <p class="text-gray-500">No hay documentos adjuntos</p>
+            ${movimiento.estado === 'pendiente' ? `
+              <button onclick="mostrarModalAdjuntos(${movimiento.id})" 
+                      class="mt-3 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded flex items-center gap-2 mx-auto">
+                <i class="fas fa-paperclip"></i> Adjuntar documentos
+              </button>
+            ` : ''}
+          </div>
+        `;
       }
 
       contenido.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <p><strong class="text-[#0F172A]">Código movimiento:</strong> ${movimiento.codigo_movimiento || 'N/A'}</p>
-            <p><strong class="text-[#0F172A]">Equipo:</strong> ${movimiento.equipo_nombre || 'N/A'}</p>
-            <p><strong class="text-[#0F172A]">Tipo movimiento:</strong> ${movimiento.tipo_movimiento_nombre || 'N/A'}</p>
-            <p><strong class="text-[#0F172A]">Estado:</strong> <span class="${getEstadoClass(movimiento.estado)} px-2 py-1 rounded-full text-xs">${getEstadoTexto(movimiento.estado)}</span></p>
+        <!-- Información principal -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Columna izquierda -->
+          <div class="space-y-4">
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h4 class="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                <i class="fas fa-info-circle"></i> Información básica
+              </h4>
+              <div class="space-y-2">
+                <p><strong class="text-blue-700">Código movimiento:</strong> ${movimiento.codigo_movimiento || 'N/A'}</p>
+                <p><strong class="text-blue-700">Equipo:</strong> ${movimiento.equipo_nombre || 'N/A'}</p>
+                <p><strong class="text-blue-700">Código equipo:</strong> ${movimiento.equipo_codigo || 'Sin código'}</p>
+                <p><strong class="text-blue-700">Tipo movimiento:</strong> ${movimiento.tipo_movimiento_nombre || 'N/A'}</p>
+                <p><strong class="text-blue-700">Estado:</strong> 
+                  <span class="${getEstadoClass(movimiento.estado)} px-2 py-1 rounded-full text-xs ml-2">
+                    ${getEstadoTexto(movimiento.estado)}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+              <h4 class="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                <i class="fas fa-calendar-alt"></i> Fechas
+              </h4>
+              <div class="space-y-2">
+                <p><strong class="text-green-700">Fecha Salida:</strong> ${fechaSalida}</p>
+                <p><strong class="text-green-700">Fecha Recepción:</strong> ${fechaRecepcion}</p>
+                <p><strong class="text-green-700">Ubicación actual:</strong> ${movimiento.sede_actual_nombre || movimiento.sede_destino_nombre || 'N/A'}</p>
+              </div>
+            </div>
           </div>
-          <div class="space-y-2">
-            <p><strong class="text-[#0F172A]">Sede Origen:</strong> ${movimiento.sede_origen_nombre || 'N/A'}</p>
-            <p><strong class="text-[#0F172A]">Sede Destino:</strong> ${movimiento.sede_destino_nombre || 'N/A'}</p>
-            <p><strong class="text-[#0F172A]">Fecha Salida:</strong> ${fechaSalida}</p>
-            <p><strong class="text-[#0F172A]">Fecha Recepción:</strong> ${fechaRecepcion}</p>
+
+          <!-- Columna derecha -->
+          <div class="space-y-4">
+            <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
+              <h4 class="font-semibold text-purple-800 mb-2 flex items-center gap-2">
+                <i class="fas fa-map-marker-alt"></i> Ubicaciones
+              </h4>
+              <div class="space-y-2">
+                <p><strong class="text-purple-700">Origen:</strong> ${movimiento.sede_origen_nombre || 'N/A'}</p>
+                <p><strong class="text-purple-700">Destino:</strong> ${movimiento.sede_destino_nombre || 'N/A'}</p>
+                <p><strong class="text-purple-700">Transporte:</strong> ${movimiento.transporte || 'No especificado'}</p>
+                <p><strong class="text-purple-700">Embalaje:</strong> ${movimiento.embalaje || 'No especificado'}</p>
+              </div>
+            </div>
+
+            <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+              <h4 class="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                <i class="fas fa-users"></i> Responsables
+              </h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <p class="font-medium text-yellow-700">Envío:</p>
+                  <p>${movimiento.responsable_envio_nombre || 'No asignado'}</p>
+                  <p class="text-sm text-gray-500">${movimiento.responsable_envio_documento || ''}</p>
+                </div>
+                <div>
+                  <p class="font-medium text-yellow-700">Recepción:</p>
+                  <p>${movimiento.responsable_recepcion_nombre || 'No asignado'}</p>
+                  <p class="text-sm text-gray-500">${movimiento.responsable_recepcion_documento || ''}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        
-        <div class="border-t pt-4">
-          <p class="font-semibold text-[#0F172A] mb-2">Motivo:</p>
-          <p class="text-gray-700 bg-gray-50 p-3 rounded">${movimiento.motivo || 'No especificado'}</p>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p class="font-semibold text-[#0F172A] mb-2">Responsable Envío:</p>
-            <p class="text-gray-700">${movimiento.responsable_envio_nombre || 'No asignado'}</p>
-            <p class="text-sm text-gray-500">${movimiento.responsable_envio_documento || ''}</p>
-          </div>
-          <div>
-            <p class="font-semibold text-[#0F172A] mb-2">Responsable Recepción:</p>
-            <p class="text-gray-700">${movimiento.responsable_recepcion_nombre || 'No asignado'}</p>
-            <p class="text-sm text-gray-500">${movimiento.responsable_recepcion_documento || ''}</p>
-          </div>
-        </div>
-        
-        ${movimiento.observaciones ? `
-        <div>
-          <p class="font-semibold text-[#0F172A] mb-2">Observaciones:</p>
-          <p class="text-gray-700 bg-gray-50 p-3 rounded">${movimiento.observaciones}</p>
+
+        <!-- Motivo -->
+        ${movimiento.motivo ? `
+        <div class="mt-6 bg-gray-50 p-4 rounded-lg border">
+          <h4 class="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+            <i class="fas fa-comment-alt"></i> Motivo del movimiento
+          </h4>
+          <p class="text-gray-700">${movimiento.motivo}</p>
         </div>
         ` : ''}
-        
-        ${movimiento.accesorios ? `
-        <div>
-          <p class="font-semibold text-[#0F172A] mb-2">Accesorios:</p>
-          <p class="text-gray-700 bg-gray-50 p-3 rounded">${movimiento.accesorios}</p>
-        </div>
-        ` : ''}
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p><strong class="text-[#0F172A]">Transporte:</strong> ${movimiento.transporte || 'No especificado'}</p>
-            <p><strong class="text-[#0F172A]">Embalaje:</strong> ${movimiento.embalaje || 'No especificado'}</p>
-          </div>
-          <div>
-            <p><strong class="text-[#0F172A]">Creado:</strong> ${fechaCreacion}</p>
-            <p><strong class="text-[#0F172A]">Condición:</strong> ${movimiento.condicion_salida || 'No especificada'}</p>
+
+        <!-- Documentos adjuntos -->
+        <div class="mt-6">
+          <h4 class="font-semibold text-[#0F172A] mb-4 flex items-center gap-2 text-lg">
+            <i class="fas fa-paperclip"></i> Documentos adjuntos
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${documentosHTML}
           </div>
         </div>
-        
-        <!-- Botones de acción según estado -->
-        <div class="flex justify-end gap-2 pt-4 border-t">
+
+        <!-- Información adicional -->
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          ${movimiento.observaciones ? `
+          <div class="bg-gray-50 p-4 rounded-lg border">
+            <h4 class="font-semibold text-gray-800 mb-2">Observaciones</h4>
+            <p class="text-gray-700">${movimiento.observaciones}</p>
+          </div>
+          ` : ''}
+          
+          ${movimiento.accesorios ? `
+          <div class="bg-gray-50 p-4 rounded-lg border">
+            <h4 class="font-semibold text-gray-800 mb-2">Accesorios</h4>
+            <p class="text-gray-700">${movimiento.accesorios}</p>
+          </div>
+          ` : ''}
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="mt-8 pt-6 border-t flex flex-wrap gap-3 justify-end">
           ${movimiento.estado === 'pendiente' ? `
-            <button onclick="actualizarEstado(${movimiento.id}, 'enviado')"
-                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition flex items-center gap-2">
+            <button onclick="solicitarFirmaYEnviar(${movimiento.id})"
+                    class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg transition flex items-center gap-2 font-medium">
               <i class="fas fa-paper-plane"></i> Marcar como Enviado
             </button>
           ` : ''}
           
           ${movimiento.estado === 'enviado' ? `
-            <button onclick="actualizarEstado(${movimiento.id}, 'recibido')"
-                    class="px-4 py-2 bg-[#639A33] text-white rounded hover:bg-green-700 transition flex items-center gap-2">
-              <i class="fas fa-check"></i> Marcar como Recibido
+            <button onclick="solicitarFirmaYRecibir(${movimiento.id})"
+                    class="bg-[#639A33] hover:bg-green-700 text-white px-5 py-2.5 rounded-lg transition flex items-center gap-2 font-medium">
+              <i class="fas fa-check-circle"></i> Marcar como Recibido
             </button>
           ` : ''}
           
-          ${movimiento.estado === 'recibido' ? `
+          ${movimiento.estado === 'recibido' && !movimiento.documento_pdf_url ? `
             <button onclick="generarDocumentoMovimiento(${movimiento.id})"
-                    class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition flex items-center gap-2">
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg transition flex items-center gap-2 font-medium">
               <i class="fas fa-file-pdf"></i> Generar Documento PDF
             </button>
           ` : ''}
+          
+          ${movimiento.estado === 'recibido' && movimiento.documento_pdf_url ? `
+            <a href="${movimiento.documento_pdf_url}" target="_blank"
+               class="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg transition flex items-center gap-2 font-medium">
+              <i class="fas fa-file-pdf"></i> Ver Documento PDF
+            </a>
+          ` : ''}
+          
+          <button onclick="cerrarModalDetalles()"
+                  class="bg-gray-500 hover:bg-gray-600 text-white px-5 py-2.5 rounded-lg transition flex items-center gap-2 font-medium">
+            <i class="fas fa-times"></i> Cerrar
+          </button>
         </div>
       `;
     }
 
     document.getElementById('modal-detalles').classList.remove('hidden');
+    mostrarMensaje('✅ Detalles cargados');
 
   } catch (error) {
     console.error('❌ Error cargando detalles:', error);
@@ -979,638 +2352,26 @@ async function verDetallesMovimiento(id) {
   }
 }
 
-// FUNCIÓN PARA ELIMINAR MOVIMIENTO (OPCIONAL)
-async function eliminarMovimiento(id) {
-  if (!confirm('⚠️ ¿Está seguro de ELIMINAR este movimiento? Esta acción no se puede deshacer.')) {
-    return;
-  }
+// ========================= FUNCIONES AUXILIARES =========================
 
-  try {
-    console.log(`🗑️ Eliminando movimiento ${id}...`);
-
-    const response = await fetch(`${API_URL}/movimientos-equipos/${id}`, {
-      method: 'DELETE'
-    });
-
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      console.error('❌ Error de API:', responseData);
-      throw new Error(responseData.error || 'Error al eliminar movimiento');
-    }
-
-    console.log('✅ Respuesta de API al eliminar:', responseData);
-
-    // Remover del array de movimientos
-    todosLosMovimientos = todosLosMovimientos.filter(m => m.id != id);
-    movimientosFiltrados = movimientosFiltrados.filter(m => m.id != id);
-
-    mostrarMensaje('✅ Movimiento eliminado exitosamente');
-
-    // Recargar la vista
-    renderizarTablaMovimientos();
-    actualizarContadorPendientes();
-
-  } catch (error) {
-    console.error('❌ Error eliminando movimiento:', error);
-    mostrarMensaje(`❌ Error: ${error.message}`, true);
-  }
-}
-
-// Función para generar documento PDF del movimiento
-async function generarDocumentoMovimiento(id) {
-    try {
-    console.log(`📄 Generando documento para movimiento ${id}...`);
-    mostrarMensaje('Generando documento PDF...');
-
-    const response = await fetch(`${API_URL}/movimientos-equipos/${id}`);
-    if (!response.ok) {
-      throw new Error('Error al cargar datos del movimiento');
-    }
-
-    const movimiento = await response.json();
-
-    // Abrir ventana para el PDF
-    const ventanaPDF = window.open('', '_blank');
-    if (!ventanaPDF) {
-      mostrarMensaje('❌ Permite ventanas emergentes para generar el PDF', true);
-      return;
-    }
-
-    const fechaActual = new Date();
-    // ✅ CORRECCIÓN: Usar UTC para la fecha de generación
-    const fechaFormateada = fechaActual.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      timeZone: 'UTC'
-    });
-
-    // ✅ CORRECCIÓN: Usar la función formatearFecha corregida
-    let fechaSalida = 'No especificada';
-    if (movimiento.fecha_salida) {
-      fechaSalida = formatearFecha(movimiento.fecha_salida);
-    } else if (movimiento.fecha_salida_formateada) {
-      fechaSalida = formatearFecha(movimiento.fecha_salida_formateada);
-    }
-
-    let fechaRecepcion = 'Pendiente';
-    if (movimiento.fecha_recepcion) {
-      fechaRecepcion = formatearFecha(movimiento.fecha_recepcion);
-    } else if (movimiento.fecha_recepcion_formateada) {
-      fechaRecepcion = formatearFecha(movimiento.fecha_recepcion_formateada);
-    }
-
-    const tipoDocumento = movimiento.estado === 'recibido' ? 'ACTA DE RECEPCIÓN' : 'ACTA DE MOVIMIENTO';
-
-    const contenidoHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <meta charset="utf-8">
-          <title>Documento de Movimiento - ${movimiento.codigo_movimiento}</title>
-          <style>
-              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-              
-              * { 
-                  margin: 0; 
-                  padding: 0; 
-                  box-sizing: border-box; 
-              }
-              
-              body { 
-                  font-family: 'Inter', Arial, sans-serif; 
-                  margin: 0; 
-                  padding: 0; 
-                  background: white;
-                  color: #1e293b;
-                  font-size: 13px;
-                  line-height: 1.4;
-              }
-              
-              .page-container {
-                  width: 210mm;
-                  min-height: 297mm;
-                  margin: 0 auto;
-                  background: white;
-                  padding: 0;
-                  position: relative;
-              }
-              
-              /* Header con gradiente verde */
-              .header {
-                  background: #639A33 !important;
-                  color: white;
-                  padding: 15px 25px;
-                  position: relative;
-                  overflow: hidden;
-                  border-bottom: 3px solid #4a7a27;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  min-height: 120px;
-              }
-              
-              .header-content {
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: flex-start;
-                  position: relative;
-                  z-index: 2;
-                  width: 100%;
-              }
-              
-              .logo-container {
-                  display: flex;
-                  align-items: center;
-                  flex-shrink: 0;
-                  width: 100px;
-              }
-              
-              .logo {
-                  width: 100px;
-                  height: 80px;
-                  background: white;
-                  border-radius: 6px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                  padding: 4px;
-              }
-              
-              .logo img {
-                  width: 100%;
-                  height: 100%;
-                  object-fit: contain;
-              }
-              
-              .title-container {
-                  flex: 1;
-                  text-align: center;
-                  padding: 0 15px;
-                  margin-top: 15px;
-                  position: absolute;
-                  left: 50%;
-                  transform: translateX(-50%);
-                  width: 60%;
-              }
-              
-              .title-container h1 {
-                  font-size: 22px;
-                  font-weight: 700;
-                  margin-bottom: 3px;
-                  color: white !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  line-height: 1.2;
-              }
-              
-              .title-container .subtitle {
-                  font-size: 13px;
-                  font-weight: 400;
-                  color: white !important;
-                  opacity: 0.95;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  line-height: 1.2;
-              }
-              
-              .document-info {
-                  text-align: center;
-                  padding: 10px 0;
-                  background: #f8fafc;
-                  border-bottom: 2px solid #e2e8f0;
-              }
-              
-              .document-code {
-                  font-size: 18px;
-                  font-weight: 700;
-                  color: #639A33;
-                  letter-spacing: 1px;
-              }
-              
-              .document-type {
-                  font-size: 16px;
-                  font-weight: 600;
-                  color: #1e293b;
-                  margin-top: 5px;
-              }
-              
-              /* Contenido principal */
-              .content {
-                  padding: 20px;
-              }
-              
-              .section {
-                  margin-bottom: 15px;
-                  background: white;
-                  border-radius: 8px;
-                  border: 1px solid #e2e8f0;
-                  overflow: hidden;
-              }
-              
-              .section-title {
-                  background: #639A33 !important;
-                  padding: 10px 15px;
-                  font-weight: 600;
-                  color: white !important;
-                  font-size: 14px;
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                  border-left: 4px solid #4a7a27;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-              }
-              
-              .section-content {
-                  padding: 15px;
-              }
-              
-              .info-grid {
-                  display: grid;
-                  grid-template-columns: repeat(2, 1fr);
-                  gap: 15px;
-              }
-              
-              .info-item {
-                  display: flex;
-                  flex-direction: column;
-                  padding: 5px 0;
-              }
-              
-              .label {
-                  font-weight: 600;
-                  color: #475569;
-                  font-size: 11px;
-                  margin-bottom: 3px;
-                  text-transform: uppercase;
-              }
-              
-              .value {
-                  font-weight: 500;
-                  color: #1e293b;
-                  font-size: 12px;
-                  padding: 5px;
-                  background: #f8fafc;
-                  border-radius: 4px;
-                  border: 1px solid #e2e8f0;
-              }
-              
-              /* Tabla de información */
-              .info-table {
-                  width: 100%;
-                  border-collapse: collapse;
-                  margin-top: 10px;
-              }
-              
-              .info-table th {
-                  background: #639A33 !important;
-                  color: white !important;
-                  padding: 8px;
-                  text-align: left;
-                  font-weight: 600;
-                  font-size: 11px;
-                  border-right: 1px solid #4a7a27;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-              }
-              
-              .info-table td {
-                  padding: 8px;
-                  border-bottom: 1px solid #e2e8f0;
-                  border-right: 1px solid #e2e8f0;
-                  color: #475569;
-                  font-size: 12px;
-              }
-              
-              .info-table tr:nth-child(even) {
-                  background: #f8fafc;
-              }
-              
-              /* Firmas */
-              .signatures {
-                  display: grid;
-                  grid-template-columns: repeat(2, 1fr);
-                  gap: 30px;
-                  margin-top: 30px;
-                  padding-top: 20px;
-                  border-top: 2px dashed #cbd5e1;
-              }
-              
-              .signature-box {
-                  text-align: center;
-              }
-              
-              .signature-line {
-                  width: 80%;
-                  height: 1px;
-                  background: #1e293b;
-                  margin: 40px auto 10px;
-              }
-              
-              .signature-name {
-                  font-weight: 600;
-                  color: #1e293b;
-                  font-size: 13px;
-                  margin-top: 5px;
-              }
-              
-              .signature-role {
-                  font-size: 11px;
-                  color: #64748b;
-              }
-              
-              /* Footer */
-              .footer {
-                  margin-top: 20px;
-                  padding: 15px;
-                  background: #f8fafc;
-                  border-top: 2px solid #639A33;
-                  text-align: center;
-              }
-              
-              .footer-content {
-                  display: grid;
-                  grid-template-columns: repeat(3, 1fr);
-                  gap: 10px;
-                  margin-bottom: 10px;
-              }
-              
-              .footer-item {
-                  text-align: center;
-              }
-              
-              .footer-item .label {
-                  font-size: 10px;
-                  color: #64748b;
-              }
-              
-              .footer-item .value {
-                  font-size: 11px;
-                  color: #1e293b;
-                  font-weight: 600;
-                  background: none;
-                  border: none;
-                  padding: 0;
-              }
-              
-              .copyright {
-                  font-size: 10px;
-                  color: #94a3b8;
-                  margin-top: 10px;
-                  padding-top: 10px;
-                  border-top: 1px solid #e2e8f0;
-              }
-              
-              @media print {
-                  @page {
-                      margin: 0;
-                      size: A4;
-                  }
-                  
-                  body {
-                      margin: 0;
-                      padding: 0;
-                      -webkit-print-color-adjust: exact !important;
-                      print-color-adjust: exact !important;
-                  }
-                  
-                  .page-container {
-                      box-shadow: none;
-                      min-height: 100vh;
-                  }
-                  
-                  .header, .section-title, .info-table th {
-                      background: #639A33 !important;
-                      -webkit-print-color-adjust: exact !important;
-                      print-color-adjust: exact !important;
-                  }
-              }
-          </style>
-      </head>
-      <body>
-          <div class="page-container">
-              <!-- Header -->
-              <div class="header">
-                  <div class="header-content">
-                      <div class="logo-container">
-                          <div class="logo">
-                              <img src="../assets/logo_ips.png" alt="Logo IPS Progresando" />
-                          </div>
-                      </div>
-                      
-                      <div class="title-container">
-                          <h1>IPS PROGRESANDO EN SALUD</h1>
-                          <div class="subtitle">Sistema de Gestión de Movimientos de Equipos</div>
-                      </div>
-                  </div>
-              </div>
-              
-              <!-- Información del documento -->
-              <div class="document-info">
-                  <div class="document-code">${movimiento.codigo_movimiento || 'N/A'}</div>
-                  <div class="document-type">${tipoDocumento}</div>
-                  <div style="font-size: 12px; color: #64748b; margin-top: 5px;">
-                      Generado: ${fechaFormateada}
-                  </div>
-              </div>
-              
-              <!-- Contenido principal -->
-              <div class="content">
-                  <!-- Información del movimiento -->
-                  <div class="section">
-                      <div class="section-title">
-                          <i class="fas fa-info-circle"></i>
-                          INFORMACIÓN DEL MOVIMIENTO
-                      </div>
-                      <div class="section-content">
-                          <table class="info-table">
-                              <tr>
-                                  <th>Equipo</th>
-                                  <td>${movimiento.equipo_nombre || 'N/A'}</td>
-                                  <th>Código Equipo</th>
-                                  <td>${movimiento.equipo_codigo || 'N/A'}</td>
-                              </tr>
-                              <tr>
-                                  <th>Tipo Movimiento</th>
-                                  <td>${movimiento.tipo_movimiento_nombre || 'N/A'}</td>
-                                  <th>Estado</th>
-                                  <td>${getEstadoTexto(movimiento.estado)}</td>
-                              </tr>
-                              <tr>
-                                  <th>Sede Origen</th>
-                                  <td>${movimiento.sede_origen_nombre || 'N/A'}</td>
-                                  <th>Sede Destino</th>
-                                  <td>${movimiento.sede_destino_nombre || 'N/A'}</td>
-                              </tr>
-                              <tr>
-                                  <th>Fecha Salida</th>
-                                  <td>${fechaSalida}</td>
-                                  <th>Fecha Recepción</th>
-                                  <td>${fechaRecepcion}</td>
-                              </tr>
-                          </table>
-                      </div>
-                  </div>
-                  
-                  <!-- Responsables -->
-                  <div class="section">
-                      <div class="section-title">
-                          <i class="fas fa-users"></i>
-                          RESPONSABLES
-                      </div>
-                      <div class="section-content">
-                          <div class="info-grid">
-                              <div class="info-item">
-                                  <span class="label">Responsable de Envío</span>
-                                  <span class="value">${movimiento.responsable_envio_nombre || 'No asignado'}</span>
-                              </div>
-                              <div class="info-item">
-                                  <span class="label">Documento</span>
-                                  <span class="value">${movimiento.responsable_envio_documento || 'N/A'}</span>
-                              </div>
-                              <div class="info-item">
-                                  <span class="label">Responsable de Recepción</span>
-                                  <span class="value">${movimiento.responsable_recepcion_nombre || 'No asignado'}</span>
-                              </div>
-                              <div class="info-item">
-                                  <span class="label">Documento</span>
-                                  <span class="value">${movimiento.responsable_recepcion_documento || 'N/A'}</span>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-                  
-                  <!-- Información adicional -->
-                  <div class="section">
-                      <div class="section-title">
-                          <i class="fas fa-clipboard-list"></i>
-                          INFORMACIÓN ADICIONAL
-                      </div>
-                      <div class="section-content">
-                          <div class="info-grid">
-                              <div class="info-item">
-                                  <span class="label">Motivo</span>
-                                  <span class="value">${movimiento.motivo || 'No especificado'}</span>
-                              </div>
-                              <div class="info-item">
-                                  <span class="label">Condición del Equipo</span>
-                                  <span class="value">${movimiento.condicion_salida || 'Buena'}</span>
-                              </div>
-                              <div class="info-item">
-                                  <span class="label">Transporte</span>
-                                  <span class="value">${movimiento.transporte || 'Interno'}</span>
-                              </div>
-                              <div class="info-item">
-                                  <span class="label">Embalaje</span>
-                                  <span class="value">${movimiento.embalaje || 'Original'}</span>
-                              </div>
-                          </div>
-                          
-                          ${movimiento.observaciones ? `
-                          <div class="info-item" style="grid-column: span 2;">
-                              <span class="label">Observaciones</span>
-                              <span class="value">${movimiento.observaciones}</span>
-                          </div>
-                          ` : ''}
-                          
-                          ${movimiento.accesorios ? `
-                          <div class="info-item" style="grid-column: span 2;">
-                              <span class="label">Accesorios Entregados</span>
-                              <span class="value">${movimiento.accesorios}</span>
-                          </div>
-                          ` : ''}
-                          
-                          ${movimiento.compromiso_retorno ? `
-                          <div class="info-item" style="grid-column: span 2;">
-                              <span class="label">Compromiso de Retorno</span>
-                              <span class="value">${movimiento.compromiso_retorno}</span>
-                          </div>
-                          ` : ''}
-                      </div>
-                  </div>
-                  
-                  <!-- Firmas -->
-                  <div class="signatures">
-                      <div class="signature-box">
-                          <div class="signature-line"></div>
-                          <div class="signature-name">${movimiento.responsable_envio_nombre || 'Responsable Envío'}</div>
-                          <div class="signature-role">Responsable de Envío</div>
-                      </div>
-                      <div class="signature-box">
-                          <div class="signature-line"></div>
-                          <div class="signature-name">${movimiento.responsable_recepcion_nombre || 'Responsable Recepción'}</div>
-                          <div class="signature-role">Responsable de Recepción</div>
-                      </div>
-                  </div>
-              </div>
-
-              <!-- Footer -->
-              <div class="footer">
-                  <div class="footer-content">
-                      <div class="footer-item">
-                          <div class="label">Fecha de generación</div>
-                          <div class="value">${fechaFormateada}</div>
-                      </div>
-                      <div class="footer-item">
-                          <div class="label">Hora de generación</div>
-                          <div class="value">${fechaActual.toLocaleTimeString('es-ES', { timeZone: 'UTC' })}</div>
-                      </div>
-                      <div class="footer-item">
-                          <div class="label">Estado del movimiento</div>
-                          <div class="value">${getEstadoTexto(movimiento.estado)}</div>
-                      </div>
-                  </div>
-                  <div class="copyright">
-                      © ${fechaActual.getFullYear()} IPS Progresando - Sistema de Gestión de Inventarios | Documento generado automáticamente
-                  </div>
-              </div>
-          </div>
-      </body>
-      </html>
-    `;
-
-    ventanaPDF.document.write(contenidoHTML);
-    ventanaPDF.document.close();
-
-    // Esperar a que el PDF se cargue completamente antes de imprimir
-    setTimeout(() => {
-      if (ventanaPDF && !ventanaPDF.closed) {
-        ventanaPDF.focus();
-        ventanaPDF.print();
-        mostrarMensaje('✅ Documento PDF generado correctamente');
-      }
-    }, 1000);
-
-  } catch (error) {
-    console.error('❌ Error generando documento:', error);
-    mostrarMensaje('Error al generar documento PDF', true);
-  }
-}
-
-// Funciones auxiliares
 function mostrarTab(tabName) {
   console.log(`📑 Cambiando a pestaña: ${tabName}`);
 
-  // Ocultar todos los contenidos
   elementos.contenidoCrear.classList.add('hidden');
   elementos.contenidoListar.classList.add('hidden');
   elementos.contenidoPendientes.classList.add('hidden');
 
-  // Remover clase active de todas las pestañas
   elementos.tabCrear.classList.remove('active');
   elementos.tabListar.classList.remove('active');
   elementos.tabPendientes.classList.remove('active');
 
-  // Mostrar contenido seleccionado
   if (tabName === 'crear') {
     elementos.contenidoCrear.classList.remove('hidden');
     elementos.tabCrear.classList.add('active');
   } else if (tabName === 'listar') {
     elementos.contenidoListar.classList.remove('hidden');
     elementos.tabListar.classList.add('active');
-    cargarMovimientos();
+    cargarMovimientosCompletos();
   } else if (tabName === 'pendientes') {
     elementos.contenidoPendientes.classList.remove('hidden');
     elementos.tabPendientes.classList.add('active');
@@ -1624,13 +2385,11 @@ function cargarUsuario() {
     if (userData) {
       const user = JSON.parse(userData);
       document.getElementById('user-name').textContent = user.nombre || 'Usuario';
-      
-      // CORRECCIÓN: Mostrar rol con primera letra mayúscula
+
       const rol = user.rol || 'Técnico';
       const rolFormateado = rol.charAt(0).toUpperCase() + rol.slice(1).toLowerCase();
       document.getElementById('user-role').textContent = rolFormateado;
 
-      // Pre-seleccionar usuario actual en responsable de envío
       const responsableSelect = document.getElementById('responsable-envio-select');
       if (responsableSelect && user.id) {
         setTimeout(() => {
@@ -1661,6 +2420,7 @@ function mostrarSkeletonTabla(mostrar) {
           <td class="px-4 py-3 border border-gray-200"><div class="h-4 bg-gray-200 rounded w-20"></div></td>
           <td class="px-4 py-3 border border-gray-200"><div class="h-4 bg-gray-200 rounded w-24"></div></td>
           <td class="px-4 py-3 border border-gray-200"><div class="h-4 bg-gray-200 rounded w-28"></div></td>
+          <td class="px-4 py-3 border border-gray-200"><div class="h-4 bg-gray-200 rounded w-28"></div></td>
         </tr>
       `).join('')}
     `;
@@ -1668,7 +2428,6 @@ function mostrarSkeletonTabla(mostrar) {
 }
 
 function mostrarMensaje(texto, esError = false) {
-  // Crear o actualizar elemento de mensaje
   let mensaje = document.getElementById('mensaje-flotante');
   if (!mensaje) {
     mensaje = document.createElement('div');
@@ -1692,7 +2451,6 @@ function mostrarMensaje(texto, esError = false) {
     </div>
   `;
 
-  // Auto-remover después de 4 segundos
   setTimeout(() => {
     if (mensaje.parentNode) {
       mensaje.style.opacity = '0';
@@ -1709,12 +2467,6 @@ function cerrarModalDetalles() {
   document.getElementById('modal-detalles').classList.add('hidden');
 }
 
-// Hacer funciones disponibles globalmente
-window.verDetallesMovimiento = verDetallesMovimiento;
-window.actualizarEstado = actualizarEstado;
-window.cerrarModalDetalles = cerrarModalDetalles;
-window.generarDocumentoMovimiento = generarDocumentoMovimiento;
-
 // Función de animación para el progreso del mensaje
 const style = document.createElement('style');
 style.textContent = `
@@ -1727,3 +2479,22 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
+// ========================= EXPORTAR FUNCIONES GLOBALES =========================
+
+window.verDetallesMovimiento = verDetallesMovimiento;
+window.actualizarEstado = actualizarEstado;
+window.cerrarModalDetalles = cerrarModalDetalles;
+window.generarDocumentoMovimiento = generarDocumentoMovimiento;
+window.mostrarModalCamara = mostrarModalCamara;
+window.cerrarModalCamara = cerrarModalCamara;
+window.capturarFoto = capturarFoto;
+window.guardarFirma = guardarFirma;
+window.limpiarFirma = limpiarFirma;
+window.subirFotoArchivo = subirFotoArchivo;
+window.mostrarModalAdjuntos = mostrarModalAdjuntos;
+window.cerrarModalAdjuntos = cerrarModalAdjuntos;
+window.solicitarFirmaYEnviar = solicitarFirmaYEnviar;
+window.solicitarFirmaYRecibir = solicitarFirmaYRecibir;
+window.ampliarImagen = ampliarImagen;
+window.descargarArchivo = descargarArchivo;

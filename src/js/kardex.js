@@ -26,6 +26,27 @@ document.addEventListener("DOMContentLoaded", function () {
     inicializarSistema();
 });
 
+// Función para fetch con timeout
+async function fetchConTimeout(url, options = {}, timeout = 15000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        clearTimeout(id);
+        if (error.name === 'AbortError') {
+            throw new Error('Timeout: La solicitud tardó demasiado');
+        }
+        throw error;
+    }
+}
+
 async function inicializarSistema() {
     try {
         console.log("🔧 Configurando sistema...");
@@ -144,6 +165,13 @@ function configurarEventListeners() {
     if (btnAplicarFiltrosProv) btnAplicarFiltrosProv.addEventListener('click', aplicarFiltrosProveedores);
     if (btnLimpiarFiltrosProv) btnLimpiarFiltrosProv.addEventListener('click', limpiarFiltrosProveedores);
     if (btnExportarProveedores) btnExportarProveedores.addEventListener('click', exportarExcelProveedores);
+
+    // Cálculo automático de IVA
+    const costoInput = document.getElementById('costo');
+    const ivaInput = document.getElementById('iva');
+    
+    if (costoInput) costoInput.addEventListener('input', calcularValorConIVA);
+    if (ivaInput) ivaInput.addEventListener('input', calcularValorConIVA);
 }
 
 // ====================
@@ -152,8 +180,12 @@ function configurarEventListeners() {
 
 async function cargarSedes() {
     try {
-        const response = await fetch(API_SEDES);
-        if (!response.ok) throw new Error('Error al cargar sedes');
+        const response = await fetchConTimeout(API_SEDES);
+        if (!response.ok) {
+            console.warn('⚠️ Error al cargar sedes, intentando cargar localmente...');
+            await cargarSedesDesdeLocalStorage();
+            return;
+        }
 
         sedes = await response.json();
         const select = document.getElementById('sede-principal');
@@ -166,11 +198,38 @@ async function cargarSedes() {
                 option.textContent = `${sede.nombre} (${sede.codigo})`;
                 select.appendChild(option);
             });
+            
+            // Guardar en localStorage
+            localStorage.setItem('sedes_kardex', JSON.stringify(sedes));
         }
 
     } catch (error) {
         console.error('Error cargando sedes:', error);
-        mostrarMensaje('Error cargando sedes', true);
+        await cargarSedesDesdeLocalStorage();
+        mostrarMensaje('Error cargando sedes: ' + error.message, true);
+    }
+}
+
+async function cargarSedesDesdeLocalStorage() {
+    try {
+        const sedesGuardadas = localStorage.getItem('sedes_kardex');
+        if (sedesGuardadas) {
+            sedes = JSON.parse(sedesGuardadas);
+            const select = document.getElementById('sede-principal');
+            
+            if (select) {
+                select.innerHTML = '<option value="">Seleccione una sede para trabajar</option>';
+                sedes.forEach(sede => {
+                    const option = document.createElement('option');
+                    option.value = sede.id;
+                    option.textContent = `${sede.nombre} (${sede.codigo})`;
+                    select.appendChild(option);
+                });
+            }
+            console.log('✅ Sedes cargadas desde localStorage');
+        }
+    } catch (error) {
+        console.error('Error cargando sedes desde localStorage:', error);
     }
 }
 
@@ -203,6 +262,9 @@ async function cambiarSedeActiva() {
     if (infoSede) infoSede.classList.remove('hidden');
     if (panelPrincipal) panelPrincipal.classList.remove('hidden');
 
+    // Guardar sede activa en localStorage
+    localStorage.setItem('sede_activa_kardex', sedeActiva);
+
     // Cargar datos de la sede
     await cargarDatosSede();
     await cargarTodosLosProductos();
@@ -211,16 +273,33 @@ async function cambiarSedeActiva() {
 async function cargarDatosSede() {
     if (!sedeActiva) return;
 
+    console.log(`🔄 Cargando datos para sede: ${sedeActiva}`);
+
     try {
-        await Promise.all([
+        const resultados = await Promise.allSettled([
             cargarEstadisticasSede(),
             cargarProductosSede(),
             cargarMovimientosRecientes()
         ]);
-        mostrarMensaje('Datos de la sede cargados correctamente');
+
+        // Verificar resultados individuales
+        let errores = [];
+        resultados.forEach((resultado, index) => {
+            if (resultado.status === 'rejected') {
+                console.error(`Error en tarea ${index}:`, resultado.reason);
+                errores.push(resultado.reason.message);
+            }
+        });
+
+        if (errores.length === 0) {
+            mostrarMensaje('Datos de la sede cargados correctamente');
+        } else {
+            mostrarMensaje(`Algunos datos no se pudieron cargar: ${errores.join(', ')}`, true);
+        }
+
     } catch (error) {
-        console.error('Error cargando datos de sede:', error);
-        mostrarMensaje('Error cargando datos de la sede', true);
+        console.error('Error general cargando datos de sede:', error);
+        mostrarMensaje('Error cargando datos de la sede: ' + error.message, true);
     }
 }
 
@@ -228,10 +307,20 @@ async function cargarEstadisticasSede() {
     if (!sedeActiva) return;
 
     try {
-        const response = await fetch(`${API_ESTADISTICAS}/${sedeActiva}`);
-        if (!response.ok) throw new Error('Error al cargar estadísticas');
+        console.log(`📊 Cargando estadísticas para sede ${sedeActiva}...`);
+        const response = await fetchConTimeout(`${API_ESTADISTICAS}/${sedeActiva}`, {}, 10000);
+        
+        if (!response.ok) {
+            if (response.status === 500) {
+                console.warn('API de estadísticas devolvió error 500, calculando localmente...');
+                await calcularEstadisticasLocales();
+                return;
+            }
+            throw new Error(`Error ${response.status} al cargar estadísticas`);
+        }
 
         const stats = await response.json();
+        console.log('✅ Estadísticas recibidas:', stats);
 
         const totalProductos = document.getElementById('total-productos-count');
         const totalStock = document.getElementById('total-stock-count');
@@ -243,7 +332,7 @@ async function cargarEstadisticasSede() {
         if (stockBajo) stockBajo.textContent = stats.stock_bajo || 0;
         if (totalMovimientos) totalMovimientos.textContent = stats.total_movimientos || 0;
 
-        // Mostrar totales financieros si existen - CORREGIDO: Solo para la sede activa
+        // Mostrar totales financieros si existen
         if (document.getElementById('info-sede')) {
             const infoSede = document.getElementById('info-sede');
             let infoFinanciera = infoSede.querySelector('.info-financiera');
@@ -253,20 +342,9 @@ async function cargarEstadisticasSede() {
                 infoSede.appendChild(infoFinanciera);
             }
             
-            // Calcular valores financieros específicos para esta sede
-            const movimientosSede = movimientos.filter(mov => mov.sede_id == sedeActiva);
-            const totalEntradas = movimientosSede
-                .filter(mov => mov.tipo_movimiento === 'ENTRADA')
-                .reduce((sum, mov) => sum + (mov.total || 0), 0);
-            
-            const totalSalidas = movimientosSede
-                .filter(mov => mov.tipo_movimiento === 'SALIDA')
-                .reduce((sum, mov) => sum + (mov.total || 0), 0);
-            
-            const valorInventario = productos.reduce((sum, prod) => {
-                const costoPromedio = prod.costo_promedio || prod.costo_unitario || 0;
-                return sum + (prod.stock_actual * costoPromedio);
-            }, 0);
+            const totalEntradas = stats.total_entradas || 0;
+            const totalSalidas = stats.total_salidas || 0;
+            const valorInventario = stats.valor_total || 0;
 
             infoFinanciera.innerHTML = `
                 <span class="text-green-600">Entradas: $${formatearMoneda(totalEntradas)}</span> | 
@@ -277,6 +355,35 @@ async function cargarEstadisticasSede() {
 
     } catch (error) {
         console.error('Error cargando estadísticas:', error);
+        // No mostrar error al usuario, usar cálculo local
+        await calcularEstadisticasLocales();
+    }
+}
+
+async function calcularEstadisticasLocales() {
+    try {
+        console.log('📊 Calculando estadísticas locales...');
+        
+        const totalProductos = document.getElementById('total-productos-count');
+        const totalStock = document.getElementById('total-stock-count');
+        const stockBajo = document.getElementById('stock-bajo-count');
+        const totalMovimientos = document.getElementById('total-movimientos');
+        
+        // Usar datos locales
+        const totalProd = productos.length || 0;
+        const totalStk = productos.reduce((sum, p) => sum + (p.stock_actual || 0), 0) || 0;
+        const stockBjo = productos.filter(p => (p.stock_actual || 0) < 10).length || 0;
+        const totalMov = movimientos.length || 0;
+        
+        if (totalProductos) totalProductos.textContent = totalProd;
+        if (totalStock) totalStock.textContent = totalStk;
+        if (stockBajo) stockBajo.textContent = stockBjo;
+        if (totalMovimientos) totalMovimientos.textContent = totalMov;
+        
+        console.log('✅ Estadísticas locales calculadas:', { totalProd, totalStk, stockBjo, totalMov });
+
+    } catch (error) {
+        console.error('Error calculando estadísticas locales:', error);
     }
 }
 
@@ -286,11 +393,20 @@ async function cargarEstadisticasSede() {
 
 async function cargarProveedores() {
     try {
-        const response = await fetch(API_PROVEEDORES);
-        if (!response.ok) throw new Error('Error al cargar proveedores');
+        console.log('📞 Cargando proveedores...');
+        const response = await fetchConTimeout(API_PROVEEDORES);
+        
+        if (!response.ok) {
+            console.warn('⚠️ Error al cargar proveedores, intentando cargar desde localStorage...');
+            await cargarProveedoresDesdeLocalStorage();
+            return;
+        }
 
         proveedores = await response.json();
         proveedoresFiltrados = [...proveedores];
+        
+        // Guardar en localStorage
+        localStorage.setItem('proveedores_kardex', JSON.stringify(proveedores));
         
         // Actualizar select de proveedores en formularios
         actualizarSelectProveedores();
@@ -300,9 +416,31 @@ async function cargarProveedores() {
             cargarTablaProveedores();
         }
 
+        console.log(`✅ Proveedores cargados: ${proveedores.length}`);
+
     } catch (error) {
         console.error('Error cargando proveedores:', error);
-        mostrarMensaje('Error cargando proveedores', true);
+        await cargarProveedoresDesdeLocalStorage();
+        mostrarMensaje('Error cargando proveedores: ' + error.message, true);
+    }
+}
+
+async function cargarProveedoresDesdeLocalStorage() {
+    try {
+        const proveedoresGuardados = localStorage.getItem('proveedores_kardex');
+        if (proveedoresGuardados) {
+            proveedores = JSON.parse(proveedoresGuardados);
+            proveedoresFiltrados = [...proveedores];
+            actualizarSelectProveedores();
+            
+            if (document.getElementById('contenido-proveedores')?.classList.contains('active')) {
+                cargarTablaProveedores();
+            }
+            
+            console.log('✅ Proveedores cargados desde localStorage');
+        }
+    } catch (error) {
+        console.error('Error cargando proveedores desde localStorage:', error);
     }
 }
 
@@ -401,7 +539,7 @@ async function guardarProveedor(event) {
     };
 
     try {
-        const response = await fetch(API_PROVEEDORES, {
+        const response = await fetchConTimeout(API_PROVEEDORES, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -473,7 +611,7 @@ async function actualizarProveedor(event) {
     };
 
     try {
-        const response = await fetch(`${API_PROVEEDORES}/${proveedorId}`, {
+        const response = await fetchConTimeout(`${API_PROVEEDORES}/${proveedorId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -521,7 +659,7 @@ async function eliminarProveedorConfirmado() {
     if (!proveedorAEliminar) return;
 
     try {
-        const response = await fetch(`${API_PROVEEDORES}/${proveedorAEliminar}`, {
+        const response = await fetchConTimeout(`${API_PROVEEDORES}/${proveedorAEliminar}`, {
             method: 'DELETE'
         });
 
@@ -589,7 +727,7 @@ async function cargarProductosSede() {
 
     try {
         console.log(`📦 Cargando productos para sede: ${sedeActiva}`);
-        const response = await fetch(`${API_PRODUCTOS_SEDE}/${sedeActiva}`);
+        const response = await fetchConTimeout(`${API_PRODUCTOS_SEDE}/${sedeActiva}`);
         
         if (!response.ok) {
             const errorText = await response.text();
@@ -598,6 +736,9 @@ async function cargarProductosSede() {
 
         productos = await response.json();
         console.log(`✅ Productos cargados: ${productos.length} productos`);
+
+        // Guardar en localStorage
+        localStorage.setItem(`productos_sede_${sedeActiva}`, JSON.stringify(productos));
 
         // Actualizar select de productos en el formulario
         const select = document.getElementById('producto');
@@ -616,7 +757,35 @@ async function cargarProductosSede() {
 
     } catch (error) {
         console.error('❌ Error cargando productos de sede:', error);
+        // Intentar cargar desde localStorage
+        await cargarProductosDesdeLocalStorage();
         mostrarMensaje('Error cargando productos de la sede: ' + error.message, true);
+    }
+}
+
+async function cargarProductosDesdeLocalStorage() {
+    try {
+        const productosGuardados = localStorage.getItem(`productos_sede_${sedeActiva}`);
+        if (productosGuardados) {
+            productos = JSON.parse(productosGuardados);
+            
+            const select = document.getElementById('producto');
+            if (select) {
+                select.innerHTML = '<option value="">Seleccionar producto</option>';
+                productos.forEach(prod => {
+                    const option = document.createElement('option');
+                    option.value = prod.id;
+                    option.textContent = `${prod.nombre} (Stock: ${prod.stock_actual})`;
+                    option.dataset.unidad = prod.unidad;
+                    option.dataset.stock = prod.stock_actual;
+                    select.appendChild(option);
+                });
+            }
+            
+            console.log(`✅ Productos cargados desde localStorage para sede ${sedeActiva}`);
+        }
+    } catch (error) {
+        console.error('Error cargando productos desde localStorage:', error);
     }
 }
 
@@ -628,7 +797,7 @@ async function cargarTodosLosProductos() {
         }
 
         console.log(`📋 Cargando todos los productos para sede: ${sedeActiva}`);
-        const response = await fetch(`${API_PRODUCTOS_SEDE}/${sedeActiva}`);
+        const response = await fetchConTimeout(`${API_PRODUCTOS_SEDE}/${sedeActiva}`);
         
         if (!response.ok) {
             const errorText = await response.text();
@@ -639,6 +808,9 @@ async function cargarTodosLosProductos() {
         productosFiltrados = [...todosLosProductos];
         
         console.log(`✅ Todos los productos cargados: ${todosLosProductos.length} productos`);
+
+        // Guardar en localStorage
+        localStorage.setItem(`todos_productos_sede_${sedeActiva}`, JSON.stringify(todosLosProductos));
 
         // Llenar select de filtro de productos en movimientos
         const selectFiltro = document.getElementById('filtro-producto-mov');
@@ -658,7 +830,38 @@ async function cargarTodosLosProductos() {
 
     } catch (error) {
         console.error('❌ Error cargando productos:', error);
+        // Intentar cargar desde localStorage
+        await cargarTodosProductosDesdeLocalStorage();
         mostrarMensaje('Error cargando productos de la sede: ' + error.message, true);
+    }
+}
+
+async function cargarTodosProductosDesdeLocalStorage() {
+    try {
+        const productosGuardados = localStorage.getItem(`todos_productos_sede_${sedeActiva}`);
+        if (productosGuardados) {
+            todosLosProductos = JSON.parse(productosGuardados);
+            productosFiltrados = [...todosLosProductos];
+            
+            const selectFiltro = document.getElementById('filtro-producto-mov');
+            if (selectFiltro) {
+                selectFiltro.innerHTML = '<option value="">Todos los productos</option>';
+                todosLosProductos.forEach(prod => {
+                    const option = document.createElement('option');
+                    option.value = prod.id;
+                    option.textContent = prod.nombre;
+                    selectFiltro.appendChild(option);
+                });
+            }
+            
+            if (document.getElementById('contenido-productos')?.classList.contains('active')) {
+                cargarTablaProductos();
+            }
+            
+            console.log('✅ Todos los productos cargados desde localStorage');
+        }
+    } catch (error) {
+        console.error('Error cargando todos los productos desde localStorage:', error);
     }
 }
 
@@ -671,7 +874,7 @@ function cargarTablaProductos() {
     if (productosFiltrados.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="px-4 py-4 text-center text-gray-500">
+                <td colspan="9" class="px-4 py-4 text-center text-gray-500">
                     No hay productos registrados en esta sede
                 </td>
             </tr>
@@ -694,6 +897,7 @@ function cargarTablaProductos() {
                 <div class="text-sm text-gray-500">${prod.descripcion || 'Sin descripción'}</div>
             </td>
             <td class="px-4 py-2 border">${prod.categoria || '-'}</td>
+            <td class="px-4 py-2 border">${prod.marca || '-'}</td>
             <td class="px-4 py-2 border text-center">${prod.unidad}</td>
             <td class="px-4 py-2 border">${proveedorNombre}</td>
             <td class="px-4 py-2 border text-right">
@@ -745,7 +949,7 @@ function limpiarDatosSede() {
     if (tbodyProductos) {
         tbodyProductos.innerHTML = `
             <tr>
-                <td colspan="8" class="px-4 py-4 text-center text-gray-500">
+                <td colspan="9" class="px-4 py-4 text-center text-gray-500">
                     Seleccione una sede para ver los productos
                 </td>
             </tr>
@@ -756,7 +960,7 @@ function limpiarDatosSede() {
     if (tbodyMovimientos) {
         tbodyMovimientos.innerHTML = `
             <tr>
-                <td colspan="10" class="px-4 py-4 text-center text-gray-500">
+                <td colspan="13" class="px-4 py-4 text-center text-gray-500">
                     Seleccione una sede para ver los movimientos
                 </td>
             </tr>
@@ -785,24 +989,43 @@ function limpiarDatosSede() {
 }
 
 // ====================
-// FUNCIONES DE MOVIMIENTOS - CORREGIDAS PARA FECHAS
+// FUNCIONES DE MOVIMIENTOS
 // ====================
 
 async function cargarMovimientosRecientes() {
     if (!sedeActiva) return;
 
     try {
-        const response = await fetch(`${API_MOVIMIENTOS}?sede_id=${sedeActiva}&limit=50`);
-        if (!response.ok) throw new Error('Error al cargar movimientos');
+        console.log(`🔍 Cargando movimientos para sede ${sedeActiva}...`);
+        const response = await fetchConTimeout(`${API_MOVIMIENTOS}?sede_id=${sedeActiva}&limit=50`);
+        
+        if (!response.ok) {
+            if (response.status === 500) {
+                console.warn('API de movimientos devolvió error 500, mostrando datos vacíos');
+                movimientos = [];
+                movimientosFiltrados = [];
+                renderizarMovimientosRecientes();
+                return;
+            }
+            const errorText = await response.text();
+            throw new Error(`Error ${response.status}: ${errorText}`);
+        }
 
         movimientos = await response.json();
+        console.log(`✅ Movimientos cargados: ${movimientos.length}`);
         
-        // CORRECCIÓN CRÍTICA: Aplicar corrección de fecha a todos los movimientos
+        // Guardar en localStorage
+        localStorage.setItem(`movimientos_sede_${sedeActiva}`, JSON.stringify(movimientos));
+        
+        // Aplicar corrección de fecha a todos los movimientos
         movimientos.forEach(mov => {
-            mov.fecha_corregida = corregirFechaDesdeBackend(mov.fecha);
+            mov.fecha_corregida = corregirFechaDesdeBackend(mov.fecha_formateada || mov.fecha);
             if (mov.fecha_vencimiento_formateada) {
                 mov.fecha_vencimiento_corregida = corregirFechaDesdeBackend(mov.fecha_vencimiento_formateada);
             }
+            // Asegurar que tenemos los valores con IVA
+            mov.valor_unitario_con_iva = mov.valor_unitario_con_iva_calculado || mov.valor_unitario_con_iva;
+            mov.total_con_iva = mov.total_con_iva_calculado || mov.total_con_iva || mov.total;
         });
         
         movimientosFiltrados = [...movimientos];
@@ -810,6 +1033,40 @@ async function cargarMovimientosRecientes() {
 
     } catch (error) {
         console.error('Error cargando movimientos:', error);
+        // Intentar cargar desde localStorage
+        await cargarMovimientosDesdeLocalStorage();
+        mostrarMensaje('⚠️ No se pudieron cargar los movimientos desde el servidor. Usando datos locales.', true);
+    }
+}
+
+async function cargarMovimientosDesdeLocalStorage() {
+    try {
+        const movimientosGuardados = localStorage.getItem(`movimientos_sede_${sedeActiva}`);
+        if (movimientosGuardados) {
+            movimientos = JSON.parse(movimientosGuardados);
+            
+            // Aplicar corrección de fecha
+            movimientos.forEach(mov => {
+                mov.fecha_corregida = corregirFechaDesdeBackend(mov.fecha_formateada || mov.fecha);
+                if (mov.fecha_vencimiento_formateada) {
+                    mov.fecha_vencimiento_corregida = corregirFechaDesdeBackend(mov.fecha_vencimiento_formateada);
+                }
+            });
+            
+            movimientosFiltrados = [...movimientos];
+            renderizarMovimientosRecientes();
+            
+            console.log(`✅ Movimientos cargados desde localStorage para sede ${sedeActiva}`);
+        } else {
+            movimientos = [];
+            movimientosFiltrados = [];
+            renderizarMovimientosRecientes();
+        }
+    } catch (error) {
+        console.error('Error cargando movimientos desde localStorage:', error);
+        movimientos = [];
+        movimientosFiltrados = [];
+        renderizarMovimientosRecientes();
     }
 }
 
@@ -822,7 +1079,7 @@ function renderizarMovimientosRecientes() {
     if (movimientosFiltrados.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" class="px-4 py-4 text-center text-gray-500">
+                <td colspan="13" class="px-4 py-4 text-center text-gray-500">
                     No hay movimientos que coincidan con los filtros
                 </td>
             </tr>
@@ -832,7 +1089,7 @@ function renderizarMovimientosRecientes() {
 
     movimientosFiltrados.forEach(mov => {
         // USAR FECHA CORREGIDA en lugar de la original
-        const fechaMostrar = mov.fecha_corregida || mov.fecha;
+        const fechaMostrar = mov.fecha_corregida || mov.fecha_formateada || mov.fecha;
         const fechaVencimiento = mov.fecha_vencimiento_corregida || mov.fecha_vencimiento_formateada;
         const fechaVencimientoFormateada = fechaVencimiento ? 
             formatearFechaLocal(fechaVencimiento) : '-';
@@ -840,12 +1097,23 @@ function renderizarMovimientosRecientes() {
         const claseVencimiento = esProductoVencido(fechaVencimiento) ? 
             'text-red-600 font-semibold' : '';
         
+        // Obtener información del proveedor y marca desde el backend
+        const proveedorNombre = mov.proveedor_nombre || '-';
+        const marcaProducto = mov.producto_marca || '-';
+        
+        // Usar valores con IVA del backend
+        const valorUnitarioConIVA = mov.valor_unitario_con_iva || 
+            (mov.costo * (1 + (mov.iva || 0) / 100));
+        const totalConIVA = mov.total_con_iva || 
+            (mov.cantidad * mov.costo * (1 + (mov.iva || 0) / 100));
+
         const fila = document.createElement('tr');
         fila.className = 'hover:bg-gray-50 border-b';
         fila.innerHTML = `
             <td class="px-4 py-2 border text-sm">${formatearFechaLocal(fechaMostrar)}</td>
             <td class="px-4 py-2 border text-sm">${mov.hora_formateada || '-'}</td>
             <td class="px-4 py-2 border text-sm font-medium">${mov.producto_nombre}</td>
+            <td class="px-4 py-2 border text-sm">${marcaProducto}</td>
             <td class="px-4 py-2 border">
                 <span class="px-2 py-1 rounded text-xs font-semibold ${mov.tipo_movimiento === 'ENTRADA' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}">
                     ${mov.tipo_movimiento}
@@ -860,7 +1128,12 @@ function renderizarMovimientosRecientes() {
             <td class="px-4 py-2 border text-sm ${claseVencimiento}">
                 ${fechaVencimientoFormateada}
             </td>
-            <td class="px-4 py-2 border text-right font-semibold">$${formatearMoneda(mov.total || 0)}</td>
+            <td class="px-4 py-2 border text-right font-semibold text-green-600">
+                $${formatearMoneda(valorUnitarioConIVA)}<br>
+                <span class="text-xs text-gray-500">IVA: ${mov.iva || 0}%</span>
+            </td>
+            <td class="px-4 py-2 border text-sm">${proveedorNombre}</td>
+            <td class="px-4 py-2 border text-right font-semibold">$${formatearMoneda(totalConIVA)}</td>
         `;
         tbody.appendChild(fila);
     });
@@ -874,7 +1147,413 @@ function esProductoVencido(fechaVencimiento) {
 }
 
 // ====================
-// FUNCIONES DE FILTROS - CORREGIDAS PARA FECHAS
+// FUNCIONES DEL FORMULARIO DE MOVIMIENTOS
+// ====================
+
+// Función para calcular el valor con IVA
+function calcularValorConIVA() {
+    const costoInput = document.getElementById('costo');
+    const ivaInput = document.getElementById('iva');
+    const valorConIVAElement = document.getElementById('valor-con-iva');
+    
+    if (!costoInput || !ivaInput || !valorConIVAElement) return;
+    
+    const costo = parseFloat(costoInput.value) || 0;
+    const iva = parseFloat(ivaInput.value) || 0;
+    
+    const valorConIVA = costo * (1 + (iva / 100));
+    valorConIVAElement.textContent = `$${formatearMoneda(valorConIVA)}`;
+}
+
+function actualizarInfoProducto() {
+    const select = document.getElementById('producto');
+    const productoId = select?.value;
+    const infoStock = document.getElementById('info-stock');
+    const unidadSpan = document.getElementById('unidad-producto');
+    const stockSpan = document.getElementById('stock-actual');
+    const alertaSpan = document.getElementById('alerta-stock');
+
+    if (!productoId || !infoStock) {
+        if (infoStock) infoStock.classList.add('hidden');
+        return;
+    }
+
+    const producto = productos.find(p => p.id == productoId);
+    if (producto) {
+        if (unidadSpan) unidadSpan.textContent = producto.unidad;
+        if (stockSpan) stockSpan.textContent = producto.stock_actual;
+
+        if (producto.stock_actual < 10) {
+            if (alertaSpan) {
+                alertaSpan.textContent = '⚠️ Stock bajo';
+                alertaSpan.classList.remove('hidden');
+            }
+            infoStock.classList.add('stock-bajo');
+        } else {
+            if (alertaSpan) alertaSpan.classList.add('hidden');
+            infoStock.classList.remove('stock-bajo');
+        }
+
+        infoStock.classList.remove('hidden');
+    }
+}
+
+async function registrarMovimiento() {
+    if (!sedeActiva) {
+        mostrarMensaje('Primero seleccione una sede', true);
+        return;
+    }
+
+    // Obtener datos del formulario
+    const fechaInput = document.getElementById('fecha');
+    const fecha = fechaInput?.value;
+    const productoId = document.getElementById('producto')?.value;
+    const tipo = document.getElementById('tipo')?.value;
+    const descripcion = document.getElementById('descripcion')?.value;
+    const ubicacion = document.getElementById('ubicacion')?.value;
+    const cantidad = parseInt(document.getElementById('cantidad')?.value || '0');
+    const costo = parseFloat(document.getElementById('costo')?.value || '0');
+    const iva = parseFloat(document.getElementById('iva')?.value || '0');
+    const fechaVencimiento = document.getElementById('fecha-vencimiento')?.value;
+    
+    // Obtener valor con IVA calculado
+    const valorConIVAElement = document.getElementById('valor-con-iva');
+    let valorUnitarioConIVA = 0;
+    
+    if (valorConIVAElement) {
+        const valorTexto = valorConIVAElement.textContent.replace('$', '').replace(/\./g, '').replace(',', '.');
+        valorUnitarioConIVA = parseFloat(valorTexto) || (costo * (1 + (iva / 100)));
+    } else {
+        valorUnitarioConIVA = costo * (1 + (iva / 100));
+    }
+
+    // Validaciones
+    if (!fecha || !productoId || !tipo || !cantidad || !costo || cantidad <= 0 || costo <= 0) {
+        mostrarMensaje('Complete todos los campos con valores válidos', true);
+        return;
+    }
+
+    // Validar stock para salidas
+    if (tipo === 'SALIDA') {
+        const producto = productos.find(p => p.id == productoId);
+        if (producto && producto.stock_actual < cantidad) {
+            mostrarMensaje(`Stock insuficiente. Stock actual: ${producto.stock_actual}, Cantidad solicitada: ${cantidad}`, true);
+            return;
+        }
+    }
+
+    try {
+        const movimientoData = {
+            fecha: fecha,
+            producto_id: parseInt(productoId),
+            sede_id: parseInt(sedeActiva),
+            tipo_movimiento: tipo,
+            descripcion: descripcion || '',
+            ubicacion: ubicacion || '',
+            cantidad: cantidad,
+            costo: costo,
+            iva: iva,
+            valor_unitario_con_iva: valorUnitarioConIVA,
+            fecha_vencimiento: fechaVencimiento || null
+        };
+
+        console.log('📤 Enviando movimiento:', movimientoData);
+
+        // Mostrar loading
+        const btn = document.getElementById('btnRegistrar');
+        if (btn) {
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando...';
+        }
+
+        const response = await fetchConTimeout(API_MOVIMIENTOS, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(movimientoData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al registrar movimiento');
+        }
+
+        const resultado = await response.json();
+
+        // Recargar datos
+        await Promise.all([
+            cargarDatosSede(),
+            cargarMovimientosRecientes()
+        ]);
+
+        // Limpiar formulario
+        limpiarFormularioMovimiento();
+
+        mostrarMensaje('Movimiento registrado correctamente');
+
+    } catch (error) {
+        console.error('Error registrando movimiento:', error);
+        mostrarMensaje(error.message, true);
+    } finally {
+        // Restaurar botón
+        const btn = document.getElementById('btnRegistrar');
+        if (btn) {
+            btn.classList.remove('loading');
+            btn.innerHTML = '<i class="fas fa-save mr-2"></i>Registrar Movimiento';
+        }
+    }
+}
+
+function limpiarFormularioMovimiento() {
+    const producto = document.getElementById('producto');
+    const tipo = document.getElementById('tipo');
+    const descripcion = document.getElementById('descripcion');
+    const ubicacion = document.getElementById('ubicacion');
+    const cantidad = document.getElementById('cantidad');
+    const costo = document.getElementById('costo');
+    const iva = document.getElementById('iva');
+    const fechaVencimiento = document.getElementById('fecha-vencimiento');
+    const infoStock = document.getElementById('info-stock');
+    const unidadProducto = document.getElementById('unidad-producto');
+    const valorConIVA = document.getElementById('valor-con-iva');
+    
+    if (producto) producto.value = '';
+    if (tipo) tipo.value = '';
+    if (descripcion) descripcion.value = '';
+    if (ubicacion) ubicacion.value = '';
+    if (cantidad) cantidad.value = '';
+    if (costo) costo.value = '';
+    if (iva) iva.value = '0';
+    if (fechaVencimiento) fechaVencimiento.value = '';
+    if (infoStock) infoStock.classList.add('hidden');
+    if (unidadProducto) unidadProducto.textContent = 'UNIDAD';
+    if (valorConIVA) valorConIVA.textContent = '$0.00';
+}
+
+function cambiarPestana(pestana) {
+    console.log(`Cambiando a pestaña: ${pestana}`);
+
+    // Desactivar todas las pestañas
+    document.querySelectorAll('.tab-button').forEach(tab => {
+        tab.classList.remove('active');
+        tab.classList.add('inactive');
+    });
+
+    // Ocultar todos los contenidos
+    document.querySelectorAll('.tab-content').forEach(contenido => {
+        contenido.classList.remove('active');
+    });
+
+    // Activar pestaña seleccionada
+    const tabActivo = document.getElementById(`tab-${pestana}`);
+    if (tabActivo) {
+        tabActivo.classList.remove('inactive');
+        tabActivo.classList.add('active');
+    }
+
+    // Mostrar contenido seleccionado
+    const contenidoActivo = document.getElementById(`contenido-${pestana}`);
+    if (contenidoActivo) contenidoActivo.classList.add('active');
+
+    // Cargar datos específicos si es necesario
+    if (pestana === 'productos' && sedeActiva) {
+        cargarTodosLosProductos();
+    } else if (pestana === 'proveedores') {
+        cargarProveedores();
+    }
+}
+
+// ====================
+// FUNCIONES DE MODALES - PRODUCTOS
+// ====================
+
+function mostrarModalProducto() {
+    const modal = document.getElementById('modalProducto');
+    if (modal) modal.classList.add('active');
+}
+
+function cerrarModalProducto() {
+    const modal = document.getElementById('modalProducto');
+    const form = document.getElementById('formProducto');
+    
+    if (modal) modal.classList.remove('active');
+    if (form) form.reset();
+}
+
+async function guardarProducto(event) {
+    event.preventDefault();
+
+    if (!sedeActiva) {
+        mostrarMensaje('Primero seleccione una sede', true);
+        return;
+    }
+
+    const productoData = {
+        nombre: document.getElementById('producto-nombre').value,
+        descripcion: document.getElementById('producto-descripcion').value,
+        categoria: document.getElementById('producto-categoria').value,
+        unidad: document.getElementById('producto-unidad').value,
+        marca: document.getElementById('producto-marca').value,
+        sede_id: parseInt(sedeActiva),
+        proveedor_id: document.getElementById('producto-proveedor').value || null,
+        registro_invima: document.getElementById('producto-invima').value
+    };
+
+    try {
+        const response = await fetchConTimeout(API_PRODUCTOS, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(productoData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al crear producto');
+        }
+
+        const nuevoProducto = await response.json();
+
+        cerrarModalProducto();
+        mostrarMensaje('Producto creado correctamente para esta sede');
+
+        // Recargar productos de la sede actual
+        await cargarProductosSede();
+        await cargarEstadisticasSede();
+
+    } catch (error) {
+        console.error('Error creando producto:', error);
+        mostrarMensaje(error.message, true);
+    }
+}
+
+async function editarProducto(productoId) {
+    try {
+        const producto = todosLosProductos.find(p => p.id == productoId);
+        if (!producto) {
+            mostrarMensaje('Producto no encontrado', true);
+            return;
+        }
+
+        document.getElementById('editar-producto-id').value = producto.id;
+        document.getElementById('editar-producto-nombre').value = producto.nombre;
+        document.getElementById('editar-producto-descripcion').value = producto.descripcion || '';
+        document.getElementById('editar-producto-categoria').value = producto.categoria || '';
+        document.getElementById('editar-producto-marca').value = producto.marca || '';
+        document.getElementById('editar-producto-unidad').value = producto.unidad;
+        document.getElementById('editar-producto-proveedor').value = producto.proveedor_id || '';
+        document.getElementById('editar-producto-invima').value = producto.registro_invima || '';
+
+        const modal = document.getElementById('modalEditarProducto');
+        if (modal) modal.classList.add('active');
+
+    } catch (error) {
+        console.error('Error preparando edición:', error);
+        mostrarMensaje('Error al cargar datos del producto', true);
+    }
+}
+
+function cerrarModalEditarProducto() {
+    const modal = document.getElementById('modalEditarProducto');
+    const form = document.getElementById('formEditarProducto');
+    
+    if (modal) modal.classList.remove('active');
+    if (form) form.reset();
+}
+
+async function actualizarProducto(event) {
+    event.preventDefault();
+
+    const productoId = document.getElementById('editar-producto-id').value;
+    const productoData = {
+        nombre: document.getElementById('editar-producto-nombre').value,
+        descripcion: document.getElementById('editar-producto-descripcion').value,
+        categoria: document.getElementById('editar-producto-categoria').value,
+        unidad: document.getElementById('editar-producto-unidad').value,
+        marca: document.getElementById('editar-producto-marca').value,
+        proveedor_id: document.getElementById('editar-producto-proveedor').value || null,
+        registro_invima: document.getElementById('editar-producto-invima').value
+    };
+
+    try {
+        const response = await fetchConTimeout(`${API_PRODUCTOS}/${productoId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(productoData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al actualizar producto');
+        }
+
+        const productoActualizado = await response.json();
+
+        cerrarModalEditarProducto();
+        mostrarMensaje('Producto actualizado correctamente');
+
+        // Recargar productos
+        await cargarTodosLosProductos();
+
+    } catch (error) {
+        console.error('Error actualizando producto:', error);
+        mostrarMensaje(error.message, true);
+    }
+}
+
+function confirmarEliminarProducto(productoId, productoNombre) {
+    productoAEliminar = productoId;
+    const mensaje = document.getElementById('mensaje-confirmacion');
+    const modal = document.getElementById('modalConfirmarEliminar');
+    
+    if (mensaje) {
+        mensaje.textContent = `¿Está seguro de que desea eliminar el producto "${productoNombre}"?`;
+    }
+    if (modal) modal.classList.add('active');
+}
+
+function cerrarModalConfirmarEliminar() {
+    const modal = document.getElementById('modalConfirmarEliminar');
+    if (modal) modal.classList.remove('active');
+    productoAEliminar = null;
+}
+
+async function eliminarProductoConfirmado() {
+    if (!productoAEliminar || !sedeActiva) return;
+
+    try {
+        const response = await fetchConTimeout(`${API_PRODUCTOS}/sede/${sedeActiva}/${productoAEliminar}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al eliminar producto');
+        }
+
+        const resultado = await response.json();
+
+        cerrarModalConfirmarEliminar();
+        mostrarMensaje('Producto eliminado correctamente de la sede');
+
+        // Recargar productos de la sede
+        await cargarProductosSede();
+        await cargarTodosLosProductos();
+        await cargarEstadisticasSede();
+
+    } catch (error) {
+        console.error('Error eliminando producto:', error);
+        mostrarMensaje(error.message, true);
+        cerrarModalConfirmarEliminar();
+    }
+}
+
+// ====================
+// FUNCIONES DE FILTROS
 // ====================
 
 function aplicarFiltrosMovimientos() {
@@ -894,7 +1573,6 @@ function aplicarFiltrosMovimientos() {
             cumple = false;
         }
 
-        // CORREGIDO: Usar fecha corregida para filtros
         const fechaMov = mov.fecha_corregida || mov.fecha;
         
         if (fechaInicio && fechaMov < fechaInicio) {
@@ -931,6 +1609,7 @@ function limpiarFiltrosMovimientos() {
 function aplicarFiltrosProductos() {
     const nombre = document.getElementById('filtro-nombre-producto')?.value.toLowerCase() || '';
     const categoria = document.getElementById('filtro-categoria-producto')?.value.toLowerCase() || '';
+    const marca = document.getElementById('filtro-marca-producto')?.value.toLowerCase() || '';
     const stock = document.getElementById('filtro-stock-producto')?.value || '';
     const unidad = document.getElementById('filtro-unidad-producto')?.value || '';
     const proveedor = document.getElementById('filtro-proveedor-producto')?.value || '';
@@ -943,6 +1622,10 @@ function aplicarFiltrosProductos() {
         }
 
         if (categoria && (!prod.categoria || !prod.categoria.toLowerCase().includes(categoria))) {
+            cumple = false;
+        }
+
+        if (marca && (!prod.marca || !prod.marca.toLowerCase().includes(marca))) {
             cumple = false;
         }
 
@@ -975,12 +1658,14 @@ function aplicarFiltrosProductos() {
 function limpiarFiltrosProductos() {
     const filtroNombre = document.getElementById('filtro-nombre-producto');
     const filtroCategoria = document.getElementById('filtro-categoria-producto');
+    const filtroMarca = document.getElementById('filtro-marca-producto');
     const filtroStock = document.getElementById('filtro-stock-producto');
     const filtroUnidad = document.getElementById('filtro-unidad-producto');
     const filtroProveedor = document.getElementById('filtro-proveedor-producto');
     
     if (filtroNombre) filtroNombre.value = '';
     if (filtroCategoria) filtroCategoria.value = '';
+    if (filtroMarca) filtroMarca.value = '';
     if (filtroStock) filtroStock.value = '';
     if (filtroUnidad) filtroUnidad.value = '';
     if (filtroProveedor) filtroProveedor.value = '';
@@ -991,7 +1676,7 @@ function limpiarFiltrosProductos() {
 }
 
 // ====================
-// FUNCIONES DE EXPORTACIÓN EXCEL - CORREGIDAS PARA FECHAS
+// FUNCIONES DE EXPORTACIÓN EXCEL
 // ====================
 
 async function exportarExcelMovimientos() {
@@ -1020,15 +1705,25 @@ async function exportarExcelMovimientos() {
 
         const wb = XLSX.utils.book_new();
         
-        // Hoja 1: Movimientos detallados - CORREGIDO: Usar fechas corregidas
+        // Hoja 1: Movimientos detallados
         const datosMovimientos = movimientosFiltrados.map(mov => {
             const fechaMostrar = mov.fecha_corregida || mov.fecha;
             const fechaVencimiento = mov.fecha_vencimiento_corregida || mov.fecha_vencimiento_formateada;
+            
+            // Usar datos del backend
+            const proveedorProducto = mov.proveedor_nombre || '';
+            const marcaProducto = mov.producto_marca || '';
+            
+            // Usar valores con IVA del backend
+            const iva = mov.iva || 0;
+            const valorUnitarioConIVA = mov.valor_unitario_con_iva || (mov.costo * (1 + (iva / 100)));
+            const totalConIVA = mov.total_con_iva || (mov.cantidad * mov.costo * (1 + (iva / 100)));
             
             return {
                 'Fecha': formatearFechaLocal(fechaMostrar),
                 'Hora': mov.hora_formateada || '',
                 'Producto': mov.producto_nombre || '',
+                'Marca': marcaProducto,
                 'Tipo': mov.tipo_movimiento,
                 'Descripción': mov.descripcion || '',
                 'Ubicación': mov.ubicacion || '',
@@ -1038,7 +1733,11 @@ async function exportarExcelMovimientos() {
                 'Stock Actual': mov.stock_actual,
                 'Fecha Vencimiento': fechaVencimiento ? formatearFechaLocal(fechaVencimiento) : '',
                 'Costo Unitario': mov.costo ? `$${formatearMoneda(mov.costo)}` : '$0.00',
-                'Total': mov.total ? `$${formatearMoneda(mov.total)}` : '$0.00'
+                'IVA (%)': iva,
+                'Valor Unitario con IVA': `$${formatearMoneda(valorUnitarioConIVA)}`,
+                'Proveedor': proveedorProducto,
+                'Total sin IVA': mov.total ? `$${formatearMoneda(mov.total)}` : '$0.00',
+                'Total con IVA': `$${formatearMoneda(totalConIVA)}`
             };
         });
         
@@ -1053,7 +1752,7 @@ async function exportarExcelMovimientos() {
             ['Total movimientos:', movimientosFiltrados.length],
             [],
             ['Resumen por tipo:'],
-            ['Tipo', 'Cantidad', 'Valor Total']
+            ['Tipo', 'Cantidad', 'Valor Total con IVA']
         ];
 
         const resumen = {};
@@ -1063,7 +1762,7 @@ async function exportarExcelMovimientos() {
                 resumen[tipo] = { cantidad: 0, valor: 0 };
             }
             resumen[tipo].cantidad++;
-            resumen[tipo].valor += mov.total || 0;
+            resumen[tipo].valor += mov.total_con_iva || mov.total || 0;
         });
 
         Object.entries(resumen).forEach(([tipo, datos]) => {
@@ -1125,6 +1824,7 @@ async function exportarExcelProductos() {
                 'Nombre': prod.nombre || '',
                 'Descripción': prod.descripcion || '',
                 'Categoría': prod.categoria || '',
+                'Marca': prod.marca || '',
                 'Unidad': prod.unidad,
                 'Proveedor': prod.proveedor_nombre || 'No asignado',
                 'Registro Invima': prod.registro_invima || '',
@@ -1174,6 +1874,7 @@ async function exportarExcelProductos() {
             const datosStockBajo = productosBajo.map(prod => ({
                 'Nombre': prod.nombre || '',
                 'Categoría': prod.categoria || '',
+                'Marca': prod.marca || '',
                 'Proveedor': prod.proveedor_nombre || 'No asignado',
                 'Stock Actual': prod.stock_actual || 0,
                 'Stock Recomendado': 10,
@@ -1264,379 +1965,12 @@ async function exportarExcelProveedores() {
 }
 
 // ====================
-// FUNCIONES DEL FORMULARIO
+// FUNCIONES UTILITARIAS
 // ====================
 
-function actualizarInfoProducto() {
-    const select = document.getElementById('producto');
-    const productoId = select?.value;
-    const infoStock = document.getElementById('info-stock');
-    const unidadSpan = document.getElementById('unidad-producto');
-    const stockSpan = document.getElementById('stock-actual');
-    const alertaSpan = document.getElementById('alerta-stock');
-
-    if (!productoId || !infoStock) {
-        if (infoStock) infoStock.classList.add('hidden');
-        return;
-    }
-
-    const producto = productos.find(p => p.id == productoId);
-    if (producto) {
-        if (unidadSpan) unidadSpan.textContent = producto.unidad;
-        if (stockSpan) stockSpan.textContent = producto.stock_actual;
-
-        if (producto.stock_actual < 10) {
-            if (alertaSpan) {
-                alertaSpan.textContent = '⚠️ Stock bajo';
-                alertaSpan.classList.remove('hidden');
-            }
-            infoStock.classList.add('stock-bajo');
-        } else {
-            if (alertaSpan) alertaSpan.classList.add('hidden');
-            infoStock.classList.remove('stock-bajo');
-        }
-
-        infoStock.classList.remove('hidden');
-    }
-}
-
-async function registrarMovimiento() {
-    if (!sedeActiva) {
-        mostrarMensaje('Primero seleccione una sede', true);
-        return;
-    }
-
-    // Obtener datos del formulario
-    const fechaInput = document.getElementById('fecha');
-    const fecha = fechaInput?.value;
-    const productoId = document.getElementById('producto')?.value;
-    const tipo = document.getElementById('tipo')?.value;
-    const descripcion = document.getElementById('descripcion')?.value;
-    const ubicacion = document.getElementById('ubicacion')?.value;
-    const cantidad = parseInt(document.getElementById('cantidad')?.value || '0');
-    const costo = parseFloat(document.getElementById('costo')?.value || '0');
-    const fechaVencimiento = document.getElementById('fecha-vencimiento')?.value;
-
-    // Validaciones
-    if (!fecha || !productoId || !tipo || !cantidad || !costo || cantidad <= 0 || costo <= 0) {
-        mostrarMensaje('Complete todos los campos con valores válidos', true);
-        return;
-    }
-
-    // Validar stock para salidas
-    if (tipo === 'SALIDA') {
-        const producto = productos.find(p => p.id == productoId);
-        if (producto && producto.stock_actual < cantidad) {
-            mostrarMensaje(`Stock insuficiente. Stock actual: ${producto.stock_actual}, Cantidad solicitada: ${cantidad}`, true);
-            return;
-        }
-    }
-
-    try {
-        // ENVIAR FECHA EXACTA - SIN MODIFICACIONES
-        const movimientoData = {
-            fecha: fecha, // Enviar exactamente lo que el usuario seleccionó
-            producto_id: parseInt(productoId),
-            sede_id: parseInt(sedeActiva),
-            tipo_movimiento: tipo,
-            descripcion: descripcion || '',
-            ubicacion: ubicacion || '',
-            cantidad: cantidad,
-            costo: costo,
-            fecha_vencimiento: fechaVencimiento || null
-        };
-
-        // Mostrar loading
-        const btn = document.getElementById('btnRegistrar');
-        if (btn) {
-            btn.classList.add('loading');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando...';
-        }
-
-        const response = await fetch(API_MOVIMIENTOS, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(movimientoData)
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al registrar movimiento');
-        }
-
-        const resultado = await response.json();
-
-        // Recargar datos
-        await cargarDatosSede();
-
-        // Limpiar formulario
-        limpiarFormularioMovimiento();
-
-        mostrarMensaje('Movimiento registrado correctamente');
-
-    } catch (error) {
-        console.error('Error registrando movimiento:', error);
-        mostrarMensaje(error.message, true);
-    } finally {
-        // Restaurar botón
-        const btn = document.getElementById('btnRegistrar');
-        if (btn) {
-            btn.classList.remove('loading');
-            btn.innerHTML = '<i class="fas fa-save mr-2"></i>Registrar Movimiento';
-        }
-    }
-}
-
-function limpiarFormularioMovimiento() {
-    const producto = document.getElementById('producto');
-    const tipo = document.getElementById('tipo');
-    const descripcion = document.getElementById('descripcion');
-    const ubicacion = document.getElementById('ubicacion');
-    const cantidad = document.getElementById('cantidad');
-    const costo = document.getElementById('costo');
-    const fechaVencimiento = document.getElementById('fecha-vencimiento');
-    const infoStock = document.getElementById('info-stock');
-    const unidadProducto = document.getElementById('unidad-producto');
-    
-    if (producto) producto.value = '';
-    if (tipo) tipo.value = '';
-    if (descripcion) descripcion.value = '';
-    if (ubicacion) ubicacion.value = '';
-    if (cantidad) cantidad.value = '';
-    if (costo) costo.value = '';
-    if (fechaVencimiento) fechaVencimiento.value = '';
-    if (infoStock) infoStock.classList.add('hidden');
-    if (unidadProducto) unidadProducto.textContent = 'UNIDAD';
-}
-
-function cambiarPestana(pestana) {
-    console.log(`Cambiando a pestaña: ${pestana}`);
-
-    // Desactivar todas las pestañas
-    document.querySelectorAll('.tab-button').forEach(tab => {
-        tab.classList.remove('active');
-        tab.classList.add('inactive');
-    });
-
-    // Ocultar todos los contenidos
-    document.querySelectorAll('.tab-content').forEach(contenido => {
-        contenido.classList.remove('active');
-    });
-
-    // Activar pestaña seleccionada
-    const tabActivo = document.getElementById(`tab-${pestana}`);
-    if (tabActivo) {
-        tabActivo.classList.remove('inactive');
-        tabActivo.classList.add('active');
-    }
-
-    // Mostrar contenido seleccionado
-    const contenidoActivo = document.getElementById(`contenido-${pestana}`);
-    if (contenidoActivo) contenidoActivo.classList.add('active');
-
-    // Cargar datos específicos si es necesario
-    if (pestana === 'productos' && sedeActiva) {
-        cargarTodosLosProductos();
-    } else if (pestana === 'proveedores') {
-        cargarProveedores();
-    }
-}
-
-// ====================
-// FUNCIONES DE MODALES - PRODUCTOS
-// ====================
-
-function mostrarModalProducto() {
-    const modal = document.getElementById('modalProducto');
-    if (modal) modal.classList.add('active');
-}
-
-function cerrarModalProducto() {
-    const modal = document.getElementById('modalProducto');
-    const form = document.getElementById('formProducto');
-    
-    if (modal) modal.classList.remove('active');
-    if (form) form.reset();
-}
-
-async function guardarProducto(event) {
-    event.preventDefault();
-
-    if (!sedeActiva) {
-        mostrarMensaje('Primero seleccione una sede', true);
-        return;
-    }
-
-    const productoData = {
-        nombre: document.getElementById('producto-nombre').value,
-        descripcion: document.getElementById('producto-descripcion').value,
-        categoria: document.getElementById('producto-categoria').value,
-        unidad: document.getElementById('producto-unidad').value,
-        sede_id: parseInt(sedeActiva),
-        proveedor_id: document.getElementById('producto-proveedor').value || null,
-        registro_invima: document.getElementById('producto-invima').value
-    };
-
-    try {
-        const response = await fetch(API_PRODUCTOS, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(productoData)
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al crear producto');
-        }
-
-        const nuevoProducto = await response.json();
-
-        cerrarModalProducto();
-        mostrarMensaje('Producto creado correctamente para esta sede');
-
-        // Recargar productos de la sede actual
-        await cargarProductosSede();
-        await cargarEstadisticasSede();
-
-    } catch (error) {
-        console.error('Error creando producto:', error);
-        mostrarMensaje(error.message, true);
-    }
-}
-
-async function editarProducto(productoId) {
-    try {
-        const producto = todosLosProductos.find(p => p.id == productoId);
-        if (!producto) {
-            mostrarMensaje('Producto no encontrado', true);
-            return;
-        }
-
-        document.getElementById('editar-producto-id').value = producto.id;
-        document.getElementById('editar-producto-nombre').value = producto.nombre;
-        document.getElementById('editar-producto-descripcion').value = producto.descripcion || '';
-        document.getElementById('editar-producto-categoria').value = producto.categoria || '';
-        document.getElementById('editar-producto-unidad').value = producto.unidad;
-        document.getElementById('editar-producto-proveedor').value = producto.proveedor_id || '';
-        document.getElementById('editar-producto-invima').value = producto.registro_invima || '';
-
-        const modal = document.getElementById('modalEditarProducto');
-        if (modal) modal.classList.add('active');
-
-    } catch (error) {
-        console.error('Error preparando edición:', error);
-        mostrarMensaje('Error al cargar datos del producto', true);
-    }
-}
-
-function cerrarModalEditarProducto() {
-    const modal = document.getElementById('modalEditarProducto');
-    const form = document.getElementById('formEditarProducto');
-    
-    if (modal) modal.classList.remove('active');
-    if (form) form.reset();
-}
-
-async function actualizarProducto(event) {
-    event.preventDefault();
-
-    const productoId = document.getElementById('editar-producto-id').value;
-    const productoData = {
-        nombre: document.getElementById('editar-producto-nombre').value,
-        descripcion: document.getElementById('editar-producto-descripcion').value,
-        categoria: document.getElementById('editar-producto-categoria').value,
-        unidad: document.getElementById('editar-producto-unidad').value,
-        proveedor_id: document.getElementById('editar-producto-proveedor').value || null,
-        registro_invima: document.getElementById('editar-producto-invima').value
-    };
-
-    try {
-        const response = await fetch(`${API_PRODUCTOS}/${productoId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(productoData)
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al actualizar producto');
-        }
-
-        const productoActualizado = await response.json();
-
-        cerrarModalEditarProducto();
-        mostrarMensaje('Producto actualizado correctamente');
-
-        // Recargar productos
-        await cargarTodosLosProductos();
-
-    } catch (error) {
-        console.error('Error actualizando producto:', error);
-        mostrarMensaje(error.message, true);
-    }
-}
-
-function confirmarEliminarProducto(productoId, productoNombre) {
-    productoAEliminar = productoId;
-    const mensaje = document.getElementById('mensaje-confirmacion');
-    const modal = document.getElementById('modalConfirmarEliminar');
-    
-    if (mensaje) {
-        mensaje.textContent = `¿Está seguro de que desea eliminar el producto "${productoNombre}"?`;
-    }
-    if (modal) modal.classList.add('active');
-}
-
-function cerrarModalConfirmarEliminar() {
-    const modal = document.getElementById('modalConfirmarEliminar');
-    if (modal) modal.classList.remove('active');
-    productoAEliminar = null;
-}
-
-async function eliminarProductoConfirmado() {
-    if (!productoAEliminar || !sedeActiva) return;
-
-    try {
-        const response = await fetch(`${API_PRODUCTOS}/sede/${sedeActiva}/${productoAEliminar}`, {
-            method: 'DELETE'
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al eliminar producto');
-        }
-
-        const resultado = await response.json();
-
-        cerrarModalConfirmarEliminar();
-        mostrarMensaje('Producto eliminado correctamente de la sede');
-
-        // Recargar productos de la sede
-        await cargarProductosSede();
-        await cargarTodosLosProductos();
-        await cargarEstadisticasSede();
-
-    } catch (error) {
-        console.error('Error eliminando producto:', error);
-        mostrarMensaje(error.message, true);
-        cerrarModalConfirmarEliminar();
-    }
-}
-
-// ====================
-// FUNCIONES UTILITARIAS - CORREGIDAS COMPLETAMENTE PARA FECHAS
-// ====================
-
-// Función para obtener fecha en formato YYYY-MM-DD (sin ajustes de zona horaria)
 function obtenerFechaLocal(fecha = null) {
     if (fecha) {
-        return fecha; // Ya está en formato correcto
+        return fecha;
     }
     const date = new Date();
     const year = date.getFullYear();
@@ -1645,25 +1979,20 @@ function obtenerFechaLocal(fecha = null) {
     return `${year}-${month}-${day}`;
 }
 
-// Función CRÍTICA: Corregir fecha desde backend (problema de zona horaria)
 function corregirFechaDesdeBackend(fechaBackend) {
     if (!fechaBackend) return null;
     
-    // Si ya está en formato YYYY-MM-DD, devolver directamente
     if (typeof fechaBackend === 'string' && fechaBackend.match(/^\d{4}-\d{2}-\d{2}$/)) {
         return fechaBackend;
     }
     
-    // Si viene como string ISO (con hora), extraer solo la fecha
     if (typeof fechaBackend === 'string' && fechaBackend.includes('T')) {
         const fechaParte = fechaBackend.split('T')[0];
         return fechaParte;
     }
     
-    // Si es un objeto Date o timestamp, formatear sin ajustes de zona
     try {
         const date = new Date(fechaBackend);
-        // Usar los métodos UTC para evitar cambios de zona horaria
         const year = date.getUTCFullYear();
         const month = String(date.getUTCMonth() + 1).padStart(2, '0');
         const day = String(date.getUTCDate()).padStart(2, '0');
@@ -1675,11 +2004,9 @@ function corregirFechaDesdeBackend(fechaBackend) {
     }
 }
 
-// Función para formatear fecha para mostrar (sin cambios de zona)
 function formatearFechaLocal(fecha) {
     if (!fecha) return '-';
     
-    // Primero corregir la fecha si viene del backend
     const fechaCorregida = corregirFechaDesdeBackend(fecha);
     
     try {
@@ -1692,10 +2019,14 @@ function formatearFechaLocal(fecha) {
 }
 
 function formatearMoneda(valor) {
+    // Asegurar que sea un número
+    const num = parseFloat(valor) || 0;
+    
+    // Formatear con separadores de miles y 2 decimales
     return new Intl.NumberFormat('es-CO', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-    }).format(valor);
+    }).format(num);
 }
 
 function mostrarMensaje(texto, esError = false) {
@@ -1723,33 +2054,25 @@ function mostrarMensaje(texto, esError = false) {
     }, 4000);
 }
 
-// Función para diagnosticar problemas con la API
-async function diagnosticarAPI() {
+// Función para restaurar estado desde localStorage al cargar la página
+async function restaurarEstadoDesdeLocalStorage() {
     try {
-        console.log("🔍 Diagnosticando API...");
-        
-        const sedesResponse = await fetch(API_SEDES);
-        console.log("📊 Sedes API:", sedesResponse.status, sedesResponse.ok);
-        
-        if (sedesResponse.ok) {
-            const sedesData = await sedesResponse.json();
-            console.log("📋 Sedes disponibles:", sedesData);
-        }
-        
-        if (sedeActiva) {
-            const productosSedeResponse = await fetch(`${API_PRODUCTOS_SEDE}/${sedeActiva}`);
-            console.log("📦 Productos por sede API:", productosSedeResponse.status, productosSedeResponse.ok);
-            
-            if (productosSedeResponse.ok) {
-                const productosData = await productosSedeResponse.json();
-                console.log("📋 Productos de la sede:", productosData);
-            } else {
-                const errorText = await productosSedeResponse.text();
-                console.error("❌ Error en productos por sede:", errorText);
+        const sedeGuardada = localStorage.getItem('sede_activa_kardex');
+        if (sedeGuardada) {
+            const select = document.getElementById('sede-principal');
+            if (select) {
+                select.value = sedeGuardada;
+                // Disparar el cambio para cargar datos
+                select.dispatchEvent(new Event('change'));
             }
         }
-        
     } catch (error) {
-        console.error("❌ Error en diagnóstico API:", error);
+        console.error('Error restaurando estado:', error);
     }
 }
+
+// Llamar a restaurar estado después de inicializar
+document.addEventListener('DOMContentLoaded', async function() {
+    await inicializarSistema();
+    await restaurarEstadoDesdeLocalStorage();
+});

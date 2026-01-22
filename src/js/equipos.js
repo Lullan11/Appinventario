@@ -87,9 +87,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             actualizarContador();
             actualizarControlesPaginacion();
             
-            // ✅ 9. CONFIGURAR EVENTOS Y CARGAR TIPOS
+            // ✅ 9. CONFIGURAR EVENTOS Y CARGAR TIPOS Y SEDES
             configurarEventosFiltros();
             cargarTiposEquipoEnFiltro();
+            cargarSedesDisponiblesEnFiltro(); // <-- NUEVA FUNCIÓN AGREGADA
             
             // ✅ 10. INICIAR O NO MONITOREO SEGÚN ESTADO GUARDADO
             if (notificacionesActivas) {
@@ -730,7 +731,28 @@ function actualizarEstadoBotonNotificaciones() {
 
 // ========================= FUNCIONES DE FILTRADO CON PAGINACIÓN =========================
 
-// ========================= FUNCIONES DE FILTRADO CON PAGINACIÓN =========================
+// ✅ FUNCIÓN NUEVA: Cargar sedes disponibles en el filtro
+function cargarSedesDisponiblesEnFiltro() {
+    const filtroSede = document.getElementById('filtro-sede');
+    if (!filtroSede) return;
+    
+    // Obtener todas las sedes únicas de los equipos
+    const sedesUnicas = [...new Set(todosLosEquipos
+        .map(equipo => equipo.sede_nombre)
+        .filter(sede => sede && sede.trim() !== '')
+        .sort((a, b) => a.localeCompare(b)))];
+    
+    filtroSede.innerHTML = '<option value="">Todas las sedes</option>';
+    
+    sedesUnicas.forEach(sede => {
+        const option = document.createElement('option');
+        option.value = sede;
+        option.textContent = sede;
+        filtroSede.appendChild(option);
+    });
+    
+    console.log(`✅ ${sedesUnicas.length} sedes cargadas en el filtro`);
+}
 
 function cargarTiposEquipoEnFiltro() {
     const filtroTipo = document.getElementById('filtro-tipo');
@@ -753,8 +775,8 @@ function cargarTiposEquipoEnFiltro() {
 
 function configurarEventosFiltros() {
     const filtrosInput = [
-        'filtro-codigo', 'filtro-nombre', 'filtro-sede', 
-        'filtro-area', 'filtro-responsable'
+        'filtro-codigo', 'filtro-nombre', 
+        'filtro-area', 'filtro-responsable'  // Se eliminó 'filtro-sede' de aquí
     ];
     
     filtrosInput.forEach(id => {
@@ -770,7 +792,8 @@ function configurarEventosFiltros() {
         }
     });
     
-    const filtrosSelect = ['filtro-ubicacion', 'filtro-estado', 'filtro-tipo'];
+    // Agregar 'filtro-sede' aquí para select
+    const filtrosSelect = ['filtro-ubicacion', 'filtro-estado', 'filtro-tipo', 'filtro-sede'];
     filtrosSelect.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
@@ -802,7 +825,7 @@ function aplicarFiltros() {
     const filtroNombre = document.getElementById('filtro-nombre').value.toLowerCase().trim();
     const filtroUbicacion = document.getElementById('filtro-ubicacion').value;
     const filtroEstado = document.getElementById('filtro-estado').value;
-    const filtroSede = document.getElementById('filtro-sede').value.toLowerCase().trim();
+    const filtroSede = document.getElementById('filtro-sede').value; // Ya no se usa toLowerCase()
     const filtroArea = document.getElementById('filtro-area').value.toLowerCase().trim();
     const filtroResponsable = document.getElementById('filtro-responsable').value.toLowerCase().trim();
     const filtroTipo = document.getElementById('filtro-tipo').value;
@@ -827,7 +850,8 @@ function aplicarFiltros() {
             }
         }
 
-        if (filtroSede && (!equipo.sede_nombre || !equipo.sede_nombre.toLowerCase().includes(filtroSede))) {
+        // Modificado: ahora compara exactamente el valor del select
+        if (filtroSede && (!equipo.sede_nombre || equipo.sede_nombre !== filtroSede)) {
             return false;
         }
 
@@ -867,7 +891,7 @@ function limpiarFiltros() {
     document.getElementById('filtro-nombre').value = '';
     document.getElementById('filtro-ubicacion').value = '';
     document.getElementById('filtro-estado').value = '';
-    document.getElementById('filtro-sede').value = '';
+    document.getElementById('filtro-sede').value = ''; // Solo resetear a valor vacío
     document.getElementById('filtro-area').value = '';
     document.getElementById('filtro-responsable').value = '';
     document.getElementById('filtro-tipo').value = '';
@@ -1046,11 +1070,6 @@ function mostrarAlertasMantenimiento(equipos) {
 
     alertasContainer.innerHTML = alertasHTML;
 }
-
-
-
-
-
 
 // ========================= FUNCIONES PARA SUSPENDER EQUIPOS =========================
 
@@ -1318,11 +1337,6 @@ function cerrarModalSuspender() {
         if (form) form.reset();
     }
 }
-
-
-
-
-
 
 // ========================= FUNCIONES DE INACTIVACIÓN =========================
 
@@ -1592,7 +1606,6 @@ window.cerrarModalInactivar = cerrarModalInactivar;
 window.toggleNotificaciones = toggleNotificaciones;
 window.aplicarFiltros = aplicarFiltros;
 window.limpiarFiltros = limpiarFiltros;
-// ========================= Hacer funciones disponibles globalmente =========================
 window.mostrarModalSuspender = mostrarModalSuspender;
 window.suspenderEquipoDesdeModal = suspenderEquipoDesdeModal;
 window.cerrarModalSuspender = cerrarModalSuspender;

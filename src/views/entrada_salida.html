@@ -256,6 +256,56 @@
                 justify-content: center;
             }
         }
+
+        /* Agrega al final de tu <style> */
+        .signature-canvas {
+            border: 1px solid #ddd;
+            background-color: white;
+            cursor: crosshair;
+        }
+
+        .documento-adjunto {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+
+        .documento-adjunto:hover {
+            transform: translateY(-2px);
+        }
+
+        .camera-preview {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .btn-adjuntar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-adjuntar:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .ubicacion-actual {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -633,6 +683,7 @@
                                             <th class="px-4 py-3 border border-[#0F172A]">Destino</th>
                                             <th class="px-4 py-3 border border-[#0F172A]">Fecha Salida</th>
                                             <th class="px-4 py-3 border border-[#0F172A]">Estado</th>
+                                            <th class="px-4 py-3 border border-[#0F172A]">Ubicacion actual</th>
                                             <th class="px-4 py-3 border border-[#0F172A] text-center">Acciones</th>
                                         </tr>
                                     </thead>
@@ -734,10 +785,12 @@
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Scripts --><!-- En tu archivo HTML, agrega estos scripts antes del cierre de </body> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="../js/camera.js"></script>
+    <script src="../js/movimientos.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/roles.js"></script>
-    <script src="../js/movimientos.js"></script>
 </body>
 
 </html>
