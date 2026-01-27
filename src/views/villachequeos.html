@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Chequeos - Inventario</title>
+    <link href="../../dist/output.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Favicon para modo claro -->
+    <link rel="icon" href="../assets/faviBlack.ico" media="(prefers-color-scheme: light)">
+
+    <!-- Favicon para modo oscuro -->
+    <link rel="icon" href="../assets/faviWhite.ico" media="(prefers-color-scheme: dark)">
+
+    <!-- Incluir SheetJS para exportación Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Incluir jsPDF para generación de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- Agregar esta línea después de jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+
+    <!-- Fuente moderna (Google Fonts - Poppins) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --verde-principal: #01983B;
+            --verde-secundario: #639A33;
+            --verde-claro: #E8F5E9;
+            --verde-oscuro: #0A5C1F;
+            --blanco: #FFFFFF;
+            --gris-claro: #F8FAFC;
+            --gris-medio: #E5E7EB;
+            --gris-oscuro: #4B5563;
+            --texto-oscuro: #0F172A;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--blanco);
+            color: var(--texto-oscuro);
+            overflow-x: hidden;
+        }
+
+        /* =========== LAYOUT RESPONSIVE =========== */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Sidebar responsive */
+        .sidebar {
+            width: 100%;
+            max-width: 280px;
+            transition: transform 0.3s ease;
+            background: linear-gradient(180deg, var(--verde-principal) 0%, var(--verde-oscuro) 100%);
+        }
+
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1000;
+            background: var(--verde-principal);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                height: 100vh;
+                z-index: 999;
+                overflow-y: auto;
+            }
+            
+            .sidebar.active {
+                left: 0;
+            }
+            
+            .sidebar-toggle {
+                display: block;
+            }
+            
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 998;
+            }
+            
+            .overlay.active {
+                display: block;
+            }
+            
+            main {
+                width: 100% !important;
+                margin-left: 0 !important;
+            }
+        }
+
+        /* =========== HEADER RESPONSIVE =========== */
+        .main-header {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, var(--verde-principal) 0%, var(--verde-oscuro) 100%);
+            border-radius: 1rem;
+            color: white;
+            box-shadow: 0 4px 20px rgba(1, 152, 59, 0.2);
+        }
+
+        @media (min-width: 768px) {
+            .main-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 2rem;
+            }
+        }
+
+        .header-title {
+            flex: 1;
+        }
+
+        .header-title h1 {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (min-width: 768px) {
+            .header-title h1 {
+                font-size: 2rem;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .header-title h1 {
+                font-size: 2.5rem;
+            }
+        }
+
+        .header-title p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.95rem;
+            max-width: 600px;
+        }
+
+        @media (min-width: 768px) {
+            .header-title p {
+                font-size: 1.1rem;
+            }
+        }
+
+        .header-logos {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        @media (min-width: 768px) {
+            .header-logos {
+                justify-content: flex-end;
+                flex-wrap: nowrap;
+            }
+        }
+
+        .header-logos img {
+            height: 60px;
+            width: auto;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+            transition: transform 0.3s ease;
+        }
+
+        .header-logos img:hover {
+            transform: translateY(-2px);
+        }
+
+        @media (min-width: 640px) {
+            .header-logos img {
+                height: 70px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .header-logos img {
+                height: 80px;
+            }
+        }
+
+        /* =========== TABS RESPONSIVE =========== */
+        .tabs-container {
+            margin-bottom: 2rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .tabs-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        @media (min-width: 640px) {
+            .tabs-wrapper {
+                flex-direction: row;
+                background: var(--gris-claro);
+                padding: 0.25rem;
+                border-radius: 0.75rem;
+            }
+        }
+
+        .tab-button {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            background: var(--gris-claro);
+            color: var(--gris-oscuro);
+            border: 2px solid transparent;
+        }
+
+        .tab-button:hover {
+            background: var(--verde-claro);
+            color: var(--verde-principal);
+            transform: translateY(-2px);
+        }
+
+        @media (min-width: 640px) {
+            .tab-button {
+                width: auto;
+                flex: 1;
+                padding: 0.75rem 1rem;
+            }
+        }
+
+        .tab-button.active {
+            background: var(--verde-principal);
+            color: var(--blanco);
+            box-shadow: 0 4px 12px rgba(1, 152, 59, 0.2);
+            border-color: var(--verde-principal);
+        }
+
+        .tab-button.active:hover {
+            background: var(--verde-oscuro);
+            transform: translateY(-2px);
+        }
+
+        /* =========== GRID DE CONSULTORIOS REORGANIZADO =========== */
+        .consultorios-container {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .consultorio-bloque {
+            background: var(--blanco);
+            border: 2px solid var(--verde-claro);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+
+        .consultorio-bloque:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(1, 152, 59, 0.1);
+            border-color: var(--verde-principal);
+        }
+
+        .bloque-titulo {
+            color: var(--verde-principal);
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--verde-claro);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .bloque-titulo i {
+            font-size: 1.5rem;
+        }
+
+        .consultorios-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .consultorios-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (min-width: 768px) {
+            .consultorios-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .consultorios-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        .consultorio-card {
+            background: var(--blanco);
+            border: 2px solid var(--gris-medio);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 120px;
+        }
+
+        .consultorio-card:hover {
+            border-color: var(--verde-principal);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(1, 152, 59, 0.15);
+        }
+
+        .consultorio-card.selected {
+            border-color: var(--verde-principal);
+            background: linear-gradient(135deg, var(--verde-claro) 0%, #f0f9ff 100%);
+            box-shadow: 0 6px 20px rgba(1, 152, 59, 0.25);
+        }
+
+        .consultorio-card i {
+            color: var(--verde-principal);
+            font-size: 2rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .consultorio-card h4 {
+            color: var(--texto-oscuro);
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .consultorio-card p {
+            color: var(--gris-oscuro);
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
+
+        /* =========== FORMULARIO DE CHEQUEO =========== */
+        .formulario-container {
+            background: var(--blanco);
+            border: 2px solid var(--verde-principal);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .formulario-header {
+            background: linear-gradient(135deg, var(--verde-principal) 0%, var(--verde-oscuro) 100%);
+            color: var(--blanco);
+            padding: 1.5rem 2rem;
+        }
+
+        .formulario-body {
+            padding: 2rem;
+        }
+
+        .campos-responsable {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid var(--gris-claro);
+        }
+
+        @media (min-width: 768px) {
+            .campos-responsable {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .campo-input {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .campo-input label {
+            font-weight: 600;
+            color: var(--texto-oscuro);
+            font-size: 0.875rem;
+        }
+
+        .campo-input input {
+            padding: 0.875rem 1rem;
+            border: 2px solid var(--gris-medio);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            background: var(--gris-claro);
+        }
+
+        .campo-input input:focus {
+            border-color: var(--verde-principal);
+            background: var(--blanco);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(1, 152, 59, 0.1);
+        }
+
+        /* =========== LISTA DE EQUIPOS =========== */
+        .equipos-lista {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .equipo-item {
+            background: var(--blanco);
+            border: 2px solid var(--gris-medio);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .equipo-item:hover {
+            border-color: var(--verde-claro);
+            box-shadow: 0 2px 8px rgba(1, 152, 59, 0.1);
+        }
+
+        @media (min-width: 768px) {
+            .equipo-item {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        .equipo-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex: 1;
+        }
+
+        .equipo-checkbox {
+            width: 1.5rem;
+            height: 1.5rem;
+            accent-color: var(--verde-principal);
+            cursor: pointer;
+        }
+
+        .equipo-nombre {
+            font-weight: 500;
+            color: var(--texto-oscuro);
+            flex: 1;
+        }
+
+        .equipo-controles {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .equipo-controles {
+                flex-direction: row;
+                align-items: center;
+                width: auto;
+            }
+        }
+
+        .estado-select {
+            padding: 0.625rem 0.875rem;
+            border: 2px solid var(--gris-medio);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            min-width: 140px;
+            background: var(--gris-claro);
+            color: var(--texto-oscuro);
+            transition: all 0.3s ease;
+        }
+
+        .estado-select:focus {
+            border-color: var(--verde-principal);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(1, 152, 59, 0.1);
+        }
+
+        .observaciones-input {
+            padding: 0.625rem 0.875rem;
+            border: 2px solid var(--gris-medio);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            width: 100%;
+            background: var(--gris-claro);
+            transition: all 0.3s ease;
+        }
+
+        .observaciones-input:focus {
+            border-color: var(--verde-principal);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(1, 152, 59, 0.1);
+        }
+
+        @media (min-width: 768px) {
+            .observaciones-input {
+                width: 250px;
+            }
+        }
+
+        /* =========== BOTONES DE ACCIÓN =========== */
+        .acciones-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--gris-claro);
+        }
+
+        @media (min-width: 768px) {
+            .acciones-container {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            min-width: 200px;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-historial {
+            background: linear-gradient(135deg, var(--verde-secundario) 0%, var(--verde-oscuro) 100%);
+            color: var(--blanco);
+        }
+
+        .btn-pdf {
+            background: linear-gradient(135deg, var(--verde-principal) 0%, var(--verde-secundario) 100%);
+            color: var(--blanco);
+        }
+
+        /* =========== SECCIÓN DE INFORMES =========== */
+        .informes-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (min-width: 1024px) {
+            .informes-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .informe-card {
+            background: var(--blanco);
+            border: 2px solid var(--gris-medio);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .informe-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .informe-card.verde {
+            border-color: var(--verde-principal);
+        }
+
+        .informe-card.azul {
+            border-color: #3B82F6;
+        }
+
+        .seleccion-tipo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .tipo-card {
+            background: var(--blanco);
+            border: 2px solid var(--gris-medio);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tipo-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: var(--gris-oscuro);
+        }
+
+        .tipo-card.selected {
+            border-color: var(--verde-principal);
+            background: linear-gradient(135deg, var(--verde-claro) 0%, #f0f9ff 100%);
+            transform: translateY(-2px);
+        }
+
+        /* =========== TABLA DE HISTORIAL =========== */
+        .tabla-container {
+            overflow-x: auto;
+            border-radius: 0.75rem;
+            border: 2px solid var(--gris-medio);
+            background: var(--blanco);
+        }
+
+        .tabla-historial {
+            width: 100%;
+            min-width: 800px;
+            border-collapse: collapse;
+        }
+
+        .tabla-historial thead {
+            background: linear-gradient(135deg, var(--verde-principal) 0%, var(--verde-oscuro) 100%);
+            color: var(--blanco);
+        }
+
+        .tabla-historial th {
+            padding: 1.25rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--verde-oscuro);
+        }
+
+        .tabla-historial tbody tr {
+            border-bottom: 1px solid var(--gris-medio);
+            transition: all 0.3s ease;
+        }
+
+        .tabla-historial tbody tr:hover {
+            background: var(--verde-claro);
+        }
+
+        .tabla-historial td {
+            padding: 1.25rem 1rem;
+            vertical-align: middle;
+        }
+
+        .acciones-celda {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-accion {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-ver {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3B82F6;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-ver:hover {
+            background: rgba(59, 130, 246, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-descargar {
+            background: rgba(1, 152, 59, 0.1);
+            color: var(--verde-principal);
+            border: 1px solid rgba(1, 152, 59, 0.2);
+        }
+
+        .btn-descargar:hover {
+            background: rgba(1, 152, 59, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-eliminar {
+            background: rgba(239, 68, 68, 0.1);
+            color: #EF4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-eliminar:hover {
+            background: rgba(239, 68, 68, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* =========== MODALES =========== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--blanco);
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 1.5rem 2rem;
+            background: linear-gradient(135deg, var(--verde-principal) 0%, var(--verde-oscuro) 100%);
+            color: var(--blanco);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--blanco);
+            font-size: 1.75rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-close:hover {
+            opacity: 1;
+        }
+
+        /* =========== UTILIDADES =========== */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-4 {
+            margin-top: 1rem;
+        }
+
+        .mb-4 {
+            margin-bottom: 1rem;
+        }
+
+        .p-4 {
+            padding: 1rem;
+        }
+
+        .space-y-4 > * + * {
+            margin-top: 1rem;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .grid {
+            display: grid;
+        }
+
+        .gap-4 {
+            gap: 1rem;
+        }
+
+        /* =========== LOADING STATES =========== */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 3px solid var(--gris-claro);
+            border-top: 3px solid var(--verde-principal);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* =========== FOOTER =========== */
+        footer {
+            background: var(--gris-claro);
+            border-top: 2px solid var(--verde-claro);
+            color: var(--gris-oscuro);
+            font-size: 0.875rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-radius: 1rem 1rem 0 0;
+        }
+
+        /* =========== RESPONSIVE ADJUSTMENTS =========== */
+        @media (max-width: 768px) {
+            .main-header {
+                padding: 1.25rem;
+            }
+            
+            .header-title h1 {
+                font-size: 1.5rem;
+            }
+            
+            .header-title p {
+                font-size: 0.85rem;
+            }
+            
+            .header-logos {
+                gap: 1rem;
+            }
+            
+            .header-logos img {
+                height: 50px;
+            }
+            
+            .formulario-body {
+                padding: 1.5rem;
+            }
+            
+            .btn {
+                width: 100%;
+                min-width: unset;
+            }
+            
+            .modal-body {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .consultorios-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .bloque-titulo {
+                font-size: 1.1rem;
+            }
+            
+            .consultorio-card {
+                min-height: 100px;
+                padding: 1.25rem;
+            }
+            
+            .tipo-card {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="main-container">
+    <!-- Botón para mostrar/ocultar sidebar en móvil -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Overlay para cerrar sidebar en móvil -->
+    <div class="overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="p-6 flex flex-col justify-between h-full">
+            <div>
+                <div class="flex items-center gap-2 mb-6">
+                    <div class="bg-white p-2 rounded-md shadow-md">
+                        <i class="fas fa-boxes-stacked text-[#639A33] text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="sidebar-title font-bold text-white text-lg">Inventario SIGIPS</h1>
+                        <p class="sidebar-subtitle text-white/80 text-sm">Sistema de gestión</p>
+                    </div>
+                </div>
+                <nav class="space-y-2">
+                    <a href="#" data-view="dashboard.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-white/10 text-sm flex items-center gap-2 transition-colors">
+                        <i class="fas fa-home w-5"></i> Inicio
+                    </a>
+                    <a href="#" data-view="sedes.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-white/10 text-sm flex items-center gap-2 transition-colors">
+                        <i class="fas fa-building w-5"></i> Sedes
+                    </a>
+                    <a href="#" data-view="areas.html"
+                        class="view-link block py-2 px-3 rounded hover:bg-white/10 text-sm flex items-center gap-2 transition-colors">
+                        <i class="fas fa-map-marker-alt w-5"></i> Áreas
+                    </a>
+                    <a href="#" data-view="chequeos.html"
+                        class="view-link block py-2 px-3 rounded bg-white/20 text-white font-semibold text-sm flex items-center gap-2 transition-colors">
+                        <i class="fas fa-list-check w-5"></i> Chequeos diarios
+                    </a>
+                    <!-- Otros enlaces... -->
+                </nav>
+            </div>
+            <div class="text-sm mt-6 bg-white/10 p-3 rounded-lg backdrop-blur-sm">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="bg-white p-1.5 rounded-full shadow-sm">
+                        <i class="fas fa-user text-[#639A33] text-xs"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-white font-medium truncate" id="user-name">Usuario</p>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs text-white/70">Rol:</span>
+                            <span class="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-medium">
+                                Administrador
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="logout()"
+                    class="w-full bg-white text-[#639A33] font-semibold py-2 px-4 rounded hover:bg-white/90 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Cerrar Sesión
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main class="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-white">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-title">
+                <h1>Sistema de Chequeos Diarios</h1>
+                <p>Genera listas de chequeo para equipos médicos y consultorios</p>
+            </div>
+            <div class="header-logos">
+                <img src="../assets/logo_ips.png" alt="Logo IPS" />
+                <img src="../assets/logo_coop.png" alt="Logo Cooperativa" />
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <div class="tabs-wrapper">
+                <button class="tab-button active" data-tab="consultorios">
+                    <i class="fas fa-stethoscope"></i>
+                    <span>Consultorios</span>
+                </button>
+                <button class="tab-button" data-tab="areas-especiales">
+                    <i class="fas fa-microscope"></i>
+                    <span>Áreas Especiales</span>
+                </button>
+                <button class="tab-button" data-tab="historial-chequeos">
+                    <i class="fas fa-history"></i>
+                    <span>Historial</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Contenido de los tabs -->
+        <div id="tab-content">
+            <!-- Tab: Consultorios -->
+            <div id="tab-consultorios" class="tab-panel active">
+                <!-- Selección de consultorios -->
+                <div class="consultorios-container">
+                    <!-- Bloque 1-4 -->
+                    <div class="consultorio-bloque">
+                        <h3 class="bloque-titulo">
+                            <i class="fas fa-hospital"></i>
+                            Consultorios 1-4
+                        </h3>
+                        <div class="consultorios-grid">
+                            <div class="consultorio-card" data-consultorio="1">
+                                <i class="fas fa-door-closed"></i>
+                                <h4>Consultorio 1</h4>
+                            </div>
+                            <div class="consultorio-card" data-consultorio="2">
+                                <i class="fas fa-door-closed"></i>
+                                <h4>Consultorio 2</h4>
+                            </div>
+                            <div class="consultorio-card" data-consultorio="3">
+                                <i class="fas fa-door-closed"></i>
+                                <h4>Consultorio 3</h4>
+                            </div>
+                            <div class="consultorio-card" data-consultorio="4">
+                                <i class="fas fa-door-closed"></i>
+                                <h4>Consultorio 4</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloque 8-9 -->
+                    <div class="consultorio-bloque">
+                        <h3 class="bloque-titulo">
+                            <i class="fas fa-clinic-medical"></i>
+                            Consultorios 8-9
+                        </h3>
+                        <div class="consultorios-grid">
+                            <div class="consultorio-card" data-consultorio="8">
+                                <i class="fas fa-door-closed"></i>
+                                <h4>Consultorio 8</h4>
+                            </div>
+                            <div class="consultorio-card" data-consultorio="9">
+                                <i class="fas fa-door-closed"></i>
+                                <h4>Consultorio 9</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloque 11-13 -->
+                    <div class="consultorio-bloque">
+                        <h3 class="bloque-titulo">
+                            <i class="fas fa-stethoscope"></i>
+                            Consultorios 11-13
+                        </h3>
+                        <div class="consultorios-grid">
+                            <div class="consultorio-card" data-consultorio="11">
+                                <i class="fas fa-door-closed"></i>
+                                <h4>Consultorio 11</h4>
+                            </div>
+                            <div class="consultorio-card" data-consultorio="12">
+                                <i class="fas fa-door-closed"></i>
+                                <h4>Consultorio 12</h4>
+                            </div>
+                            <div class="consultorio-card" data-consultorio="13">
+                                <i class="fas fa-door-closed"></i>
+                                <h4>Consultorio 13</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario de chequeo (oculto inicialmente) -->
+                <div id="lista-chequeo-consultorio" class="hidden mt-6">
+                    <div class="formulario-container">
+                        <div class="formulario-header">
+                            <h3 class="text-xl font-semibold flex items-center justify-between">
+                                <span>
+                                    <i class="fas fa-clipboard-list mr-2"></i>
+                                    Lista de Chequeo - <span id="consultorio-seleccionado">Consultorio 1</span>
+                                </span>
+                                <span id="fecha-actual" class="text-sm font-normal"></span>
+                            </h3>
+                        </div>
+                        
+                        <div class="formulario-body">
+                            <!-- Campos de responsable -->
+                            <div class="campos-responsable">
+                                <div class="campo-input">
+                                    <label>Responsable del Chequeo</label>
+                                    <input type="text" id="responsable-chequeo" placeholder="Nombre del responsable" required>
+                                </div>
+                                <div class="campo-input">
+                                    <label>Validado por</label>
+                                    <input type="text" id="validado-por" placeholder="Nombre de quien valida" required>
+                                </div>
+                                <div class="campo-input">
+                                    <label>Observaciones Generales</label>
+                                    <input type="text" id="observaciones-generales" placeholder="Observaciones adicionales">
+                                </div>
+                            </div>
+
+                            <!-- Lista de equipos -->
+                            <div class="space-y-4">
+                                <h4 class="font-semibold text-lg text-gray-800">Equipos del Consultorio</h4>
+                                <div class="equipos-lista" id="lista-equipos-consultorio">
+                                    <!-- Los equipos se cargarán dinámicamente -->
+                                </div>
+                            </div>
+
+                            <!-- Botones de acción -->
+                            <div class="acciones-container">
+                                <button class="btn btn-historial" id="btn-ver-historial-consultorio">
+                                    <i class="fas fa-history"></i>
+                                    Ver Historial
+                                </button>
+                                <button class="btn btn-pdf" id="btn-generar-pdf">
+                                    <i class="fas fa-file-pdf"></i>
+                                    Generar y Guardar PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Áreas Especiales -->
+            <div id="tab-areas-especiales" class="tab-panel hidden">
+                <section class="space-y-6">
+                    <!-- Selección de área especial -->
+                    <div class="consultorio-bloque">
+                        <h3 class="bloque-titulo">
+                            <i class="fas fa-microscope"></i>
+                            Seleccionar Área Especial
+                        </h3>
+                        <div class="consultorios-grid">
+                            <div class="consultorio-card" data-area="espirometria">
+                                <i class="fas fa-lungs"></i>
+                                <h4>Espirometría</h4>
+                                <p class="text-xs text-gray-600 mt-1">Equipos respiratorios</p>
+                            </div>
+                            <div class="consultorio-card" data-area="audiometria">
+                                <i class="fas fa-ear-deaf"></i>
+                                <h4>Audiometría</h4>
+                                <p class="text-xs text-gray-600 mt-1">Equipos auditivos</p>
+                            </div>
+                            <div class="consultorio-card" data-area="optometria">
+                                <i class="fas fa-eye"></i>
+                                <h4>Optometría</h4>
+                                <p class="text-xs text-gray-600 mt-1">Equipos visuales</p>
+                            </div>
+                            <div class="consultorio-card" data-area="psicologia">
+                                <i class="fas fa-brain"></i>
+                                <h4>Psicología</h4>
+                                <p class="text-xs text-gray-600 mt-1">Equipos psicológicos</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulario de área -->
+                    <div id="lista-chequeo-area" class="hidden">
+                        <div class="formulario-container">
+                            <div class="formulario-header" style="background: linear-gradient(135deg, var(--verde-secundario) 0%, var(--verde-principal) 100%);">
+                                <h3 class="text-xl font-semibold flex items-center justify-between">
+                                    <span>
+                                        <i class="fas fa-clipboard-list mr-2"></i>
+                                        Lista de Chequeo - <span id="area-seleccionada">Área</span>
+                                    </span>
+                                    <span id="fecha-actual-area" class="text-sm font-normal"></span>
+                                </h3>
+                            </div>
+                            
+                            <div class="formulario-body">
+                                <!-- Contenido similar al de consultorios -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tab: Historial -->
+            <div id="tab-historial-chequeos" class="tab-panel hidden">
+                <div class="informes-container">
+                    <!-- Informes completos -->
+                    <div class="informe-card verde">
+                        <h3 class="bloque-titulo">
+                            <i class="fas fa-file-alt"></i>
+                            Informes Mensuales Completos
+                        </h3>
+                        <div class="seleccion-tipo">
+                            <div class="tipo-card" data-tipo="todos-consultorios">
+                                <i class="fas fa-door-closed text-2xl text-[#01983B] mb-2"></i>
+                                <h4>Todos los Consultorios</h4>
+                            </div>
+                            <div class="tipo-card" data-tipo="todas-areas">
+                                <i class="fas fa-microscope text-2xl text-[#639A33] mb-2"></i>
+                                <h4>Todas las Áreas</h4>
+                            </div>
+                            <div class="tipo-card selected" data-tipo="completo">
+                                <i class="fas fa-clipboard-list text-2xl text-[#0A5C1F] mb-2"></i>
+                                <h4>Informe Completo</h4>
+                            </div>
+                        </div>
+                        <!-- Filtros y botón de generar -->
+                    </div>
+
+                    <!-- Informe específico -->
+                    <div class="informe-card azul">
+                        <h3 class="bloque-titulo" style="color: #3B82F6;">
+                            <i class="fas fa-chart-bar"></i>
+                            Informe Mensual Específico
+                        </h3>
+                        <!-- Formulario de filtros -->
+                    </div>
+                </div>
+
+                <!-- Tabla de historial -->
+                <div class="mt-6">
+                    <div class="consultorio-bloque">
+                        <h3 class="bloque-titulo">
+                            <i class="fas fa-history"></i>
+                            Historial de Chequeos
+                        </h3>
+                        <div class="tabla-container">
+                            <table class="tabla-historial">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Área/Consultorio</th>
+                                        <th>Responsable</th>
+                                        <th>Equipos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historial-chequeos-body">
+                                    <!-- Datos dinámicos -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center">
+            <p class="font-medium">Módulo de Chequeos Diarios - Sistema de Gestión de Inventarios</p>
+        </footer>
+    </main>
+
+    <!-- Modal para PDF -->
+    <div id="pdfModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-xl font-semibold">Vista Previa PDF</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <iframe id="pdfViewer" style="width:100%; height:500px; border:none; border-radius: 0.5rem;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Función para alternar sidebar en móvil
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.querySelector('.overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        // Configuración de tabs
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remover clase active de todos los tabs
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+                
+                // Agregar clase active al tab clickeado
+                button.classList.add('active');
+                const targetTab = button.getAttribute('data-tab');
+                document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
+                
+                // Si es el tab de historial, cargar datos
+                if (targetTab === 'historial-chequeos') {
+                    cargarHistorial();
+                }
+            });
+        });
+
+        // Configuración de selección de consultorios
+        document.querySelectorAll('.consultorio-card[data-consultorio]').forEach(card => {
+            card.addEventListener('click', () => {
+                // Remover selección anterior
+                document.querySelectorAll('.consultorio-card').forEach(c => c.classList.remove('selected'));
+                
+                // Seleccionar nuevo consultorio
+                card.classList.add('selected');
+                const consultorio = card.getAttribute('data-consultorio');
+                
+                // Mostrar formulario
+                document.getElementById('lista-chequeo-consultorio').classList.remove('hidden');
+                document.getElementById('consultorio-seleccionado').textContent = `Consultorio ${consultorio}`;
+                
+                // Cargar equipos del consultorio
+                cargarEquiposConsultorio(consultorio);
+                
+                // Scroll suave al formulario
+                document.getElementById('lista-chequeo-consultorio').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            });
+        });
+
+        // Configuración de selección de áreas
+        document.querySelectorAll('.consultorio-card[data-area]').forEach(card => {
+            card.addEventListener('click', () => {
+                // Similar a consultorios
+                document.querySelectorAll('.consultorio-card[data-area]').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                
+                const area = card.getAttribute('data-area');
+                document.getElementById('area-seleccionada').textContent = card.querySelector('h4').textContent;
+                document.getElementById('lista-chequeo-area').classList.remove('hidden');
+                
+                // Scroll suave
+                document.getElementById('lista-chequeo-area').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            });
+        });
+
+        // Configuración de selección de tipo de informe
+        document.querySelectorAll('.tipo-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.tipo-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+            });
+        });
+
+        // Cargar equipos dinámicamente
+        function cargarEquiposConsultorio(numero) {
+            const lista = document.getElementById('lista-equipos-consultorio');
+            
+            // Equipos base para todos los consultorios
+            const equiposBase = [
+                'Báscula', 'Linterna', 'Martillo de Reflejos', 'Negatoscopio', 
+                'Pulsioxímetro', 'Tensiómetro', 'Fonendoscopio', 'Equipo de Órganos', 'Tallímetro'
+            ];
+            
+            // Agregar electrocardiograma a consultorios específicos
+            if (['8', '9', '11', '12', '13'].includes(numero)) {
+                equiposBase.push('Electrocardiograma');
+            }
+            
+            // Generar HTML
+            let html = '';
+            equiposBase.forEach(equipo => {
+                html += `
+                    <div class="equipo-item">
+                        <div class="equipo-info">
+                            <input type="checkbox" class="equipo-checkbox" checked>
+                            <span class="equipo-nombre">${equipo}</span>
+                        </div>
+                        <div class="equipo-controles">
+                            <select class="estado-select">
+                                <option value="optimo">Óptimo</option>
+                                <option value="regular">Regular</option>
+                                <option value="defectuoso">Defectuoso</option>
+                            </select>
+                            <input type="text" class="observaciones-input" placeholder="Observaciones">
+                        </div>
+                    </div>
+                `;
+            });
+            
+            lista.innerHTML = html;
+        }
+
+        // Función para cargar historial
+        function cargarHistorial() {
+            const tbody = document.getElementById('historial-chequeos-body');
+            // Aquí iría la lógica para cargar datos reales
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center p-8 text-gray-500">
+                        <i class="fas fa-clipboard-list text-3xl mb-4 block opacity-50"></i>
+                        <p class="font-medium">No hay chequeos registrados</p>
+                        <p class="text-sm mt-2">Selecciona un consultorio y genera tu primer chequeo</p>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Cargar fecha actual
+        function cargarFechaActual() {
+            const fecha = new Date().toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            });
+            
+            document.querySelectorAll('#fecha-actual, #fecha-actual-area').forEach(el => {
+                if (el) el.textContent = fecha;
+            });
+        }
+
+        // Configurar botón de generar PDF
+        document.getElementById('btn-generar-pdf')?.addEventListener('click', function() {
+            this.classList.add('loading');
+            setTimeout(() => {
+                this.classList.remove('loading');
+                // Abrir modal de vista previa
+                document.getElementById('pdfModal').classList.add('active');
+            }, 1500);
+        });
+
+        // Configurar botón de ver historial
+        document.getElementById('btn-ver-historial-consultorio')?.addEventListener('click', function() {
+            // Cambiar al tab de historial
+            document.querySelector('[data-tab="historial-chequeos"]').click();
+        });
+
+        // Cerrar modal
+        document.querySelector('.modal-close')?.addEventListener('click', function() {
+            document.getElementById('pdfModal').classList.remove('active');
+        });
+
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('pdfModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+            }
+        });
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarFechaActual();
+            cargarEquiposConsultorio('1'); // Cargar equipos por defecto
+            
+            // Seleccionar primer consultorio por defecto
+            const primerConsultorio = document.querySelector('.consultorio-card[data-consultorio="1"]');
+            if (primerConsultorio) {
+                primerConsultorio.click();
+            }
+        });
+
+        // Cerrar sidebar al hacer clic en un enlace (en móvil)
+        document.querySelectorAll('.view-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (window.innerWidth <= 1024) {
+                    toggleSidebar();
+                }
+            });
+        });
+
+        // Cerrar sidebar al redimensionar a pantalla grande
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 1024) {
+                document.querySelector('.sidebar').classList.remove('active');
+                document.querySelector('.overlay').classList.remove('active');
+            }
+        });
+
+        // Función de logout
+        function logout() {
+            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                // Aquí iría la lógica real de logout
+                window.location.href = '/login';
+            }
+        }
+    </script>
+</body>
+
+</html>

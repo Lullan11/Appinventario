@@ -9,10 +9,15 @@ const CLOUDINARY_RAW_UPLOAD = `${CLOUDINARY_UPLOAD_URL}/raw/upload`;
 const API_BASE_URL = 'https://inventario-api-gw73.onrender.com';
 
 // Variables globales
+let sedeSeleccionada = null;
 let consultorioSeleccionado = null;
 let areaEspecialSeleccionada = null;
 let historialChequeos = [];
 let tipoInformeCompletoSeleccionado = 'completo';
+let sedesDisponibles = [];
+let consultoriosPorSede = {};
+let areasPorSede = {};
+let equiposPorSede = {};
 
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
@@ -21,16 +26,609 @@ document.addEventListener('DOMContentLoaded', function () {
     cargarFechaActual();
     configurarEventos();
     configurarTabs();
-    cargarHistorialDesdeBD();
+    
+    // Ocultar contenido principal inicialmente
+    ocultarContenidoPrincipal();
+    
+    // Verificar si hay una sede guardada válida
+    const sedeGuardada = verificarSedeGuardada();
+    
+    if (sedeGuardada) {
+        console.log(`🔄 Recuperando sede guardada: ${sedeGuardada.nombre}`);
+        
+        // Usar la sede guardada
+        sedeSeleccionada = sedeGuardada;
+        
+        // Actualizar interfaz inmediatamente
+        actualizarTituloConSede(sedeGuardada.nombre);
+        mostrarContenidoPrincipal();
+        mostrarBotonCambiarSede();
+        
+        // Cargar datos de la sede
+        cargarDatosDeSede();
+        
+    } else {
+        console.log('ℹ️ No hay sede guardada, cargando sedes...');
+        // Mostrar selector de sedes
+        setTimeout(() => mostrarSelectorSedes(), 100);
+    }
 });
+
+// ========================= FUNCIONES DE SEDES =========================
+
+async function cargarSedes() {
+    try {
+        console.log('🏢 Cargando sedes disponibles desde BD...');
+        
+        // Mostrar estado de carga
+        document.getElementById('cargando-sedes').classList.remove('hidden');
+        document.getElementById('error-sedes').classList.add('hidden');
+        document.getElementById('lista-sedes').innerHTML = '';
+        
+        const response = await fetch(`${API_BASE_URL}/sedes`);
+        
+        if (!response.ok) {
+            throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        sedesDisponibles = await response.json();
+        console.log(`✅ Sedes cargadas: ${sedesDisponibles.length}`);
+        
+        // Ocultar cargando y mostrar sedes
+        document.getElementById('cargando-sedes').classList.add('hidden');
+        
+        if (sedesDisponibles.length === 0) {
+            document.getElementById('lista-sedes').innerHTML = `
+                <div class="text-center p-4 text-gray-500">
+                    <i class="fas fa-building text-3xl mb-2"></i>
+                    <p>No hay sedes disponibles en la base de datos</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Mostrar las sedes
+        mostrarListaSedes();
+        
+        // También cargar las configuraciones por sede
+        await cargarConfiguracionesSedes();
+        
+    } catch (err) {
+        console.error('❌ Error cargando sedes:', err);
+        
+        document.getElementById('cargando-sedes').classList.add('hidden');
+        document.getElementById('error-sedes').classList.remove('hidden');
+        
+        mostrarMensaje('❌ Error al cargar las sedes: ' + err.message, true);
+    }
+}
+
+async function cargarConfiguracionesSedes() {
+    try {
+        console.log('⚙️ Cargando configuraciones por sede...');
+        
+        // Cargar consultorios por sede
+        const responseConsultorios = await fetch(`${API_BASE_URL}/consultorios`);
+        if (responseConsultorios.ok) {
+            const consultorios = await responseConsultorios.json();
+            consultoriosPorSede = consultorios;
+            console.log(`✅ Configuraciones de consultorios cargadas para ${Object.keys(consultoriosPorSede).length} sedes`);
+        }
+        
+        // Cargar áreas por sede
+        const responseAreas = await fetch(`${API_BASE_URL}/areas-especiales`);
+        if (responseAreas.ok) {
+            const areas = await responseAreas.json();
+            areasPorSede = areas;
+            console.log(`✅ Configuraciones de áreas cargadas para ${Object.keys(areasPorSede).length} sedes`);
+        }
+        
+        // Cargar equipos por sede
+        const responseEquipos = await fetch(`${API_BASE_URL}/equipos-sede`);
+        if (responseEquipos.ok) {
+            const equipos = await responseEquipos.json();
+            equiposPorSede = equipos;
+            console.log(`✅ Configuraciones de equipos cargadas para ${Object.keys(equiposPorSede).length} sedes`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error cargando configuraciones:', error);
+        // No mostramos error al usuario porque es información complementaria
+    }
+}
+
+function mostrarListaSedes() {
+    const listaSedes = document.getElementById('lista-sedes');
+    listaSedes.innerHTML = '';
+    
+    sedesDisponibles.forEach(sede => {
+        const cardSede = document.createElement('div');
+        cardSede.className = 'sede-card bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50 hover:border-[#639A33] transition-all duration-200';
+        cardSede.dataset.sedeId = sede.id;
+        cardSede.dataset.sedeNombre = sede.nombre;
+        
+        // Verificar si tiene configuraciones especiales
+        const tieneConsultorios = consultoriosPorSede[sede.id] && consultoriosPorSede[sede.id].length > 0;
+        const tieneAreas = areasPorSede[sede.id] && areasPorSede[sede.id].length > 0;
+        
+        let configuraciones = [];
+        if (tieneConsultorios) configuraciones.push(`${consultoriosPorSede[sede.id].length} consultorios`);
+        if (tieneAreas) configuraciones.push(`${areasPorSede[sede.id].length} áreas especiales`);
+        
+        cardSede.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="bg-[#639A33]/10 p-3 rounded-full">
+                    <i class="fas fa-hospital text-[#639A33] text-lg"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-semibold text-gray-800">${sede.nombre}</h3>
+                        ${tieneConsultorios || tieneAreas ? '<span class="sede-badge text-xs">Configurada</span>' : ''}
+                    </div>
+                    <p class="text-sm text-gray-600 mt-1">${sede.codigo || 'Sin código'}</p>
+                    ${configuraciones.length > 0 ? 
+                        `<p class="text-xs text-gray-500 mt-1">${configuraciones.join(', ')}</p>` : 
+                        ''}
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+            </div>
+        `;
+        
+        cardSede.addEventListener('click', () => {
+            seleccionarSede(sede.id, sede.nombre);
+        });
+        
+        listaSedes.appendChild(cardSede);
+    });
+}
+
+function seleccionarSede(sedeId, sedeNombre) {
+    console.log(`🏢 Sede seleccionada: ${sedeNombre} (ID: ${sedeId})`);
+    
+    // Validar que la sede sea válida
+    if (!sedeId || !sedeNombre) {
+        mostrarMensaje('❌ Error: Datos de sede inválidos', true);
+        return;
+    }
+    
+    // Verificar si ya está seleccionada esta sede
+    if (sedeSeleccionada && sedeSeleccionada.id === sedeId) {
+        console.log('ℹ️ La sede ya está seleccionada');
+        return;
+    }
+    
+    // Guardar la nueva selección
+    sedeSeleccionada = {
+        id: sedeId,
+        nombre: sedeNombre,
+        codigo: sedesDisponibles.find(s => s.id === sedeId)?.codigo || ''
+    };
+    
+    // Guardar en localStorage con timestamp
+    const sedeData = {
+        id: sedeId,
+        nombre: sedeNombre,
+        codigo: sedeSeleccionada.codigo,
+        fecha: new Date().toISOString(),
+        modulo: 'chequeos'
+    };
+    
+    try {
+        localStorage.setItem('sede_chequeos', JSON.stringify(sedeData));
+        console.log('💾 Sede guardada en localStorage:', sedeData);
+    } catch (error) {
+        console.error('❌ Error guardando en localStorage:', error);
+    }
+    
+    // Ocultar el selector de sede
+    ocultarSelectorSede();
+    
+    // Actualizar interfaz
+    actualizarInterfazParaSede();
+    
+    // Mostrar mensaje de confirmación
+    mostrarMensaje(`✅ Sede seleccionada: ${sedeNombre}`, false);
+}
+
+function actualizarInterfazParaSede() {
+    // Actualizar título y subtítulo
+    actualizarTituloConSede(sedeSeleccionada.nombre);
+    
+    // Mostrar contenido principal
+    mostrarContenidoPrincipal();
+    
+    // Mostrar botón para cambiar sede
+    mostrarBotonCambiarSede();
+    
+    // Actualizar consultorios y áreas según la sede
+    actualizarConsultoriosParaSede();
+    actualizarAreasParaSede();
+    
+    // Cargar datos de la sede
+    cargarDatosDeSede();
+}
+
+function actualizarConsultoriosParaSede() {
+    const gridConsultorios = document.getElementById('grid-consultorios');
+    const selectConsultorios = document.getElementById('select-consultorio-informe');
+    
+    if (!gridConsultorios || !selectConsultorios) return;
+    
+    // Obtener consultorios para esta sede
+    const consultoriosSede = consultoriosPorSede[sedeSeleccionada.id] || [];
+    
+    // Si no hay consultorios específicos, usar los por defecto (1-6)
+    if (consultoriosSede.length === 0) {
+        console.log(`ℹ️ No hay consultorios específicos para sede ${sedeSeleccionada.nombre}, usando por defecto`);
+        
+        // Generar consultorios por defecto (1-6)
+        const consultoriosDefault = Array.from({length: 6}, (_, i) => ({
+            id: i + 1,
+            nombre: `Consultorio ${i + 1}`,
+            descripcion: `Consultorio médico ${i + 1}`
+        }));
+        
+        mostrarConsultoriosEnGrid(consultoriosDefault);
+        llenarSelectConsultorios(consultoriosDefault);
+        
+    } else {
+        // Usar consultorios específicos de la sede
+        console.log(`✅ Usando ${consultoriosSede.length} consultorios específicos para sede ${sedeSeleccionada.nombre}`);
+        mostrarConsultoriosEnGrid(consultoriosSede);
+        llenarSelectConsultorios(consultoriosSede);
+    }
+}
+
+function actualizarAreasParaSede() {
+    const gridAreas = document.getElementById('grid-areas');
+    const selectAreas = document.getElementById('select-area-informe');
+    
+    if (!gridAreas || !selectAreas) return;
+    
+    // Obtener áreas para esta sede
+    const areasSede = areasPorSede[sedeSeleccionada.id] || [];
+    
+    if (areasSede.length === 0) {
+        console.log(`ℹ️ No hay áreas especiales específicas para sede ${sedeSeleccionada.nombre}, usando por defecto`);
+        
+        // Usar áreas por defecto
+        const areasDefault = [
+            { id: 'espirometria', nombre: 'Espirometría', descripcion: 'Equipos de prueba respiratoria' },
+            { id: 'audiometria', nombre: 'Audiometría', descripcion: 'Equipos de prueba auditiva' },
+            { id: 'optometria', nombre: 'Optometría', descripcion: 'Equipos de examen visual' },
+            { id: 'psicologia', nombre: 'Psicología', descripcion: 'Equipos de evaluación psicológica' }
+        ];
+        
+        mostrarAreasEnGrid(areasDefault);
+        llenarSelectAreas(areasDefault);
+        
+    } else {
+        // Usar áreas específicas de la sede
+        console.log(`✅ Usando ${areasSede.length} áreas específicas para sede ${sedeSeleccionada.nombre}`);
+        mostrarAreasEnGrid(areasSede);
+        llenarSelectAreas(areasSede);
+    }
+}
+
+function mostrarConsultoriosEnGrid(consultorios) {
+    const gridConsultorios = document.getElementById('grid-consultorios');
+    if (!gridConsultorios) return;
+    
+    gridConsultorios.innerHTML = '';
+    
+    consultorios.forEach(consultorio => {
+        const card = document.createElement('div');
+        card.className = 'consultorio-card bg-white p-4 rounded-lg border border-gray-200 text-center cursor-pointer';
+        card.dataset.consultorio = consultorio.id;
+        card.dataset.consultorioNombre = consultorio.nombre;
+        
+        card.innerHTML = `
+            <i class="fas fa-door-closed text-3xl text-[#01983B] mb-2"></i>
+            <h4 class="font-semibold text-gray-800">${consultorio.nombre}</h4>
+            ${consultorio.descripcion ? `<p class="text-gray-600 text-xs mt-1">${consultorio.descripcion}</p>` : ''}
+        `;
+        
+        card.addEventListener('click', () => {
+            if (!sedeSeleccionada) {
+                mostrarMensaje('❌ Primero selecciona una sede', true);
+                return;
+            }
+            
+            document.querySelectorAll('.consultorio-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            consultorioSeleccionado = consultorio.id;
+            mostrarListaChequeoConsultorio();
+        });
+        
+        gridConsultorios.appendChild(card);
+    });
+}
+
+function mostrarAreasEnGrid(areas) {
+    const gridAreas = document.getElementById('grid-areas');
+    if (!gridAreas) return;
+    
+    gridAreas.innerHTML = '';
+    
+    // Mapeo de iconos por tipo de área
+    const iconosPorArea = {
+        'espirometria': 'fa-lungs',
+        'audiometria': 'fa-ear-deaf',
+        'optometria': 'fa-eye',
+        'psicologia': 'fa-brain'
+    };
+    
+    areas.forEach(area => {
+        const card = document.createElement('div');
+        card.className = 'area-card bg-white p-6 rounded-lg border border-gray-200 text-center cursor-pointer';
+        card.dataset.area = area.id;
+        card.dataset.areaNombre = area.nombre;
+        
+        // Obtener el icono adecuado
+        const icono = iconosPorArea[area.id] || 'fa-microscope';
+        
+        card.innerHTML = `
+            <i class="fas ${icono} text-4xl text-[#639A33] mb-3"></i>
+            <h4 class="font-semibold text-gray-800 text-lg mb-2">${area.nombre}</h4>
+            <p class="text-gray-600 text-sm">${area.descripcion || 'Área especial médica'}</p>
+        `;
+        
+        card.addEventListener('click', () => {
+            if (!sedeSeleccionada) {
+                mostrarMensaje('❌ Primero selecciona una sede', true);
+                return;
+            }
+            
+            document.querySelectorAll('.area-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            areaEspecialSeleccionada = area.id;
+            mostrarListaChequeoArea();
+        });
+        
+        gridAreas.appendChild(card);
+    });
+}
+
+function llenarSelectConsultorios(consultorios) {
+    const select = document.getElementById('select-consultorio-informe');
+    if (!select) return;
+    
+    select.innerHTML = '';
+    
+    consultorios.forEach(consultorio => {
+        const option = document.createElement('option');
+        option.value = consultorio.id;
+        option.textContent = consultorio.nombre;
+        select.appendChild(option);
+    });
+}
+
+function llenarSelectAreas(areas) {
+    const select = document.getElementById('select-area-informe');
+    if (!select) return;
+    
+    const selectArea = document.getElementById('select-area-informe');
+    if (!selectArea) return;
+    
+    selectArea.innerHTML = '';
+    
+    areas.forEach(area => {
+        const option = document.createElement('option');
+        option.value = area.id;
+        option.textContent = area.nombre;
+        selectArea.appendChild(option);
+    });
+}
+
+function verificarSedeGuardada() {
+    try {
+        const sedeData = localStorage.getItem('sede_chequeos');
+        if (!sedeData) return null;
+        
+        const sede = JSON.parse(sedeData);
+        if (!sede || !sede.id || !sede.nombre) return null;
+        
+        // Verificar si la selección es reciente (menos de 8 horas)
+        if (sede.fecha) {
+            const fechaGuardada = new Date(sede.fecha);
+            const hoy = new Date();
+            const diferenciaHoras = (hoy - fechaGuardada) / (1000 * 60 * 60);
+            
+            if (diferenciaHoras < 8) {
+                return sede;
+            } else {
+                console.log('ℹ️ Sede guardada expirada (más de 8 horas)');
+                localStorage.removeItem('sede_chequeos');
+            }
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('❌ Error verificando sede guardada:', error);
+        localStorage.removeItem('sede_chequeos');
+        return null;
+    }
+}
+
+function cambiarSede() {
+    console.log('🔄 Cambiando de sede...');
+    
+    if (!confirm('¿Estás seguro de que quieres cambiar de sede? Se perderán los datos no guardados.')) {
+        return;
+    }
+    
+    // Limpiar completamente datos actuales
+    consultorioSeleccionado = null;
+    areaEspecialSeleccionada = null;
+    
+    // Resetear formularios activos
+    document.querySelectorAll('#lista-chequeo-consultorio, #lista-chequeo-area').forEach(form => {
+        form.classList.add('hidden');
+    });
+    
+    // Deseleccionar tarjetas
+    document.querySelectorAll('.consultorio-card, .area-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // Limpiar inputs de formularios
+    const inputs = document.querySelectorAll('#responsable-chequeo, #validado-por, #observaciones-generales, #responsable-chequeo-area, #validado-por-area, #observaciones-generales-area');
+    inputs.forEach(input => input.value = '');
+    
+    // Resetear checkboxes
+    document.querySelectorAll('.checkbox-item').forEach(item => {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+            checkbox.checked = true;
+            item.classList.add('checked');
+        }
+    });
+    
+    // Limpiar tabla de historial
+    const tbody = document.getElementById('historial-chequeos-body');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                    <i class="fas fa-clipboard-list text-3xl mb-2 block"></i>
+                    Selecciona una sede para ver el historial
+                </td>
+            </tr>
+        `;
+    }
+    
+    // Resetear selects de informes
+    document.querySelectorAll('#select-mes-informe, #select-anio-informe').forEach(select => {
+        if (select) {
+            select.selectedIndex = 0;
+        }
+    });
+    
+    // Limpiar localStorage específico de chequeos
+    localStorage.removeItem('sede_chequeos');
+    
+    // Resetear variables globales
+    sedeSeleccionada = null;
+    historialChequeos = [];
+    
+    // Ocultar contenido principal
+    ocultarContenidoPrincipal();
+    
+    // Ocultar botón de cambiar sede
+    ocultarBotonCambiarSede();
+    
+    // Mostrar selector de sedes
+    mostrarSelectorSedes();
+    
+    // Mostrar mensaje informativo
+    mostrarMensaje('Selecciona una nueva sede para continuar', false);
+    
+    console.log('✅ Estado limpiado completamente. Mostrando selector de sedes.');
+}
+
+function mostrarSelectorSedes() {
+    const selectorSede = document.getElementById('selector-sede');
+    if (!selectorSede) return;
+    
+    // Mostrar el selector
+    selectorSede.style.display = 'flex';
+    
+    // Cargar las sedes si no se han cargado
+    if (sedesDisponibles.length === 0) {
+        cargarSedes();
+    } else {
+        // Ya tenemos sedes cargadas, solo mostrarlas
+        mostrarListaSedes();
+    }
+}
+
+function ocultarSelectorSede() {
+    const selectorSede = document.getElementById('selector-sede');
+    if (selectorSede) {
+        selectorSede.style.display = 'none';
+    }
+}
+
+// ========================= FUNCIONES DE INTERFAZ =========================
+
+function ocultarContenidoPrincipal() {
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+        mainContent.style.display = 'none';
+    }
+}
+
+function mostrarContenidoPrincipal() {
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+        mainContent.style.display = 'flex';
+        mainContent.style.flexDirection = 'column';
+    }
+}
+
+function actualizarTituloConSede(sedeNombre) {
+    const tituloPrincipal = document.getElementById('titulo-principal');
+    const subtituloSede = document.getElementById('subtitulo-sede');
+    
+    if (tituloPrincipal) {
+        tituloPrincipal.textContent = `Sistema de Chequeos Diarios - ${sedeNombre}`;
+    }
+    
+    if (subtituloSede) {
+        subtituloSede.textContent = `Sede actual: ${sedeNombre}`;
+    }
+}
+
+function mostrarBotonCambiarSede() {
+    const btnCambiarSede = document.getElementById('btn-cambiar-sede');
+    if (btnCambiarSede) {
+        btnCambiarSede.classList.remove('hidden');
+        btnCambiarSede.style.display = 'flex';
+    }
+}
+
+function ocultarBotonCambiarSede() {
+    const btnCambiarSede = document.getElementById('btn-cambiar-sede');
+    if (btnCambiarSede) {
+        btnCambiarSede.classList.add('hidden');
+        btnCambiarSede.style.display = 'none';
+    }
+}
+
+// ========================= CARGAR DATOS DE SEDE =========================
+
+async function cargarDatosDeSede() {
+    if (!sedeSeleccionada) return;
+    
+    console.log(`📂 Cargando datos para sede: ${sedeSeleccionada.nombre}`);
+    
+    try {
+        // Cargar historial
+        await cargarHistorialDesdeBD();
+        
+        // Inicializar selects después de cargar el historial
+        inicializarSelectsFechas();
+        configurarInformesCompletos();
+        
+        console.log(`✅ Datos cargados para sede: ${sedeSeleccionada.nombre}`);
+        
+    } catch (error) {
+        console.error('❌ Error cargando datos de sede:', error);
+        mostrarMensaje('⚠️ Error cargando algunos datos de la sede', true);
+    }
+}
 
 // ========================= FUNCIONES PRINCIPALES =========================
 
-// Cargar historial desde BD
 async function cargarHistorialDesdeBD() {
+    if (!sedeSeleccionada) {
+        console.log('❌ No hay sede seleccionada');
+        return;
+    }
+    
     try {
-        console.log('📂 Cargando historial desde BD...');
-        const res = await fetch(`${API_BASE_URL}/chequeos`);
+        console.log(`📂 Cargando historial desde BD para sede: ${sedeSeleccionada.nombre}...`);
+        const res = await fetch(`${API_BASE_URL}/chequeos?sede_id=${sedeSeleccionada.id}`);
         
         if (!res.ok) {
             throw new Error('Error al cargar historial');
@@ -40,27 +638,29 @@ async function cargarHistorialDesdeBD() {
         console.log(`✅ Historial cargado: ${historialChequeos.length} registros`);
         cargarHistorialEnTabla();
         
-        // Inicializar selects después de cargar el historial
-        inicializarSelectsFechas();
-        configurarInformesCompletos();
-        
     } catch (err) {
         console.error('❌ Error cargando historial:', err);
         mostrarMensaje('Error cargando historial de chequeos', true);
     }
 }
 
-// Guardar chequeo en BD - VERSIÓN CORREGIDA
 async function guardarChequeoEnBD(chequeoData) {
     try {
         console.log('📤 Guardando chequeo en BD...', chequeoData);
+        
+        // Agregar la sede al objeto de datos
+        const chequeoConSede = {
+            ...chequeoData,
+            sede_id: sedeSeleccionada.id,
+            sede_nombre: sedeSeleccionada.nombre
+        };
         
         const res = await fetch(`${API_BASE_URL}/chequeos`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(chequeoData)
+            body: JSON.stringify(chequeoConSede)
         });
 
         if (!res.ok) {
@@ -85,13 +685,14 @@ async function guardarChequeoEnBD(chequeoData) {
     }
 }
 
-// Subir PDF a Cloudinary y guardar en BD - VERSIÓN CORREGIDA
 async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
     try {
         mostrarMensaje('📤 Subiendo PDF...', false);
 
         // 1. Subir PDF a Cloudinary
-        const archivo = new File([pdfBlob], `chequeo_${tipo}_${Date.now()}.pdf`, { type: 'application/pdf' });
+        const archivo = new File([pdfBlob], `chequeo_${tipo}_${sedeSeleccionada.nombre}_${Date.now()}.pdf`, { 
+            type: 'application/pdf' 
+        });
         const formData = new FormData();
         formData.append('file', archivo);
         formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
@@ -110,10 +711,10 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
         const cloudinaryData = await cloudinaryResponse.json();
         console.log('✅ PDF subido a Cloudinary:', cloudinaryData.secure_url);
 
-        // 2. Preparar datos para guardar en BD - ESTRUCTURA SIMPLIFICADA
+        // 2. Preparar datos para guardar en BD
         const nombre = tipo === 'consultorio' ? 
-            `Consultorio ${consultorioSeleccionado}` : 
-            obtenerNombreArea(areaEspecialSeleccionada);
+            `Consultorio ${consultorioSeleccionado} - ${sedeSeleccionada.nombre}` : 
+            `${obtenerNombreArea(areaEspecialSeleccionada)} - ${sedeSeleccionada.nombre}`;
 
         const responsable = tipo === 'consultorio' ?
             document.getElementById('responsable-chequeo').value :
@@ -127,7 +728,7 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
             document.getElementById('observaciones-generales').value :
             document.getElementById('observaciones-generales-area').value;
 
-        // Estructura de datos CORREGIDA para evitar error 500
+        // Estructura de datos con sede
         const chequeoData = {
             tipo: tipo,
             nombre: nombre,
@@ -137,10 +738,12 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
             archivo_public_id: cloudinaryData.public_id,
             observaciones: observaciones || '',
             equipos_chequeados: equiposData.filter(e => e.chequeado).length,
-            datos_equipos: JSON.stringify(equiposData), // Convertir a string para evitar problemas
+            datos_equipos: JSON.stringify(equiposData),
             mes: new Date().getMonth() + 1,
             año: new Date().getFullYear(),
-            fecha: new Date().toISOString()
+            fecha: new Date().toISOString(),
+            sede_id: sedeSeleccionada.id,
+            sede_nombre: sedeSeleccionada.nombre
         };
 
         console.log('💾 Datos para guardar en BD:', chequeoData);
@@ -153,7 +756,7 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
         cargarHistorialEnTabla();
         resetearFormulario(tipo);
 
-        mostrarMensaje('✅ Chequeo guardado correctamente', false);
+        mostrarMensaje(`✅ Chequeo guardado correctamente en ${sedeSeleccionada.nombre}`, false);
         return chequeoBD;
 
     } catch (error) {
@@ -163,7 +766,6 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
     }
 }
 
-// Eliminar chequeo
 async function eliminarChequeo(id) {
     if (!confirm('¿Estás seguro de que quieres eliminar este chequeo?')) {
         return;
@@ -189,39 +791,443 @@ async function eliminarChequeo(id) {
     }
 }
 
-// ========================= MODALES DE HISTORIAL INDIVIDUAL =========================
+// ========================= FUNCIONES PARA CARGAR EQUIPOS =========================
 
-// Función para mostrar historial de un consultorio específico
+function mostrarListaChequeoConsultorio() {
+    const container = document.getElementById('lista-chequeo-consultorio');
+    const titulo = document.getElementById('consultorio-seleccionado');
+    const equiposContainer = document.getElementById('equipos-consultorio-container');
+    
+    if (container && titulo && equiposContainer) {
+        // Obtener nombre del consultorio
+        const nombreConsultorio = document.querySelector(`.consultorio-card[data-consultorio="${consultorioSeleccionado}"]`)?.dataset.consultorioNombre || `Consultorio ${consultorioSeleccionado}`;
+        
+        titulo.textContent = `${nombreConsultorio} - ${sedeSeleccionada.nombre}`;
+        container.classList.remove('hidden');
+        
+        // Cargar equipos para este consultorio y sede
+        cargarEquiposConsultorio(consultorioSeleccionado, equiposContainer);
+        
+        console.log('✅ Formulario de consultorio mostrado para:', nombreConsultorio);
+    } else {
+        console.error('❌ No se encontró el contenedor del formulario de consultorio');
+    }
+}
+
+function cargarEquiposConsultorio(consultorioId, container) {
+    // Obtener equipos específicos para esta sede y consultorio
+    const equiposSede = equiposPorSede[sedeSeleccionada.id];
+    
+    let equiposBase = [
+        'Báscula', 'Linterna', 'Martillo de Reflejos', 'Negatoscopio', 
+        'Pulsioxímetro', 'Tensiómetro', 'Fonendoscopio', 'Equipo de Órganos', 'Tallímetro'
+    ];
+    
+    // Si hay equipos específicos para la sede, usarlos
+    if (equiposSede && equiposSede.consultorios) {
+        // Verificar si hay equipos específicos para este consultorio
+        const equiposConsultorio = equiposSede.consultorios[consultorioId];
+        if (equiposConsultorio && equiposConsultorio.length > 0) {
+            equiposBase = equiposConsultorio;
+            console.log(`✅ Usando equipos específicos para consultorio ${consultorioId}:`, equiposBase);
+        }
+    }
+    
+    // Solo para consultorio 6 agregar electrocardiograma por defecto
+    if (consultorioId === '6' && !equiposBase.includes('Electrocardiograma')) {
+        equiposBase.push('Electrocardiograma');
+    }
+    
+    // Generar HTML de equipos
+    let html = '';
+    equiposBase.forEach(equipo => {
+        const equipoId = `consultorio-${consultorioId}-${equipo.toLowerCase().replace(/\s+/g, '-')}`;
+        html += `
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4 checked">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" id="${equipoId}" 
+                               class="h-5 w-5 text-[#01983B] focus:ring-[#01983B] rounded" checked>
+                        <label for="${equipoId}" class="text-gray-700 font-medium">${equipo}</label>
+                    </div>
+                    <div class="flex space-x-2">
+                        <select class="estado-equipo border border-gray-300 rounded px-3 py-1 text-sm">
+                            <option value="optimo">Óptimo</option>
+                            <option value="regular">Regular</option>
+                            <option value="defectuoso">Defectuoso</option>
+                        </select>
+                        <input type="text" placeholder="Observaciones" class="observaciones border border-gray-300 rounded px-3 py-1 text-sm w-40">
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function mostrarListaChequeoArea() {
+    const container = document.getElementById('lista-chequeo-area');
+    const titulo = document.getElementById('area-seleccionada');
+    const equiposContainer = document.getElementById('equipos-area-container');
+    
+    if (container && titulo && equiposContainer) {
+        // Obtener nombre del área
+        const nombreArea = document.querySelector(`.area-card[data-area="${areaEspecialSeleccionada}"]`)?.dataset.areaNombre || obtenerNombreArea(areaEspecialSeleccionada);
+        
+        titulo.textContent = `${nombreArea} - ${sedeSeleccionada.nombre}`;
+        container.classList.remove('hidden');
+        cargarEquiposAreaEspecial(areaEspecialSeleccionada, equiposContainer);
+    }
+}
+
+function cargarEquiposAreaEspecial(area, container) {
+    // Obtener equipos específicos para esta sede y área
+    const equiposSede = equiposPorSede[sedeSeleccionada.id];
+    
+    // Equipos por defecto por tipo de área
+    const equiposPorAreaDefault = {
+        'espirometria': ['Espirómetro', 'Báscula'],
+        'audiometria': ['Audiómetro', 'Cabina Audiométrica', 'Equipo de organos'],
+        'optometria': [
+            'Autorref-Keratómetro', 'Forópter', 'Lámpara de Hendidura', 'Lensómetro',
+            'Oftalmoscopio', 'Pantalla Tangente', 'Proyector Opto Tipos', 'Retinoscopio',
+            'Test Ishihara', 'Transluminador', 'Unidad de Refracción', 'Visiómetro', 'Caja de lentes de prueba'
+        ],
+        'psicologia': ['Polireactímetro 1', 'Polireactímetro 2']
+    };
+    
+    let equipos = equiposPorAreaDefault[area] || [];
+    
+    // Si hay equipos específicos para la sede, usarlos
+    if (equiposSede && equiposSede.areas) {
+        // Verificar si hay equipos específicos para esta área
+        const equiposArea = equiposSede.areas[area];
+        if (equiposArea && equiposArea.length > 0) {
+            equipos = equiposArea;
+            console.log(`✅ Usando equipos específicos para área ${area}:`, equipos);
+        }
+    }
+    
+    let html = `<h4 class="font-semibold text-gray-800 mb-4 text-lg">Equipos del Área</h4><div class="space-y-3">`;
+    
+    equipos.forEach(equipo => {
+        const equipoId = `${area}-${equipo.toLowerCase().replace(/\s+/g, '-')}`;
+        html += `
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4 checked">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" id="${equipoId}" 
+                               class="h-5 w-5 text-[#639A33] focus:ring-[#639A33] rounded" checked>
+                        <label for="${equipoId}" class="text-gray-700 font-medium">${equipo}</label>
+                    </div>
+                    <div class="flex space-x-2">
+                        <select class="estado-equipo border border-gray-300 rounded px-3 py-1 text-sm">
+                            <option value="optimo">Óptimo</option>
+                            <option value="regular">Regular</option>
+                            <option value="defectuoso">Defectuoso</option>
+                        </select>
+                        <input type="text" placeholder="Observaciones" class="observaciones border border-gray-300 rounded px-3 py-1 text-sm w-40">
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+// ========================= FUNCIONES DE CONFIGURACIÓN =========================
+
+function cargarFechaActual() {
+    const fecha = new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+    });
+    
+    document.querySelectorAll('#fecha-actual, #fecha-actual-area').forEach(elemento => {
+        elemento.textContent = fecha;
+    });
+}
+
+function configurarTabs() {
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.getAttribute('data-tab');
+            
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+            
+            button.classList.add('active');
+            document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
+            
+            if (targetTab === 'historial-chequeos') {
+                cargarHistorialEnTabla();
+            }
+        });
+    });
+}
+
+function configurarEventos() {
+    // Botón para cambiar sede
+    const btnCambiarSede = document.getElementById('btn-cambiar-sede');
+    if (btnCambiarSede) {
+        btnCambiarSede.addEventListener('click', cambiarSede);
+        console.log('✅ Botón cambiar sede configurado');
+    }
+    
+    // Checkboxes
+    document.addEventListener('change', function (e) {
+        if (e.target.type === 'checkbox') {
+            const item = e.target.closest('.checkbox-item');
+            if (item) {
+                item.classList.toggle('checked', e.target.checked);
+            }
+        }
+    });
+
+    // Botones de generación PDF
+    document.getElementById('btn-generar-pdf')?.addEventListener('click', generarYSubirPDFConsultorio);
+    document.getElementById('btn-generar-pdf-area')?.addEventListener('click', generarYSubirPDFArea);
+
+    // Botones de historial
+    document.getElementById('btn-ver-historial-consultorio')?.addEventListener('click', mostrarHistorialConsultorio);
+    document.getElementById('btn-ver-historial-area')?.addEventListener('click', mostrarHistorialArea);
+
+    // Configurar informes mensuales
+    configurarInformesMensuales();
+    
+    // Configurar informes completos
+    configurarInformesCompletos();
+}
+
+function configurarInformesMensuales() {
+    // Cambio entre consultorio y área
+    document.querySelectorAll('input[name="tipo-informe"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const tipo = this.value;
+            document.getElementById('consultorio-informe-container').classList.toggle('hidden', tipo !== 'consultorio');
+            document.getElementById('area-informe-container').classList.toggle('hidden', tipo !== 'area');
+        });
+    });
+}
+
+function configurarInformesCompletos() {
+    // Selección de tipo de informe completo
+    document.querySelectorAll('.tipo-informe-card').forEach(card => {
+        card.addEventListener('click', function() {
+            document.querySelectorAll('.tipo-informe-card').forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+            tipoInformeCompletoSeleccionado = this.getAttribute('data-tipo');
+            actualizarInfoInformeCompleto();
+        });
+    });
+
+    // Inicializar información del informe
+    actualizarInfoInformeCompleto();
+}
+
+function actualizarInfoInformeCompleto() {
+    const titulo = document.getElementById('titulo-informe-completo');
+    const descripcion = document.getElementById('descripcion-informe-completo');
+    
+    const info = {
+        'todos-consultorios': {
+            titulo: 'Informe de Todos los Consultorios',
+            descripcion: 'Incluye todos los chequeos de consultorios del mes seleccionado'
+        },
+        'todas-areas': {
+            titulo: 'Informe de Todas las Áreas Especiales',
+            descripcion: 'Incluye todos los chequeos de áreas especiales del mes seleccionado'
+        },
+        'completo': {
+            titulo: 'Informe Completo Mensual',
+            descripcion: 'Incluye todos los chequeos (consultorios + áreas) del mes seleccionado'
+        }
+    };
+
+    const infoSeleccionada = info[tipoInformeCompletoSeleccionado] || info.completo;
+    titulo.textContent = infoSeleccionada.titulo;
+    descripcion.textContent = infoSeleccionada.descripcion;
+}
+
+// ========================= FUNCIONES AUXILIARES =========================
+
+function obtenerNombreArea(area) {
+    const areas = {
+        'espirometria': 'Espirometría',
+        'audiometria': 'Audiometría', 
+        'optometria': 'Optometría',
+        'psicologia': 'Psicología'
+    };
+    return areas[area] || area;
+}
+
+function resetearFormulario(tipo) {
+    if (tipo === 'consultorio') {
+        document.getElementById('responsable-chequeo').value = '';
+        document.getElementById('validado-por').value = '';
+        document.getElementById('observaciones-generales').value = '';
+        
+        document.querySelectorAll('#lista-chequeo-consultorio input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = true;
+            checkbox.closest('.checkbox-item').classList.add('checked');
+        });
+        
+    } else {
+        document.getElementById('responsable-chequeo-area').value = '';
+        document.getElementById('validado-por-area').value = '';
+        document.getElementById('observaciones-generales-area').value = '';
+        
+        document.querySelectorAll('#lista-chequeo-area input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = true;
+            checkbox.closest('.checkbox-item').classList.add('checked');
+        });
+    }
+}
+
+function mostrarMensaje(texto, esError = false) {
+    const mensajesExistentes = document.querySelectorAll('.status-message');
+    mensajesExistentes.forEach(msg => msg.remove());
+
+    const mensaje = document.createElement('div');
+    mensaje.className = `status-message ${esError ? 'status-error' : 'status-success'}`;
+    mensaje.textContent = texto;
+
+    document.body.appendChild(mensaje);
+
+    setTimeout(() => {
+        if (mensaje.parentNode) {
+            mensaje.parentNode.removeChild(mensaje);
+        }
+    }, 3000);
+}
+
+// ========================= FUNCIONES DE HISTORIAL =========================
+
+function cargarHistorialEnTabla() {
+    const tbody = document.getElementById('historial-chequeos-body');
+    
+    if (!tbody) {
+        console.log('❌ No se encontró la tabla de historial');
+        return;
+    }
+
+    if (!sedeSeleccionada) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                    <i class="fas fa-clipboard-list text-3xl mb-2 block"></i>
+                    Selecciona una sede para ver el historial
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // Filtrar historial por sede actual
+    const historialFiltrado = historialChequeos.filter(chequeo => 
+        chequeo.sede_id === sedeSeleccionada.id
+    );
+
+    if (historialFiltrado.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                    <i class="fas fa-clipboard-list text-3xl mb-2 block"></i>
+                    No hay chequeos registrados en esta sede
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = historialFiltrado.map(chequeo => {
+        const fecha = new Date(chequeo.fecha).toLocaleDateString('es-ES');
+        const tipoIcon = chequeo.tipo === 'consultorio' ? 'fa-door-closed' : 'fa-microscope';
+        const tipoColor = chequeo.tipo === 'consultorio' ? 'blue' : 'green';
+
+        return `
+            <tr class="border-b border-gray-200 hover:bg-gray-50">
+                <td class="px-4 py-3">${fecha}</td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fas ${tipoIcon} text-${tipoColor}-500"></i>
+                        <span>${chequeo.nombre}</span>
+                    </div>
+                </td>
+                <td class="px-4 py-3">${chequeo.responsable}</td>
+                <td class="px-4 py-3">
+                    <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                        ${chequeo.equipos_chequeados} equipos
+                    </span>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex gap-2">
+                        <button onclick="previsualizarPDF('${chequeo.archivo_url}')" 
+                                class="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                        <button onclick="descargarChequeo('${chequeo.archivo_url}', 'chequeo_${chequeo.tipo}_${chequeo.id}.pdf')" 
+                                class="text-green-600 hover:text-green-800 text-sm flex items-center gap-1 px-2 py-1 rounded border border-green-200 hover:bg-green-50">
+                            <i class="fas fa-download"></i> Descargar
+                        </button>
+                        <button onclick="eliminarChequeo(${chequeo.id})" 
+                                class="text-red-600 hover:text-red-800 text-sm flex items-center gap-1 px-2 py-1 rounded border border-red-200 hover:bg-red-50">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
 function mostrarHistorialConsultorio() {
+    if (!sedeSeleccionada) {
+        mostrarMensaje('❌ Primero selecciona una sede', true);
+        return;
+    }
+    
     if (!consultorioSeleccionado) {
         mostrarMensaje('❌ Selecciona un consultorio primero', true);
         return;
     }
     
-    const nombreConsultorio = `Consultorio ${consultorioSeleccionado}`;
+    const nombreConsultorio = `Consultorio ${consultorioSeleccionado} - ${sedeSeleccionada.nombre}`;
     const chequeosFiltrados = historialChequeos.filter(chequeo => 
-        chequeo.tipo === 'consultorio' && chequeo.nombre === nombreConsultorio
+        chequeo.tipo === 'consultorio' && 
+        chequeo.nombre === nombreConsultorio &&
+        chequeo.sede_id === sedeSeleccionada.id
     );
     
     mostrarHistorialEnModal(chequeosFiltrados, `Historial - ${nombreConsultorio}`);
 }
 
-// Función para mostrar historial de un área específica
 function mostrarHistorialArea() {
+    if (!sedeSeleccionada) {
+        mostrarMensaje('❌ Primero selecciona una sede', true);
+        return;
+    }
+    
     if (!areaEspecialSeleccionada) {
         mostrarMensaje('❌ Selecciona un área primero', true);
         return;
     }
     
-    const nombreArea = obtenerNombreArea(areaEspecialSeleccionada);
+    const nombreArea = `${obtenerNombreArea(areaEspecialSeleccionada)} - ${sedeSeleccionada.nombre}`;
     const chequeosFiltrados = historialChequeos.filter(chequeo => 
-        chequeo.tipo === 'area' && chequeo.nombre === nombreArea
+        chequeo.tipo === 'area' && 
+        chequeo.nombre === nombreArea &&
+        chequeo.sede_id === sedeSeleccionada.id
     );
     
     mostrarHistorialEnModal(chequeosFiltrados, `Historial - ${nombreArea}`);
 }
 
-// Función principal para mostrar historial en modal
 function mostrarHistorialEnModal(chequeos, titulo) {
     // Crear modal si no existe
     let modal = document.getElementById('modal-historial');
@@ -285,7 +1291,6 @@ function mostrarHistorialEnModal(chequeos, titulo) {
     document.body.style.overflow = 'hidden';
 }
 
-// Cargar tabla en el modal
 function cargarTablaModal(chequeos) {
     const tbody = document.getElementById('modal-historial-body');
     const contador = document.getElementById('modal-contador');
@@ -343,7 +1348,6 @@ function cargarTablaModal(chequeos) {
     contador.textContent = `Mostrando ${chequeos.length} registros`;
 }
 
-// Eliminar chequeo desde el modal
 async function eliminarChequeoModal(id) {
     if (!confirm('¿Estás seguro de que quieres eliminar este chequeo?')) {
         return;
@@ -373,7 +1377,6 @@ async function eliminarChequeoModal(id) {
     }
 }
 
-// Cerrar modal
 function cerrarModalHistorial() {
     const modal = document.getElementById('modal-historial');
     if (modal) {
@@ -382,91 +1385,12 @@ function cerrarModalHistorial() {
     }
 }
 
-// Cerrar modal al hacer clic fuera
-document.addEventListener('click', function(e) {
-    const modal = document.getElementById('modal-historial');
-    if (modal && e.target === modal) {
-        cerrarModalHistorial();
-    }
-});
+// ========================= FUNCIONES DE PDF =========================
 
-// Cerrar modal con ESC
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        cerrarModalHistorial();
-    }
-});
-
-// ========================= FUNCIONES DE INTERFAZ =========================
-
-// Cargar historial en tabla
-function cargarHistorialEnTabla() {
-    const tbody = document.getElementById('historial-chequeos-body');
-    
-    if (!tbody) {
-        console.log('❌ No se encontró la tabla de historial');
-        return;
-    }
-
-    if (historialChequeos.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                    <i class="fas fa-clipboard-list text-3xl mb-2 block"></i>
-                    No hay chequeos registrados
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    tbody.innerHTML = historialChequeos.map(chequeo => {
-        const fecha = new Date(chequeo.fecha).toLocaleDateString('es-ES');
-        const tipoIcon = chequeo.tipo === 'consultorio' ? 'fa-door-closed' : 'fa-microscope';
-        const tipoColor = chequeo.tipo === 'consultorio' ? 'blue' : 'green';
-
-        return `
-            <tr class="border-b border-gray-200 hover:bg-gray-50">
-                <td class="px-4 py-3">${fecha}</td>
-                <td class="px-4 py-3">
-                    <div class="flex items-center gap-2">
-                        <i class="fas ${tipoIcon} text-${tipoColor}-500"></i>
-                        <span>${chequeo.nombre}</span>
-                    </div>
-                </td>
-                <td class="px-4 py-3">${chequeo.responsable}</td>
-                <td class="px-4 py-3">
-                    <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                        ${chequeo.equipos_chequeados} equipos
-                    </span>
-                </td>
-                <td class="px-4 py-3">
-                    <div class="flex gap-2">
-                        <button onclick="previsualizarPDF('${chequeo.archivo_url}')" 
-                                class="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>
-                        <button onclick="descargarChequeo('${chequeo.archivo_url}', 'chequeo_${chequeo.tipo}_${chequeo.id}.pdf')" 
-                                class="text-green-600 hover:text-green-800 text-sm flex items-center gap-1 px-2 py-1 rounded border border-green-200 hover:bg-green-50">
-                            <i class="fas fa-download"></i> Descargar
-                        </button>
-                        <button onclick="eliminarChequeo(${chequeo.id})" 
-                                class="text-red-600 hover:text-red-800 text-sm flex items-center gap-1 px-2 py-1 rounded border border-red-200 hover:bg-red-50">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-// Previsualizar PDF
 function previsualizarPDF(url) {
     window.open(url, '_blank');
 }
 
-// Descargar chequeo
 async function descargarChequeo(url, nombreArchivo) {
     try {
         const response = await fetch(url);
@@ -488,394 +1412,6 @@ async function descargarChequeo(url, nombreArchivo) {
         mostrarMensaje('❌ Error al descargar', true);
     }
 }
-
-// ========================= FUNCIONES AUXILIARES =========================
-
-function obtenerNombreArea(area) {
-    const areas = {
-        'espirometria': 'Espirometría',
-        'audiometria': 'Audiometría', 
-        'optometria': 'Optometría',
-        'psicologia': 'Psicología'
-    };
-    return areas[area] || area;
-}
-
-function resetearFormulario(tipo) {
-    if (tipo === 'consultorio') {
-        document.getElementById('responsable-chequeo').value = '';
-        document.getElementById('validado-por').value = '';
-        document.getElementById('observaciones-generales').value = '';
-        
-        // SOLO resetear campos de texto, mantener checkboxes seleccionados
-        document.querySelectorAll('#lista-chequeo-consultorio input[type="checkbox"]').forEach(checkbox => {
-            checkbox.checked = true; // MANTENER SELECCIONADOS
-            checkbox.closest('.checkbox-item').classList.add('checked');
-        });
-        
-    } else {
-        document.getElementById('responsable-chequeo-area').value = '';
-        document.getElementById('validado-por-area').value = '';
-        document.getElementById('observaciones-generales-area').value = '';
-        
-        // SOLO resetear campos de texto, mantener checkboxes seleccionados
-        document.querySelectorAll('#lista-chequeo-area input[type="checkbox"]').forEach(checkbox => {
-            checkbox.checked = true; // MANTENER SELECCIONADOS
-            checkbox.closest('.checkbox-item').classList.add('checked');
-        });
-    }
-}
-
-function cargarFechaActual() {
-    const fecha = new Date().toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long'
-    });
-    
-    document.querySelectorAll('#fecha-actual, #fecha-actual-area').forEach(elemento => {
-        elemento.textContent = fecha;
-    });
-}
-
-function mostrarMensaje(texto, esError = false) {
-    const mensajesExistentes = document.querySelectorAll('.mensaje-temporal');
-    mensajesExistentes.forEach(msg => msg.remove());
-
-    const mensaje = document.createElement('div');
-    mensaje.className = `mensaje-temporal fixed top-4 right-4 px-4 py-2 rounded-md shadow-md font-medium z-50 ${
-        esError ? 'bg-red-100 text-red-800 border-l-4 border-red-500' : 'bg-green-100 text-green-800 border-l-4 border-green-500'
-    }`;
-    mensaje.textContent = texto;
-
-    document.body.appendChild(mensaje);
-
-    setTimeout(() => {
-        if (mensaje.parentNode) {
-            mensaje.parentNode.removeChild(mensaje);
-        }
-    }, 3000);
-}
-
-// ========================= CONFIGURACIÓN DE EVENTOS =========================
-
-function configurarTabs() {
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', () => {
-            const targetTab = button.getAttribute('data-tab');
-            
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
-            
-            button.classList.add('active');
-            document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
-            
-            if (targetTab === 'historial-chequeos') {
-                cargarHistorialEnTabla();
-            }
-        });
-    });
-}
-
-function configurarEventos() {
-    // Consultorios - CORREGIDO
-    document.querySelectorAll('.consultorio-card').forEach(card => {
-        card.addEventListener('click', () => {
-            console.log('🟢 Consultorio clickeado:', card.getAttribute('data-consultorio'));
-            document.querySelectorAll('.consultorio-card').forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            consultorioSeleccionado = card.getAttribute('data-consultorio');
-            mostrarListaChequeoConsultorio();
-        });
-    });
-
-    // Áreas especiales
-    document.querySelectorAll('.area-card').forEach(card => {
-        card.addEventListener('click', () => {
-            document.querySelectorAll('.area-card').forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            areaEspecialSeleccionada = card.getAttribute('data-area');
-            mostrarListaChequeoArea();
-        });
-    });
-
-    // Checkboxes
-    document.addEventListener('change', function (e) {
-        if (e.target.type === 'checkbox') {
-            const item = e.target.closest('.checkbox-item');
-            if (item) {
-                item.classList.toggle('checked', e.target.checked);
-            }
-        }
-    });
-
-    // Botones de generación PDF
-    document.getElementById('btn-generar-pdf')?.addEventListener('click', generarYSubirPDFConsultorio);
-    document.getElementById('btn-generar-pdf-area')?.addEventListener('click', generarYSubirPDFArea);
-
-    // Botones de historial - ACTUALIZADOS para usar modales individuales
-    document.getElementById('btn-ver-historial-consultorio')?.addEventListener('click', mostrarHistorialConsultorio);
-    document.getElementById('btn-ver-historial-area')?.addEventListener('click', mostrarHistorialArea);
-
-    // Configurar informes mensuales
-    configurarInformesMensuales();
-}
-
-function configurarInformesMensuales() {
-    // Cambio entre consultorio y área
-    document.querySelectorAll('input[name="tipo-informe"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const tipo = this.value;
-            document.getElementById('consultorio-informe-container').classList.toggle('hidden', tipo !== 'consultorio');
-            document.getElementById('area-informe-container').classList.toggle('hidden', tipo !== 'area');
-        });
-    });
-
-    // Llenar selects de consultorios y áreas
-    llenarSelectConsultorios();
-    llenarSelectAreas();
-}
-
-function configurarInformesCompletos() {
-    // Selección de tipo de informe completo
-    document.querySelectorAll('.tipo-informe-card').forEach(card => {
-        card.addEventListener('click', function() {
-            document.querySelectorAll('.tipo-informe-card').forEach(c => c.classList.remove('selected'));
-            this.classList.add('selected');
-            tipoInformeCompletoSeleccionado = this.getAttribute('data-tipo');
-            actualizarInfoInformeCompleto();
-        });
-    });
-
-    // Inicializar información del informe
-    actualizarInfoInformeCompleto();
-}
-
-function actualizarInfoInformeCompleto() {
-    const titulo = document.getElementById('titulo-informe-completo');
-    const descripcion = document.getElementById('descripcion-informe-completo');
-    
-    const info = {
-        'todos-consultorios': {
-            titulo: 'Informe de Todos los Consultorios',
-            descripcion: 'Incluye todos los chequeos de consultorios del mes seleccionado'
-        },
-        'todas-areas': {
-            titulo: 'Informe de Todas las Áreas Especiales',
-            descripcion: 'Incluye todos los chequeos de áreas especiales del mes seleccionado'
-        },
-        'completo': {
-            titulo: 'Informe Completo Mensual',
-            descripcion: 'Incluye todos los chequeos (consultorios + áreas) del mes seleccionado'
-        }
-    };
-
-    const infoSeleccionada = info[tipoInformeCompletoSeleccionado] || info.completo;
-    titulo.textContent = infoSeleccionada.titulo;
-    descripcion.textContent = infoSeleccionada.descripcion;
-}
-
-function llenarSelectConsultorios() {
-    const select = document.getElementById('select-consultorio-informe');
-    if (!select) return;
-    
-    select.innerHTML = '';
-    for (let i = 1; i <= 6; i++) {
-        const option = document.createElement('option');
-        option.value = `Consultorio ${i}`;
-        option.textContent = `Consultorio ${i}`;
-        select.appendChild(option);
-    }
-}
-
-function llenarSelectAreas() {
-    const select = document.getElementById('select-area-informe');
-    if (!select) return;
-    
-    const areas = [
-        { value: 'Espirometría', nombre: 'Espirometría' },
-        { value: 'Audiometría', nombre: 'Audiometría' },
-        { value: 'Optometría', nombre: 'Optometría' },
-        { value: 'Psicología', nombre: 'Psicología' }
-    ];
-    
-    select.innerHTML = '';
-    areas.forEach(area => {
-        const option = document.createElement('option');
-        option.value = area.value;
-        option.textContent = area.nombre;
-        select.appendChild(option);
-    });
-}
-
-// ========================= INICIALIZACIÓN DE SELECTS CORREGIDA =========================
-
-function inicializarSelectsFechas() {
-    const meses = [
-        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-    ];
-
-    // Llenar selects de meses
-    document.querySelectorAll('#select-mes-informe, #select-mes-informe-completo').forEach(select => {
-        select.innerHTML = '';
-        meses.forEach((mes, index) => {
-            const option = document.createElement('option');
-            option.value = index + 1;
-            option.textContent = mes;
-            option.selected = (index + 1) === (new Date().getMonth() + 1);
-            select.appendChild(option);
-        });
-    });
-
-    // Llenar selects de años - SOLO AÑOS CON HISTORIAL
-    llenarSelectAnios('select-anio-informe');
-    llenarSelectAnios('select-anio-informe-completo');
-}
-
-function llenarSelectAnios(selectId) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
-
-    // Obtener años únicos del historial
-    const añosUnicos = [...new Set(historialChequeos.map(chequeo => chequeo.año))];
-    
-    // Si no hay años en el historial, usar solo el año actual
-    if (añosUnicos.length === 0) {
-        añosUnicos.push(new Date().getFullYear());
-    }
-
-    // Ordenar años de más reciente a más antiguo
-    añosUnicos.sort((a, b) => b - a);
-
-    select.innerHTML = '';
-    añosUnicos.forEach(año => {
-        const option = document.createElement('option');
-        option.value = año;
-        option.textContent = año;
-        option.selected = año === new Date().getFullYear();
-        select.appendChild(option);
-    });
-}
-
-// ========================= FUNCIONES PARA CARGAR EQUIPOS =========================
-
-// FUNCIÓN CORREGIDA - Ahora funciona con el HTML existente
-// ========================= FUNCIONES PARA CARGAR EQUIPOS =========================
-
-// FUNCIÓN MEJORADA - Maneja equipos dinámicamente incluyendo electrocardiograma para consultorio 6
-function mostrarListaChequeoConsultorio() {
-    const container = document.getElementById('lista-chequeo-consultorio');
-    const titulo = document.getElementById('consultorio-seleccionado');
-    const equiposContainer = document.querySelector('#lista-chequeo-consultorio .space-y-3');
-    
-    if (container && titulo && equiposContainer) {
-        titulo.textContent = `Consultorio ${consultorioSeleccionado}`;
-        container.classList.remove('hidden');
-        
-        // Lista base de equipos para todos los consultorios
-        const equiposBase = [
-            'Báscula', 'Linterna', 'Martillo de Reflejos', 'Negatoscopio', 
-            'Pulsioxímetro', 'Tensiómetro', 'Fonendoscopio', 'Equipo de Órganos', 'Tallímetro'
-        ];
-        
-        // Solo para consultorio 6 agregar electrocardiograma
-        if (consultorioSeleccionado === '6') {
-            equiposBase.push('Electrocardiograma');
-        }
-        
-        // Generar HTML de equipos
-        let html = '';
-        equiposBase.forEach(equipo => {
-            const equipoId = equipo.toLowerCase().replace(/\s+/g, '-');
-            html += `
-                <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4 checked">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" id="${equipoId}" 
-                                   class="h-5 w-5 text-[#01983B] focus:ring-[#01983B] rounded" checked>
-                            <label for="${equipoId}" class="text-gray-700 font-medium">${equipo}</label>
-                        </div>
-                        <div class="flex space-x-2">
-                            <select class="estado-equipo border border-gray-300 rounded px-3 py-1 text-sm">
-                                <option value="optimo">Óptimo</option>
-                                <option value="regular">Regular</option>
-                                <option value="defectuoso">Defectuoso</option>
-                            </select>
-                            <input type="text" placeholder="Observaciones" class="observaciones border border-gray-300 rounded px-3 py-1 text-sm w-40">
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        equiposContainer.innerHTML = html;
-        
-        console.log('✅ Formulario de consultorio mostrado para:', consultorioSeleccionado);
-        console.log('📋 Equipos cargados:', equiposBase);
-    } else {
-        console.error('❌ No se encontró el contenedor del formulario de consultorio');
-    }
-}
-
-function mostrarListaChequeoArea() {
-    const container = document.getElementById('lista-chequeo-area');
-    const titulo = document.getElementById('area-seleccionada');
-    const equiposContainer = document.getElementById('equipos-area-container');
-    
-    if (container && titulo && equiposContainer) {
-        titulo.textContent = obtenerNombreArea(areaEspecialSeleccionada);
-        container.classList.remove('hidden');
-        cargarEquiposAreaEspecial(areaEspecialSeleccionada, equiposContainer);
-    }
-}
-
-// Función para cargar equipos de áreas especiales
-function cargarEquiposAreaEspecial(area, container) {
-    const equiposPorArea = {
-        'espirometria': ['Espirómetro', 'Báscula'], // AGREGADA BÁSCULA
-        'audiometria': ['Audiómetro', 'Cabina Audiométrica', 'Equipo de organos'],
-        'optometria': [
-            'Autorref-Keratómetro', 'Forópter', 'Lámpara de Hendidura', 'Lensómetro',
-            'Oftalmoscopio', 'Pantalla Tangente', 'Proyector Opto Tipos', 'Retinoscopio',
-            'Test Ishihara', 'Transluminador', 'Unidad de Refracción', 'Visiómetro', 'Caja de lentes de prueba'
-        ],
-        'psicologia': ['Polireactímetro 1', 'Polireactímetro 2']
-    };
-
-    const equipos = equiposPorArea[area] || [];
-    
-    let html = `<h4 class="font-semibold text-gray-800 mb-4 text-lg">Equipos del Área</h4><div class="space-y-3">`;
-    
-    equipos.forEach(equipo => {
-        const equipoId = `${area}-${equipo.toLowerCase().replace(/\s+/g, '-')}`;
-        html += `
-            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4 checked">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <input type="checkbox" id="${equipoId}" 
-                               class="h-5 w-5 text-[#639A33] focus:ring-[#639A33] rounded" checked>
-                        <label for="${equipoId}" class="text-gray-700 font-medium">${equipo}</label>
-                    </div>
-                    <div class="flex space-x-2">
-                        <select class="estado-equipo border border-gray-300 rounded px-3 py-1 text-sm">
-                            <option value="optimo">Óptimo</option>
-                            <option value="regular">Regular</option>
-                            <option value="defectuoso">Defectuoso</option>
-                        </select>
-                        <input type="text" placeholder="Observaciones" class="observaciones border border-gray-300 rounded px-3 py-1 text-sm w-40">
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    html += `</div>`;
-    container.innerHTML = html;
-}
-
-// ========================= FUNCIONES DE GENERACIÓN PDF =========================
 
 function obtenerDatosEquiposCompletos(tipo) {
     const contenedor = tipo === 'consultorio' ? 
@@ -903,6 +1439,11 @@ function obtenerDatosEquiposCompletos(tipo) {
 }
 
 async function generarYSubirPDFConsultorio() {
+    if (!sedeSeleccionada) {
+        mostrarMensaje('❌ Primero selecciona una sede', true);
+        return;
+    }
+    
     if (!consultorioSeleccionado) {
         mostrarMensaje('❌ Selecciona un consultorio primero', true);
         return;
@@ -930,6 +1471,11 @@ async function generarYSubirPDFConsultorio() {
 }
 
 async function generarYSubirPDFArea() {
+    if (!sedeSeleccionada) {
+        mostrarMensaje('❌ Primero selecciona una sede', true);
+        return;
+    }
+    
     if (!areaEspecialSeleccionada) {
         mostrarMensaje('❌ Selecciona un área primero', true);
         return;
@@ -956,7 +1502,6 @@ async function generarYSubirPDFArea() {
     }
 }
 
-// Generar PDF para consultorio
 async function generarPDFConsultorioBlob() {
     const responsable = document.getElementById('responsable-chequeo').value;
     const validadoPor = document.getElementById('validado-por').value;
@@ -973,7 +1518,7 @@ async function generarPDFConsultorioBlob() {
     const pageHeight = doc.internal.pageSize.getHeight();
     let yPosition = 15;
 
-    // Encabezado
+    // Encabezado con información de la sede
     doc.setFillColor(1, 152, 59);
     doc.rect(0, 0, pageWidth, 25, 'F');
 
@@ -983,14 +1528,23 @@ async function generarPDFConsultorioBlob() {
     doc.text('LISTA DE CHEQUEO DIARIO - CONSULTORIO', pageWidth / 2, 12, { align: 'center' });
 
     doc.setFontSize(12);
-    doc.text(`Consultorio ${consultorioSeleccionado}`, pageWidth / 2, 18, { align: 'center' });
-    doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 23, { align: 'center' });
+    doc.text(`Sede: ${sedeSeleccionada.nombre}`, pageWidth / 2, 17, { align: 'center' });
+    
+    // Obtener nombre del consultorio
+    const nombreConsultorio = document.querySelector(`.consultorio-card[data-consultorio="${consultorioSeleccionado}"]`)?.dataset.consultorioNombre || `Consultorio ${consultorioSeleccionado}`;
+    doc.text(`${nombreConsultorio}`, pageWidth / 2, 22, { align: 'center' });
 
-    yPosition = 35;
+    yPosition = 30;
 
-    // Información del responsable y validado por
+    // Información adicional
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, 15, yPosition);
+    doc.text(`Hora: ${new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'})}`, pageWidth - 15, yPosition, { align: 'right' });
+
+    yPosition += 10;
+
+    // Información del responsable y validado por
     doc.setFont('helvetica', 'bold');
     doc.text('INFORMACIÓN GENERAL:', 15, yPosition);
 
@@ -1056,14 +1610,13 @@ async function generarPDFConsultorioBlob() {
     if (finalY < pageHeight - 20) {
         doc.setFontSize(8);
         doc.setTextColor(100, 100, 100);
-        doc.text(`Generado el: ${new Date().toLocaleString('es-ES')} - Sistema de Gestión de Inventarios IPS Progresando`,
+        doc.text(`Generado el: ${new Date().toLocaleString('es-ES')} - Sistema de Gestión de Inventarios IPS Progresando - Sede: ${sedeSeleccionada.nombre}`,
             pageWidth / 2, pageHeight - 10, { align: 'center' });
     }
 
     return doc.output('blob');
 }
 
-// Generar PDF para área especial
 async function generarPDFAreaBlob() {
     const responsable = document.getElementById('responsable-chequeo-area').value;
     const validadoPor = document.getElementById('validado-por-area').value;
@@ -1080,7 +1633,7 @@ async function generarPDFAreaBlob() {
     const pageHeight = doc.internal.pageSize.getHeight();
     let yPosition = 15;
 
-    // Encabezado
+    // Encabezado con información de la sede
     doc.setFillColor(99, 154, 51);
     doc.rect(0, 0, pageWidth, 25, 'F');
 
@@ -1090,14 +1643,23 @@ async function generarPDFAreaBlob() {
     doc.text('LISTA DE CHEQUEO DIARIO - ÁREA ESPECIAL', pageWidth / 2, 12, { align: 'center' });
 
     doc.setFontSize(12);
-    doc.text(`Área: ${obtenerNombreArea(areaEspecialSeleccionada)}`, pageWidth / 2, 18, { align: 'center' });
-    doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 23, { align: 'center' });
+    doc.text(`Sede: ${sedeSeleccionada.nombre}`, pageWidth / 2, 17, { align: 'center' });
+    
+    // Obtener nombre del área
+    const nombreArea = document.querySelector(`.area-card[data-area="${areaEspecialSeleccionada}"]`)?.dataset.areaNombre || obtenerNombreArea(areaEspecialSeleccionada);
+    doc.text(`Área: ${nombreArea}`, pageWidth / 2, 22, { align: 'center' });
 
-    yPosition = 35;
+    yPosition = 30;
 
-    // Información del responsable y validado por
+    // Información adicional
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, 15, yPosition);
+    doc.text(`Hora: ${new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'})}`, pageWidth - 15, yPosition, { align: 'right' });
+
+    yPosition += 10;
+
+    // Información del responsable y validado por
     doc.setFont('helvetica', 'bold');
     doc.text('INFORMACIÓN GENERAL:', 15, yPosition);
 
@@ -1163,28 +1725,88 @@ async function generarPDFAreaBlob() {
     if (finalY < pageHeight - 20) {
         doc.setFontSize(8);
         doc.setTextColor(100, 100, 100);
-        doc.text(`Generado el: ${new Date().toLocaleString('es-ES')} - Sistema de Gestión de Inventarios IPS Progresando`,
+        doc.text(`Generado el: ${new Date().toLocaleString('es-ES')} - Sistema de Gestión de Inventarios IPS Progresando - Sede: ${sedeSeleccionada.nombre}`,
             pageWidth / 2, pageHeight - 10, { align: 'center' });
     }
 
     return doc.output('blob');
 }
 
-// ========================= FUNCIONES DE INFORMES MENSUALES - UNIENDO PDFs =========================
+// ========================= FUNCIONES DE INFORMES MENSUALES =========================
+
+function inicializarSelectsFechas() {
+    const meses = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+
+    // Llenar selects de meses
+    document.querySelectorAll('#select-mes-informe, #select-mes-informe-completo').forEach(select => {
+        select.innerHTML = '';
+        meses.forEach((mes, index) => {
+            const option = document.createElement('option');
+            option.value = index + 1;
+            option.textContent = mes;
+            option.selected = (index + 1) === (new Date().getMonth() + 1);
+            select.appendChild(option);
+        });
+    });
+
+    // Llenar selects de años
+    llenarSelectAnios('select-anio-informe');
+    llenarSelectAnios('select-anio-informe-completo');
+}
+
+function llenarSelectAnios(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    // Obtener años únicos del historial filtrados por sede
+    const añosUnicos = [...new Set(historialChequeos
+        .filter(chequeo => chequeo.sede_id === sedeSeleccionada?.id)
+        .map(chequeo => chequeo.año)
+    )];
+    
+    if (añosUnicos.length === 0) {
+        añosUnicos.push(new Date().getFullYear());
+    }
+
+    añosUnicos.sort((a, b) => b - a);
+
+    select.innerHTML = '';
+    añosUnicos.forEach(año => {
+        const option = document.createElement('option');
+        option.value = año;
+        option.textContent = año;
+        option.selected = año === new Date().getFullYear();
+        select.appendChild(option);
+    });
+}
 
 async function generarPDFInformeMensual() {
     try {
+        if (!sedeSeleccionada) {
+            mostrarMensaje('❌ Primero selecciona una sede', true);
+            return;
+        }
+        
         const tipo = document.querySelector('input[name="tipo-informe"]:checked').value;
         const mes = parseInt(document.getElementById('select-mes-informe').value);
         const año = parseInt(document.getElementById('select-anio-informe').value);
         
         let nombre = '';
+        let nombreMostrar = '';
+        
         if (tipo === 'consultorio') {
-            const consultorio = document.getElementById('select-consultorio-informe').value;
-            nombre = consultorio;
+            const consultorioId = document.getElementById('select-consultorio-informe').value;
+            const consultorio = document.querySelector(`.consultorio-card[data-consultorio="${consultorioId}"]`);
+            nombreMostrar = consultorio?.dataset.consultorioNombre || `Consultorio ${consultorioId}`;
+            nombre = `${nombreMostrar} - ${sedeSeleccionada.nombre}`;
         } else {
-            const area = document.getElementById('select-area-informe').value;
-            nombre = area;
+            const areaId = document.getElementById('select-area-informe').value;
+            const area = document.querySelector(`.area-card[data-area="${areaId}"]`);
+            nombreMostrar = area?.dataset.areaNombre || obtenerNombreArea(areaId);
+            nombre = `${nombreMostrar} - ${sedeSeleccionada.nombre}`;
         }
 
         if (!nombre || !mes || !año) {
@@ -1197,7 +1819,8 @@ async function generarPDFInformeMensual() {
             chequeo.tipo === tipo && 
             chequeo.nombre === nombre && 
             chequeo.mes === mes && 
-            chequeo.año === año
+            chequeo.año === año &&
+            chequeo.sede_id === sedeSeleccionada.id
         );
 
         if (chequeosFiltrados.length === 0) {
@@ -1241,7 +1864,7 @@ async function generarPDFInformeMensual() {
         const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
 
-        const nombreArchivo = `informe_${nombre.replace(/\s+/g, '_')}_${mes}_${año}.pdf`;
+        const nombreArchivo = `informe_${nombreMostrar.replace(/\s+/g, '_')}_${sedeSeleccionada.nombre.replace(/\s+/g, '_')}_${mes}_${año}.pdf`;
         const link = document.createElement('a');
         link.href = url;
         link.download = nombreArchivo;
@@ -1262,6 +1885,11 @@ async function generarPDFInformeMensual() {
 
 async function generarInformeMensualCompleto() {
     try {
+        if (!sedeSeleccionada) {
+            mostrarMensaje('❌ Primero selecciona una sede', true);
+            return;
+        }
+        
         const mes = parseInt(document.getElementById('select-mes-informe-completo').value);
         const año = parseInt(document.getElementById('select-anio-informe-completo').value);
 
@@ -1270,9 +1898,9 @@ async function generarInformeMensualCompleto() {
             return;
         }
 
-        // Obtener todos los chequeos del mes
+        // Obtener todos los chequeos del mes y sede
         const todosChequeos = historialChequeos.filter(chequeo => 
-            chequeo.mes === mes && chequeo.año === año
+            chequeo.mes === mes && chequeo.año === año && chequeo.sede_id === sedeSeleccionada.id
         );
 
         if (todosChequeos.length === 0) {
@@ -1287,15 +1915,15 @@ async function generarInformeMensualCompleto() {
         switch (tipoInformeCompletoSeleccionado) {
             case 'todos-consultorios':
                 chequeosFiltrados = todosChequeos.filter(chequeo => chequeo.tipo === 'consultorio');
-                nombreArchivo = `informe_consultorios_${mes}_${año}.pdf`;
+                nombreArchivo = `informe_consultorios_${sedeSeleccionada.nombre.replace(/\s+/g, '_')}_${mes}_${año}.pdf`;
                 break;
             case 'todas-areas':
                 chequeosFiltrados = todosChequeos.filter(chequeo => chequeo.tipo === 'area');
-                nombreArchivo = `informe_areas_${mes}_${año}.pdf`;
+                nombreArchivo = `informe_areas_${sedeSeleccionada.nombre.replace(/\s+/g, '_')}_${mes}_${año}.pdf`;
                 break;
             case 'completo':
                 chequeosFiltrados = todosChequeos;
-                nombreArchivo = `informe_completo_${mes}_${año}.pdf`;
+                nombreArchivo = `informe_completo_${sedeSeleccionada.nombre.replace(/\s+/g, '_')}_${mes}_${año}.pdf`;
                 break;
         }
 
@@ -1371,3 +1999,4 @@ window.mostrarHistorialConsultorio = mostrarHistorialConsultorio;
 window.mostrarHistorialArea = mostrarHistorialArea;
 window.cerrarModalHistorial = cerrarModalHistorial;
 window.eliminarChequeoModal = eliminarChequeoModal;
+window.cambiarSede = cambiarSede;
