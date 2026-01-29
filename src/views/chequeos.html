@@ -31,6 +31,162 @@
             font-family: 'Poppins', sans-serif;
         }
 
+/* Agregar estos estilos a tu sección <style> */
+.estado-chequeo {
+    font-size: 0.7rem;
+    margin-top: 4px;
+}
+
+.badge-estado {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-estado {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-pendiente {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+.badge-completado {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #10b981;
+}
+
+.badge-entrada {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #3b82f6;
+}
+
+.badge-salida {
+    background-color: #f3e8ff;
+    color: #5b21b6;
+    border: 1px solid #8b5cf6;
+}
+
+.estado-chequeo {
+    margin-top: 4px;
+    text-align: center;
+}
+
+.badge-pendiente {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+.badge-completado {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #10b981;
+}
+
+.badge-entrada {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #3b82f6;
+}
+
+.badge-salida {
+    background-color: #f3e8ff;
+    color: #5b21b6;
+    border: 1px solid #8b5cf6;
+}
+
+.estado-chequeo {
+    margin-top: 4px;
+    text-align: center;
+}
+
+.badge-estado {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-pendiente {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+.badge-completado {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #10b981;
+}
+
+.badge-entrada {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #3b82f6;
+}
+
+.badge-salida {
+    background-color: #f3e8ff;
+    color: #5b21b6;
+    border: 1px solid #8b5cf6;
+}
+        
+        .estado-pendiente {
+    background-color: #fffbeb;
+    border-left: 4px solid #f59e0b;
+}
+
+.estado-completado {
+    background-color: #f0fdf4;
+    border-left: 4px solid #10b981;
+}
+
+/* Resaltar checkboxes no marcados */
+.checkbox-item:not(.checked) {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(220, 38, 38, 0);
+    }
+}
+
+/* Badge de estado */
+.badge-estado {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-pendiente {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.badge-completado {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
         /* Estilos para el selector de sedes */
         .sede-card {
             transition: all 0.3s ease;
@@ -459,30 +615,156 @@
 
                                     <div class="p-6">
                                         <!-- Información del responsable -->
-                                        <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">Responsable
-                                                    del Chequeo</label>
-                                                <input type="text" id="responsable-chequeo"
-                                                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]"
-                                                    placeholder="Nombre del responsable" required>
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">Validado
-                                                    por</label>
-                                                <input type="text" id="validado-por"
-                                                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]"
-                                                    placeholder="Nombre de quien valida" required>
-                                            </div>
-                                            <div>
-                                                <label
-                                                    class="block text-sm font-medium text-gray-700 mb-2">Observaciones
-                                                    Generales</label>
-                                                <input type="text" id="observaciones-generales"
-                                                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]"
-                                                    placeholder="Observaciones adicionales">
-                                            </div>
-                                        </div>
+          <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+            Responsable del Chequeo
+        </label>
+        <input type="text" id="responsable-chequeo"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]"
+            placeholder="Nombre del responsable" required>
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+            Validado por
+        </label>
+        <input type="text" id="validado-por"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]"
+            placeholder="Nombre de quien valida" required>
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+            Observaciones Generales
+        </label>
+        <input type="text" id="observaciones-generales"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]"
+            placeholder="Observaciones adicionales">
+    </div>
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+            Tipo de Chequeo
+        </label>
+        <select id="tipo-chequeo" 
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]">
+            <option value="entrada">Chequeo de Entrada</option>
+            <option value="salida">Chequeo de Salida</option>
+        </select>
+    </div>
+</div>
+
+<!-- Agregar esta sección después de la información del responsable -->
+
+<div id="items-entrada-salida" class="hidden mb-6">
+    <h4 class="font-semibold text-gray-800 mb-4 text-lg flex items-center gap-2">
+        <i class="fas fa-clipboard-check text-[#01983B]"></i>
+        Items Específicos para el Médico
+    </h4>
+    
+    <!-- Items para chequeo de ENTRADA -->
+    <div id="items-entrada" class="space-y-3">
+        <h5 class="font-medium text-gray-700 mb-2">Al iniciar la jornada (Entrada):</h5>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-entrada-1" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-entrada-1" class="text-gray-700">
+                        Verificar que todos los equipos estén presentes
+                    </label>
+                </div>
+            </div>
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-entrada-2" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-entrada-2" class="text-gray-700">
+                        Verificar funcionamiento básico de equipos
+                    </label>
+                </div>
+            </div>
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-entrada-3" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-entrada-3" class="text-gray-700">
+                        Revisar limpieza y orden del consultorio
+                    </label>
+                </div>
+            </div>
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-entrada-4" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-entrada-4" class="text-gray-700">
+                        Verificar suministros básicos (guantes, gasas, etc.)
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Items para chequeo de SALIDA -->
+    <div id="items-salida" class="space-y-3 hidden">
+        <h5 class="font-medium text-gray-700 mb-2">Al finalizar la jornada (Salida):</h5>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-salida-1" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-salida-1" class="text-gray-700">
+                        Apagar y desconectar equipos eléctricos
+                    </label>
+                </div>
+            </div>
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-salida-2" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-salida-2" class="text-gray-700">
+                        Guardar equipos portátiles en lugar seguro
+                    </label>
+                </div>
+            </div>
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-salida-3" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-salida-3" class="text-gray-700">
+                        Desechar material contaminado adecuadamente
+                    </label>
+                </div>
+            </div>
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-salida-4" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-salida-4" class="text-gray-700">
+                        Reportar equipos con fallas o daños
+                    </label>
+                </div>
+            </div>
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-salida-5" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-salida-5" class="text-gray-700">
+                        Limpiar superficies de trabajo
+                    </label>
+                </div>
+            </div>
+            <div class="checkbox-item bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center space-x-3">
+                    <input type="checkbox" id="item-salida-6" class="h-5 w-5 text-[#01983B]" checked>
+                    <label for="item-salida-6" class="text-gray-700">
+                        Verificar que todas las ventanas estén cerradas
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Observaciones específicas -->
+    <div class="mt-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+            Observaciones del médico sobre el estado del consultorio
+        </label>
+        <textarea id="observaciones-medico" 
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#01983B]"
+            rows="3" 
+            placeholder="Anotar cualquier observación importante sobre equipos, suministros o condiciones del consultorio..."></textarea>
+    </div>
+</div>
 
                                         <!-- Botones de acción -->
                                         <div class="mt-8 flex justify-between items-center">

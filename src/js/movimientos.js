@@ -53,24 +53,75 @@ function dataURLToBlob(dataURL) {
   return new Blob([u8arr], { type: mime });
 }
 
+// ========================= FUNCIÓN CORREGIDA PARA FECHAS =========================
 function formatearFecha(fechaString) {
-  if (!fechaString) return 'No especificada';
+  if (!fechaString || fechaString === '0000-00-00' || fechaString === '0000-00-00 00:00:00') {
+    return 'No especificada';
+  }
 
   try {
-    const fecha = new Date(fechaString);
-    if (isNaN(fecha.getTime())) {
+    // Si ya está en formato legible, mantenerlo
+    if (fechaString.includes('/') || (fechaString.includes(':') && fechaString.includes(' '))) {
       return fechaString;
     }
 
+    // CORRECCIÓN PRINCIPAL: Parsear fecha sin ajustes de zona horaria
+    let fecha;
+    
+    if (fechaString.includes('T')) {
+      // Formato ISO: "YYYY-MM-DDTHH:MM:SS"
+      // Usar split manual para evitar problemas de zona horaria
+      const fechaPart = fechaString.split('T')[0];
+      const [year, month, day] = fechaPart.split('-').map(Number);
+      const timePart = fechaString.split('T')[1];
+      const [hours, minutes, secondsWithZ] = timePart.split(':');
+      const seconds = secondsWithZ ? secondsWithZ.split('.')[0] : '00';
+      
+      // Crear fecha local
+      fecha = new Date(year, month - 1, day, 
+                      parseInt(hours) || 0, 
+                      parseInt(minutes) || 0, 
+                      parseInt(seconds) || 0);
+    } else if (fechaString.includes(' ')) {
+      // Formato con espacio: "YYYY-MM-DD HH:MM:SS"
+      const [datePart, timePart] = fechaString.split(' ');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours, minutes, seconds] = timePart.split(':').map(Number);
+      
+      fecha = new Date(year, month - 1, day, 
+                      hours || 0, 
+                      minutes || 0, 
+                      seconds || 0);
+    } else {
+      // Solo fecha: "YYYY-MM-DD"
+      const [year, month, day] = fechaString.split('-').map(Number);
+      fecha = new Date(year, month - 1, day, 0, 0, 0);
+    }
+
+    if (isNaN(fecha.getTime())) {
+      console.warn('Fecha inválida:', fechaString);
+      return 'Fecha inválida';
+    }
+
+    // Obtener componentes en hora local exacta
     const dia = fecha.getDate().toString().padStart(2, '0');
     const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
     const año = fecha.getFullYear();
-    const horas = fecha.getHours().toString().padStart(2, '0');
-    const minutos = fecha.getMinutes().toString().padStart(2, '0');
-
-    return `${dia}/${mes}/${año} ${horas}:${minutos}`;
+    
+    // Verificar si la fecha original tenía hora
+    const tieneHora = fechaString.includes(' ') || fechaString.includes('T') || 
+                      (fechaString.includes(':') && fechaString.length > 10);
+    
+    if (tieneHora) {
+      const horas = fecha.getHours().toString().padStart(2, '0');
+      const minutos = fecha.getMinutes().toString().padStart(2, '0');
+      const segundos = fecha.getSeconds().toString().padStart(2, '0');
+      return `${dia}/${mes}/${año} ${horas}:${minutos}${segundos !== '00' ? ':' + segundos : ''}`;
+    } else {
+      return `${dia}/${mes}/${año}`;
+    }
   } catch (e) {
-    console.error('Error formateando fecha:', e);
+    console.error('Error formateando fecha:', e, fechaString);
     return fechaString;
   }
 }
@@ -125,6 +176,16 @@ async function subirArchivoCloudinary(archivo, tipo = 'image') {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log('🚀 Inicializando módulo de movimientos...');
+
+    // Configurar fecha actual en el input de fecha_salida
+    const fechaInput = document.querySelector('input[name="fecha_salida"]');
+    if (fechaInput) {
+      const hoy = new Date();
+      // Usar fecha local, no UTC
+      const fechaFormateada = hoy.toLocaleDateString('sv-SE'); // Formato YYYY-MM-DD
+      fechaInput.value = fechaFormateada;
+      fechaInput.min = fechaFormateada; // No permitir fechas anteriores
+    }
 
     cargarUsuario();
     await cargarDatosIniciales();
@@ -778,6 +839,14 @@ async function cargarMovimientosCompletos() {
             }
           }
 
+          // CORRECCIÓN: Formatear fechas correctamente
+          if (mov.fecha_salida) {
+            mov.fecha_salida_formateada = formatearFecha(mov.fecha_salida);
+          }
+          if (mov.fecha_recepcion) {
+            mov.fecha_recepcion_formateada = formatearFecha(mov.fecha_recepcion);
+          }
+
           mov.tiene_documentos = !!(mov.imagen_salida_url || mov.imagen_recepcion_url ||
             mov.firma_envio_url || mov.firma_recepcion_url);
 
@@ -949,7 +1018,7 @@ async function cargarEquiposPorSede(sedeId) {
                     <p class="mb-1"><strong>Documento:</strong> ${equipo.responsable_documento || 'No asignado'}</p>
                   </div>
                 </div>
-                ${equipo.descripcion ? `<p class="mt-2 text-xs text-gray-600"><strong>Descripción:</strong> ${equipo.descripcion.substring(0, 100)}${equipo.descripcion.length > 100 ? '...' : ''}</p>` : ''}
+                ${equipo.descripcion ? `<p class="mt-2 text-xs text-gray-600"><strong>Descripcion:</strong> ${equipo.descripcion.substring(0, 100)}${equipo.descripcion.length > 100 ? '...' : ''}</p>` : ''}
               </div>
             `;
             detallesDiv.classList.remove('hidden');
@@ -1050,6 +1119,13 @@ async function crearMovimiento(e) {
     }
 
     e.target.reset();
+    
+    // Restaurar fecha actual en el input
+    if (fechaInput) {
+      const hoy = new Date();
+      fechaInput.value = hoy.toISOString().split('T')[0];
+    }
+    
     const detallesDiv = document.getElementById('equipo-details');
     if (detallesDiv) {
       detallesDiv.innerHTML = '';
@@ -1099,8 +1175,6 @@ async function solicitarFirmaYEnviar(movimientoId) {
 
 // ========================= ACTUALIZAR ESTADO =========================
 
-// ========================= ACTUALIZAR ESTADO =========================
-
 async function actualizarEstado(id, nuevoEstado) {
   const movimiento = todosLosMovimientos.find(m => m.id == id);
   if (!movimiento) {
@@ -1121,7 +1195,10 @@ async function actualizarEstado(id, nuevoEstado) {
     const updateData = { estado: nuevoEstado };
 
     if (nuevoEstado === 'recibido') {
-      updateData.fecha_recepcion = new Date().toISOString().split('T')[0];
+      // CORRECCIÓN: Usar fecha local exacta sin ajustes de zona horaria
+      const ahora = new Date();
+      const fechaLocal = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000));
+      updateData.fecha_recepcion = fechaLocal.toISOString().split('T')[0];
 
       try {
         await fetch(`${API_URL}/equipos/${movimiento.id_equipo}/actualizar-ubicacion`, {
@@ -1159,6 +1236,8 @@ async function actualizarEstado(id, nuevoEstado) {
       if (nuevoEstado === 'recibido') {
         todosLosMovimientos[index].fecha_recepcion = updateData.fecha_recepcion;
         todosLosMovimientos[index].sede_actual_nombre = movimiento.sede_destino_nombre;
+        // Actualizar fecha formateada
+        todosLosMovimientos[index].fecha_recepcion_formateada = formatearFecha(updateData.fecha_recepcion);
       }
     }
 
@@ -1628,8 +1707,6 @@ function mostrarModalAdjuntos(movimientoId) {
 
 // ========================= DESCARGAR ARCHIVO =========================
 
-// ========================= DESCARGAR ARCHIVO =========================
-
 function descargarArchivo(url, nombreArchivo) {
   try {
     if (!url) {
@@ -1681,7 +1758,6 @@ function descargarArchivo(url, nombreArchivo) {
     mostrarMensaje('📄 Archivo abierto en nueva pestaña. Puede descargarlo desde allí.');
   }
 }
-
 
 // ========================= CARGAR DOCUMENTOS EXISTENTES =========================
 
@@ -2506,6 +2582,7 @@ function cerrarModalDetalles() {
   }
 }
 
+// ========================= GENERAR DOCUMENTO PDF MEJORADO =========================
 async function generarDocumentoMovimiento(movimientoId) {
   try {
     console.log(`📄 Generando PDF para movimiento ${movimientoId}...`);
@@ -2521,8 +2598,8 @@ async function generarDocumentoMovimiento(movimientoId) {
     const movimiento = await response.json();
     console.log('✅ Datos cargados:', movimiento);
 
-    // 2. Formatear fechas
-    const fechaSalida = movimiento.fecha_salida ? formatearFecha(movimiento.fecha_salida) : 'N/A';
+    // 2. Formatear fechas CORRECTAMENTE usando nuestra función corregida
+    const fechaSalida = movimiento.fecha_salida ? formatearFecha(movimiento.fecha_salida) : 'No especificada';
     const fechaRecepcion = movimiento.fecha_recepcion ? formatearFecha(movimiento.fecha_recepcion) : 'Pendiente';
     const fechaGeneracion = new Date().toLocaleDateString('es-ES', {
       day: '2-digit',
@@ -2532,577 +2609,359 @@ async function generarDocumentoMovimiento(movimientoId) {
       minute: '2-digit'
     });
 
-    // 3. Crear contenido HTML CORREGIDO y SIMPLE
-    const contenidoHTML = `
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Movimiento ${movimiento.codigo_movimiento || movimientoId}</title>
-        <style>
-          /* ESTILOS MÍNIMOS Y SEGUROS */
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          
-          body {
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #000000;
-            padding: 20px;
-            background-color: #ffffff;
-          }
-          
-          /* ENCABEZADO */
-          .header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #639A33;
-          }
-          
-          .header h1 {
-            font-size: 22px;
-            color: #0F172A;
-            margin-bottom: 5px;
-            font-weight: bold;
-          }
-          
-          .header h2 {
-            font-size: 14px;
-            color: #666666;
-            margin-bottom: 10px;
-            font-weight: normal;
-          }
-          
-          .codigo-movimiento {
-            background-color: #f5f5f5;
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            display: inline-block;
-            margin-top: 10px;
-          }
-          
-          /* SECCIONES */
-          .section {
-            margin: 20px 0;
-            page-break-inside: avoid;
-          }
-          
-          .section-title {
-            background-color: #f0f7ff;
-            padding: 8px 12px;
-            font-weight: bold;
-            border-left: 4px solid #639A33;
-            margin-bottom: 15px;
-            color: #0F172A;
-            font-size: 13px;
-          }
-          
-          /* TABLA DE INFORMACIÓN */
-          .info-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-          }
-          
-          .info-table td {
-            padding: 8px 10px;
-            border-bottom: 1px solid #eeeeee;
-            vertical-align: top;
-          }
-          
-          .info-label {
-            font-weight: bold;
-            width: 35%;
-            color: #0F172A;
-          }
-          
-          .info-value {
-            color: #000000;
-          }
-          
-          /* ESTADOS */
-          .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
-          }
-          
-          .badge.pendiente {
-            background-color: #fef3c7;
-            color: #92400e;
-            border: 1px solid #f59e0b;
-          }
-          
-          .badge.enviado {
-            background-color: #dbeafe;
-            color: #1e40af;
-            border: 1px solid #3b82f6;
-          }
-          
-          .badge.recibido {
-            background-color: #dcfce7;
-            color: #166534;
-            border: 1px solid #10b981;
-          }
-          
-          /* FIRMAS */
-          .firmas-container {
-            margin-top: 40px;
-            display: flex;
-            justify-content: space-between;
-            page-break-inside: avoid;
-          }
-          
-          .firma-box {
-            width: 48%;
-            text-align: center;
-            padding: 15px;
-            border: 1px solid #cccccc;
-            border-radius: 5px;
-          }
-          
-          .firma-titulo {
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #0F172A;
-          }
-          
-          .firma-imagen {
-            max-width: 180px;
-            max-height: 60px;
-            margin: 10px auto;
-            display: block;
-            border: 1px solid #dddddd;
-          }
-          
-          .firma-linea {
-            height: 1px;
-            background-color: #000000;
-            margin: 15px 0 5px;
-          }
-          
-          .firma-placeholder {
-            height: 60px;
-            background-color: #f9f9f9;
-            border: 1px dashed #cccccc;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #999999;
-            font-style: italic;
-            margin: 10px 0;
-          }
-          
-          /* CAMPOS DE TEXTO */
-          .texto-campo {
-            background-color: #f9f9f9;
-            padding: 12px;
-            border-radius: 5px;
-            border-left: 3px solid #639A33;
-            margin: 10px 0;
-            white-space: pre-line;
-          }
-          
-          /* PIE DE PÁGINA */
-          .footer {
-            margin-top: 50px;
-            padding-top: 10px;
-            border-top: 1px solid #dddddd;
-            text-align: center;
-            font-size: 10px;
-            color: #666666;
-          }
-          
-          /* PARA IMPRESIÓN */
-          @media print {
-            body {
-              padding: 10px;
-              font-size: 11px;
-            }
-            
-            .no-print {
-              display: none;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <!-- ENCABEZADO -->
-        <div class="header">
-          <h1>ACTA DE MOVIMIENTO DE EQUIPO</h1>
-          <h2>Sistema de Gestión de Inventario - SIGIPS</h2>
-          <div class="codigo-movimiento">
-            Código: ${movimiento.codigo_movimiento || 'N/A'} | Fecha: ${fechaGeneracion}
-          </div>
-        </div>
-        
-        <!-- INFORMACIÓN GENERAL -->
-        <div class="section">
-          <div class="section-title">INFORMACIÓN GENERAL</div>
-          <table class="info-table">
-            <tr>
-              <td class="info-label">Equipo:</td>
-              <td class="info-value">${movimiento.equipo_nombre || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Código Interno:</td>
-              <td class="info-value">${movimiento.equipo_codigo || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Tipo Movimiento:</td>
-              <td class="info-value">${movimiento.tipo_movimiento_nombre || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Estado:</td>
-              <td class="info-value">
-                <span class="badge ${movimiento.estado || 'pendiente'}">
-                  ${movimiento.estado ? movimiento.estado.toUpperCase() : 'PENDIENTE'}
-                </span>
-              </td>
-            </tr>
-          </table>
-        </div>
-        
-        <!-- FECHAS -->
-        <div class="section">
-          <div class="section-title">FECHAS</div>
-          <table class="info-table">
-            <tr>
-              <td class="info-label">Fecha de Salida:</td>
-              <td class="info-value">${fechaSalida}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Fecha de Recepción:</td>
-              <td class="info-value">${fechaRecepcion}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Ubicación Actual:</td>
-              <td class="info-value">${movimiento.sede_actual_nombre || movimiento.sede_destino_nombre || 'N/A'}</td>
-            </tr>
-          </table>
-        </div>
-        
-        <!-- UBICACIONES -->
-        <div class="section">
-          <div class="section-title">UBICACIONES</div>
-          <table class="info-table">
-            <tr>
-              <td class="info-label">Sede Origen:</td>
-              <td class="info-value">${movimiento.sede_origen_nombre || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Sede Destino:</td>
-              <td class="info-value">${movimiento.sede_destino_nombre || 'N/A'}</td>
-            </tr>
-          </table>
-        </div>
-        
-        <!-- RESPONSABLES -->
-        <div class="section">
-          <div class="section-title">RESPONSABLES</div>
-          <table class="info-table">
-            <tr>
-              <td class="info-label">Responsable de Envío:</td>
-              <td class="info-value">
-                ${movimiento.responsable_envio_nombre || 'N/A'}
-                ${movimiento.responsable_envio_documento ? `<br><small>Documento: ${movimiento.responsable_envio_documento}</small>` : ''}
-              </td>
-            </tr>
-            <tr>
-              <td class="info-label">Responsable de Recepción:</td>
-              <td class="info-value">
-                ${movimiento.responsable_recepcion_nombre || 'N/A'}
-                ${movimiento.responsable_recepcion_documento ? `<br><small>Documento: ${movimiento.responsable_recepcion_documento}</small>` : ''}
-              </td>
-            </tr>
-          </table>
-        </div>
-        
-        <!-- MOTIVO -->
-        ${movimiento.motivo ? `
-        <div class="section">
-          <div class="section-title">MOTIVO DEL MOVIMIENTO</div>
-          <div class="texto-campo">${movimiento.motivo}</div>
-        </div>
-        ` : ''}
-        
-        <!-- OBSERVACIONES -->
-        ${movimiento.observaciones ? `
-        <div class="section">
-          <div class="section-title">OBSERVACIONES</div>
-          <div class="texto-campo">${movimiento.observaciones}</div>
-        </div>
-        ` : ''}
-        
-        <!-- ACCESORIOS -->
-        ${movimiento.accesorios ? `
-        <div class="section">
-          <div class="section-title">ACCESORIOS ENTREGADOS</div>
-          <div class="texto-campo">${movimiento.accesorios}</div>
-        </div>
-        ` : ''}
-        
-        <!-- FIRMAS -->
-        <div class="section">
-          <div class="section-title">FIRMAS DE CONFORMIDAD</div>
-          <div class="firmas-container">
-            <!-- Firma de Envío -->
-            <div class="firma-box">
-              <div class="firma-titulo">RESPONSABLE DE ENVÍO</div>
-              ${movimiento.firma_envio_url ? 
-                `<img src="${movimiento.firma_envio_url}" class="firma-imagen" 
-                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML += '<div class=\\'firma-placeholder\\'>Firma no disponible</div>';" />` : 
-                '<div class="firma-placeholder">Firma no disponible</div>'
-              }
-              <div class="firma-linea"></div>
-              <div><strong>Nombre:</strong> ${movimiento.responsable_envio_nombre || ''}</div>
-              <div><strong>Documento:</strong> ${movimiento.responsable_envio_documento || ''}</div>
-              <div><small>Fecha: ${fechaSalida}</small></div>
-            </div>
-            
-            <!-- Firma de Recepción -->
-            <div class="firma-box">
-              <div class="firma-titulo">RESPONSABLE DE RECEPCIÓN</div>
-              ${movimiento.firma_recepcion_url ? 
-                `<img src="${movimiento.firma_recepcion_url}" class="firma-imagen" 
-                     onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML += '<div class=\\'firma-placeholder\\'>Firma no disponible</div>';" />` : 
-                '<div class="firma-placeholder">Firma no disponible</div>'
-              }
-              <div class="firma-linea"></div>
-              <div><strong>Nombre:</strong> ${movimiento.responsable_recepcion_nombre || ''}</div>
-              <div><strong>Documento:</strong> ${movimiento.responsable_recepcion_documento || ''}</div>
-              <div><small>Fecha: ${fechaRecepcion}</small></div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- DOCUMENTACIÓN -->
-        <div class="section">
-          <div class="section-title">DOCUMENTACIÓN ADJUNTA</div>
-          <div class="texto-campo">
-            <div style="margin: 5px 0;">${movimiento.imagen_salida_url ? '✅' : '❌'} Foto del equipo al salir</div>
-            <div style="margin: 5px 0;">${movimiento.firma_envio_url ? '✅' : '❌'} Firma del responsable de envío</div>
-            <div style="margin: 5px 0;">${movimiento.imagen_recepcion_url ? '✅' : '❌'} Foto del equipo al recibir</div>
-            <div style="margin: 5px 0;">${movimiento.firma_recepcion_url ? '✅' : '❌'} Firma del responsable de recepción</div>
-          </div>
-        </div>
-        
-        <!-- PIE DE PÁGINA -->
-        <div class="footer">
-          <div>Documento generado automáticamente por el Sistema SIGIPS</div>
-          <div>Fecha de generación: ${fechaGeneracion}</div>
-          <div style="margin-top: 5px; font-style: italic;">
-            Este documento tiene validez legal y técnica. Conservar para fines de auditoría.
-          </div>
-        </div>
-        
-        <!-- SCRIPT PARA MANEJO DE ERRORES DE IMÁGENES -->
-        <script>
-          // Manejar errores de carga de imágenes
-          document.addEventListener('DOMContentLoaded', function() {
-            const images = document.querySelectorAll('img');
-            images.forEach(img => {
-              img.onerror = function() {
-                this.style.display = 'none';
-                const placeholder = document.createElement('div');
-                placeholder.className = 'firma-placeholder';
-                placeholder.textContent = 'Imagen no disponible';
-                this.parentNode.insertBefore(placeholder, this.nextSibling);
-              };
-            });
-          });
-        </script>
-      </body>
-      </html>
-    `;
+    // 3. Crear PDF usando jsPDF directamente (sin html2canvas para mejor control)
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
 
-    // 4. CREAR ELEMENTO TEMPORAL
-    const element = document.createElement('div');
-    element.style.position = 'absolute';
-    element.style.left = '-9999px';
-    element.innerHTML = contenidoHTML;
-    document.body.appendChild(element);
+    // Margenes
+    const margen = 15;
+    const anchoPagina = pdf.internal.pageSize.getWidth();
+    const altoPagina = pdf.internal.pageSize.getHeight();
+    const anchoUtil = anchoPagina - (margen * 2);
 
-    // 5. CONFIGURACIÓN SEGURA DE HTML2PDF
-    const opt = {
-      margin: [10, 10, 10, 10], // [top, right, bottom, left]
-      filename: `movimiento_${movimiento.codigo_movimiento || movimientoId}_${Date.now()}.pdf`,
-      image: { 
-        type: 'jpeg', 
-        quality: 0.95 
-      },
-      html2canvas: { 
-        scale: 2, // Alta calidad
-        useCORS: true, // Permite CORS
-        logging: false, // Desactiva logs
-        backgroundColor: '#FFFFFF',
-        allowTaint: true, // Permite imágenes externas
-        onclone: function(clonedDoc) {
-          // Reemplazar imágenes que fallen con placeholders
-          const images = clonedDoc.querySelectorAll('img');
-          images.forEach(img => {
-            // Verificar si la imagen carga
-            const originalSrc = img.src;
-            img.onerror = function() {
-              console.warn('Imagen no cargada:', originalSrc);
-              this.style.display = 'none';
-              const placeholder = document.createElement('div');
-              placeholder.style.cssText = `
-                width: ${this.width || 180}px;
-                height: ${this.height || 60}px;
-                background-color: #f9f9f9;
-                border: 1px dashed #ccc;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #999;
-                font-style: italic;
-                margin: 10px auto;
-              `;
-              placeholder.textContent = 'Imagen no disponible';
-              this.parentNode.insertBefore(placeholder, this.nextSibling);
-            };
+    // Configuración inicial
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(16);
+    pdf.setTextColor(15, 23, 42); // #0F172A
+    
+    let yPos = margen;
+
+    // Título principal
+    pdf.text('ACTA DE MOVIMIENTO DE EQUIPO', anchoPagina / 2, yPos, { align: 'center' });
+    yPos += 8;
+    
+    pdf.setFontSize(10);
+    pdf.setTextColor(102, 102, 102);
+    pdf.text('Sistema de Gestión de Inventario - SIGIPS', anchoPagina / 2, yPos, { align: 'center' });
+    yPos += 10;
+
+    // Información básica
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(`Código: ${movimiento.codigo_movimiento || 'N/A'}`, margen, yPos);
+    pdf.text(`Fecha generación: ${fechaGeneracion}`, anchoPagina - margen, yPos, { align: 'right' });
+    yPos += 10;
+
+    // Línea separadora
+    pdf.setDrawColor(99, 154, 51);
+    pdf.setLineWidth(0.5);
+    pdf.line(margen, yPos, anchoPagina - margen, yPos);
+    yPos += 10;
+
+    // ==================== SECCIÓN 1: INFORMACIÓN GENERAL ====================
+    pdf.setFontSize(12);
+    pdf.setTextColor(30, 64, 175);
+    pdf.text('INFORMACIÓN GENERAL', margen, yPos);
+    yPos += 8;
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    
+    // Tabla de información
+    const infoRows = [
+      ['Equipo:', movimiento.equipo_nombre || 'N/A'],
+      ['Código interno:', movimiento.equipo_codigo || 'N/A'],
+      ['Tipo movimiento:', movimiento.tipo_movimiento_nombre || 'N/A'],
+      ['Estado:', movimiento.estado ? movimiento.estado.toUpperCase() : 'PENDIENTE'],
+      ['Fecha salida:', fechaSalida],
+      ['Fecha recepción:', fechaRecepcion],
+      ['Ubicación actual:', movimiento.sede_actual_nombre || movimiento.sede_destino_nombre || 'N/A']
+    ];
+
+    infoRows.forEach(([label, value]) => {
+      pdf.text(label, margen, yPos);
+      pdf.text(value, margen + 50, yPos);
+      yPos += 6;
+    });
+
+    yPos += 5;
+
+    // ==================== SECCIÓN 2: UBICACIONES ====================
+    if (yPos > altoPagina - 40) {
+      pdf.addPage();
+      yPos = margen;
+    }
+
+    pdf.setFontSize(12);
+    pdf.setTextColor(30, 64, 175);
+    pdf.text('UBICACIONES', margen, yPos);
+    yPos += 8;
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(`Origen: ${movimiento.sede_origen_nombre || 'N/A'}`, margen, yPos);
+    yPos += 6;
+    pdf.text(`Destino: ${movimiento.sede_destino_nombre || 'N/A'}`, margen, yPos);
+    yPos += 10;
+
+    // ==================== SECCIÓN 3: RESPONSABLES ====================
+    if (yPos > altoPagina - 60) {
+      pdf.addPage();
+      yPos = margen;
+    }
+
+    pdf.setFontSize(12);
+    pdf.setTextColor(30, 64, 175);
+    pdf.text('RESPONSABLES', margen, yPos);
+    yPos += 8;
+
+    // Responsable de envío
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Responsable de envío:', margen, yPos);
+    yPos += 6;
+    pdf.setFont("helvetica", "bold");
+    pdf.text(movimiento.responsable_envio_nombre || 'No asignado', margen + 10, yPos);
+    pdf.setFont("helvetica", "normal");
+    yPos += 5;
+    if (movimiento.responsable_envio_documento) {
+      pdf.text(`Documento: ${movimiento.responsable_envio_documento}`, margen + 10, yPos);
+      yPos += 5;
+    }
+    
+    // Firma de envío si existe
+    if (movimiento.firma_envio_url) {
+      try {
+        const firmaImg = new Image();
+        firmaImg.crossOrigin = 'anonymous';
+        
+        await new Promise((resolve, reject) => {
+          firmaImg.onload = resolve;
+          firmaImg.onerror = reject;
+          firmaImg.src = movimiento.firma_envio_url;
+        });
+
+        const firmaWidth = 50;
+        const firmaHeight = 20;
+        pdf.addImage(firmaImg, 'PNG', margen + 10, yPos, firmaWidth, firmaHeight);
+        yPos += firmaHeight + 5;
+      } catch (error) {
+        console.warn('No se pudo cargar firma de envío:', error);
+      }
+    }
+
+    yPos += 5;
+
+    // Responsable de recepción
+    if (yPos > altoPagina - 40) {
+      pdf.addPage();
+      yPos = margen;
+    }
+
+    pdf.text('Responsable de recepción:', margen, yPos);
+    yPos += 6;
+    pdf.setFont("helvetica", "bold");
+    pdf.text(movimiento.responsable_recepcion_nombre || 'No asignado', margen + 10, yPos);
+    pdf.setFont("helvetica", "normal");
+    yPos += 5;
+    if (movimiento.responsable_recepcion_documento) {
+      pdf.text(`Documento: ${movimiento.responsable_recepcion_documento}`, margen + 10, yPos);
+      yPos += 5;
+    }
+    
+    // Firma de recepción si existe
+    if (movimiento.firma_recepcion_url) {
+      try {
+        const firmaImg = new Image();
+        firmaImg.crossOrigin = 'anonymous';
+        
+        await new Promise((resolve, reject) => {
+          firmaImg.onload = resolve;
+          firmaImg.onerror = reject;
+          firmaImg.src = movimiento.firma_recepcion_url;
+        });
+
+        const firmaWidth = 50;
+        const firmaHeight = 20;
+        pdf.addImage(firmaImg, 'PNG', margen + 10, yPos, firmaWidth, firmaHeight);
+        yPos += firmaHeight + 5;
+      } catch (error) {
+        console.warn('No se pudo cargar firma de recepción:', error);
+      }
+    }
+
+    yPos += 10;
+
+    // ==================== SECCIÓN 4: FOTOS DEL EQUIPO ====================
+    if (movimiento.imagen_salida_url || movimiento.imagen_recepcion_url) {
+      if (yPos > altoPagina - 80) {
+        pdf.addPage();
+        yPos = margen;
+      }
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(30, 64, 175);
+      pdf.text('REGISTRO FOTOGRÁFICO', margen, yPos);
+      yPos += 8;
+
+      const anchoFoto = (anchoUtil - 10) / 2;
+      const altoFoto = 50;
+
+      // Foto de salida
+      if (movimiento.imagen_salida_url) {
+        try {
+          const imgSalida = new Image();
+          imgSalida.crossOrigin = 'anonymous';
+          
+          await new Promise((resolve, reject) => {
+            imgSalida.onload = resolve;
+            imgSalida.onerror = reject;
+            imgSalida.src = movimiento.imagen_salida_url;
           });
+
+          pdf.addImage(imgSalida, 'JPEG', margen, yPos, anchoFoto, altoFoto);
+          pdf.setFontSize(8);
+          pdf.text('Foto al salir', margen + anchoFoto/2, yPos + altoFoto + 5, { align: 'center' });
+        } catch (error) {
+          console.warn('No se pudo cargar foto de salida:', error);
+          pdf.setFontSize(10);
+          pdf.text('Foto no disponible', margen + anchoFoto/2, yPos + altoFoto/2, { align: 'center' });
         }
-      },
-      jsPDF: { 
-        unit: 'mm', 
-        format: 'a4', 
-        orientation: 'portrait',
-        compress: true,
-        hotfixes: ['px_scaling'] // Corrige problemas de escala
       }
-    };
 
-    // 6. GENERAR PDF
-    mostrarMensaje('🔄 Generando PDF...', false);
-    
-    console.log('Generando PDF con html2pdf...');
-    const pdfBlob = await html2pdf().set(opt).from(element).toPdf().output('blob');
-    
-    // 7. LIMPIAR ELEMENTO TEMPORAL
-    document.body.removeChild(element);
-    
-    console.log('✅ PDF generado como blob:', pdfBlob.size, 'bytes');
+      // Foto de recepción
+      if (movimiento.imagen_recepcion_url) {
+        try {
+          const imgRecepcion = new Image();
+          imgRecepcion.crossOrigin = 'anonymous';
+          
+          await new Promise((resolve, reject) => {
+            imgRecepcion.onload = resolve;
+            imgRecepcion.onerror = reject;
+            imgRecepcion.src = movimiento.imagen_recepcion_url;
+          });
 
-    // 8. SUBIR A CLOUDINARY
-    mostrarMensaje('📤 Subiendo PDF a Cloudinary...', false);
-    
-    const pdfFile = new File([pdfBlob], 
-      `movimiento_${movimiento.codigo_movimiento || movimientoId}.pdf`, 
-      { type: 'application/pdf' }
-    );
+          pdf.addImage(imgRecepcion, 'JPEG', margen + anchoFoto + 10, yPos, anchoFoto, altoFoto);
+          pdf.setFontSize(8);
+          pdf.text('Foto al recibir', margen + anchoFoto + 10 + anchoFoto/2, yPos + altoFoto + 5, { align: 'center' });
+        } catch (error) {
+          console.warn('No se pudo cargar foto de recepción:', error);
+          pdf.setFontSize(10);
+          pdf.text('Foto no disponible', margen + anchoFoto + 10 + anchoFoto/2, yPos + altoFoto/2, { align: 'center' });
+        }
+      }
 
-    const uploadResult = await subirArchivoCloudinary(pdfFile, 'pdf');
-    console.log('✅ PDF subido a Cloudinary:', uploadResult.url);
+      yPos += altoFoto + 15;
+    }
 
-    // 9. GUARDAR URL EN LA BASE DE DATOS
-    const saveResponse = await fetch(`${API_URL}/movimientos-equipos/${movimientoId}/generar-pdf`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pdf_url: uploadResult.url,
-        pdf_public_id: uploadResult.public_id,
-        pdf_nombre: uploadResult.nombre_original
-      })
+    // ==================== SECCIÓN 5: MOTIVO ====================
+    if (movimiento.motivo) {
+      if (yPos > altoPagina - 30) {
+        pdf.addPage();
+        yPos = margen;
+      }
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(30, 64, 175);
+      pdf.text('MOTIVO DEL MOVIMIENTO', margen, yPos);
+      yPos += 8;
+
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+      const motivoLines = pdf.splitTextToSize(movimiento.motivo, anchoUtil);
+      pdf.text(motivoLines, margen, yPos);
+      yPos += (motivoLines.length * 5) + 10;
+    }
+
+    // ==================== SECCIÓN 6: OBSERVACIONES Y ACCESORIOS ====================
+    const infoAdicional = [];
+    if (movimiento.observaciones) infoAdicional.push(['Observaciones:', movimiento.observaciones]);
+    if (movimiento.accesorios) infoAdicional.push(['Accesorios incluidos:', movimiento.accesorios]);
+    if (movimiento.condicion_salida) infoAdicional.push(['Condición al salir:', movimiento.condicion_salida]);
+    if (movimiento.condicion_recepcion) infoAdicional.push(['Condición al recibir:', movimiento.condicion_recepcion]);
+
+    infoAdicional.forEach(([titulo, contenido]) => {
+      if (yPos > altoPagina - 40) {
+        pdf.addPage();
+        yPos = margen;
+      }
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(30, 64, 175);
+      pdf.text(titulo.toUpperCase(), margen, yPos);
+      yPos += 8;
+
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+      const contenidoLines = pdf.splitTextToSize(contenido, anchoUtil);
+      pdf.text(contenidoLines, margen, yPos);
+      yPos += (contenidoLines.length * 5) + 10;
     });
 
-    if (!saveResponse.ok) {
-      throw new Error('Error guardando PDF en la base de datos');
-    }
+    // ==================== PIE DE PÁGINA ====================
+    pdf.setFontSize(8);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text('Documento generado automáticamente por SIGIPS - Sistema de Gestión de Inventario', 
+             anchoPagina / 2, altoPagina - 10, { align: 'center' });
+    pdf.text('Este documento tiene validez legal y técnica. Conservar para auditoría.', 
+             anchoPagina / 2, altoPagina - 5, { align: 'center' });
 
-    // 10. ACTUALIZAR LOCALMENTE
-    const movimientoIndex = todosLosMovimientos.findIndex(m => m.id == movimientoId);
-    if (movimientoIndex !== -1) {
-      todosLosMovimientos[movimientoIndex].documento_pdf_url = uploadResult.url;
-    }
+    // 4. Generar blob y nombre del archivo
+    const nombreArchivo = `movimiento_${movimiento.codigo_movimiento || movimientoId}_${new Date().getTime()}.pdf`;
+    const pdfBlob = pdf.output('blob');
 
-    // 11. DESCARGAR AUTOMÁTICAMENTE
-    mostrarMensaje('✅ PDF generado correctamente. Descargando...', false);
+    // 5. Subir a Cloudinary
+    mostrarMensaje('📤 Subiendo PDF a la nube...', false);
     
-    const downloadLink = document.createElement('a');
-    downloadLink.href = uploadResult.url;
-    downloadLink.download = `movimiento_${movimiento.codigo_movimiento || movimientoId}.pdf`;
-    downloadLink.target = '_blank';
-    
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
+    try {
+      const pdfFile = new File([pdfBlob], nombreArchivo, { type: 'application/pdf' });
+      const uploadResult = await subirArchivoCloudinary(pdfFile, 'pdf');
+      
+      // Guardar URL en la base de datos
+      await fetch(`${API_URL}/movimientos-equipos/${movimientoId}/generar-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pdf_url: uploadResult.url,
+          pdf_public_id: uploadResult.public_id,
+          pdf_nombre: uploadResult.nombre_original
+        })
+      });
 
-    // También abrir en nueva pestaña
-    setTimeout(() => {
-      window.open(uploadResult.url, '_blank');
-    }, 500);
-
-    // 12. ACTUALIZAR INTERFAZ
-    setTimeout(() => {
-      mostrarMensaje('✅ PDF generado y descargado exitosamente');
-    }, 1000);
-
-  } catch (error) {
-    console.error('❌ ERROR en generarDocumentoMovimiento:', error);
-    
-    // Mostrar error específico
-    let mensajeError = 'Error al generar PDF';
-    if (error.message.includes('NetworkError')) {
-      mensajeError = 'Error de red. Verifique su conexión.';
-    } else if (error.message.includes('CORS')) {
-      mensajeError = 'Error de CORS. Las imágenes no se pueden cargar.';
-    } else if (error.message.includes('html2pdf')) {
-      mensajeError = 'Error en la generación del PDF. Intente nuevamente.';
-    }
-    
-    mostrarMensaje(`❌ ${mensajeError}: ${error.message}`, true);
-    
-    // Limpiar elementos temporales
-    const tempElements = document.querySelectorAll('div[style*="position: absolute"]');
-    tempElements.forEach(el => {
-      if (el.style.left === '-9999px') {
-        document.body.removeChild(el);
+      // Actualizar localmente
+      const movimientoIndex = todosLosMovimientos.findIndex(m => m.id == movimientoId);
+      if (movimientoIndex !== -1) {
+        todosLosMovimientos[movimientoIndex].documento_pdf_url = uploadResult.url;
       }
-    });
-  }
-}
 
-// ========================= FUNCIÓN AUXILIAR PARA DESCARGAR PDF AUTOMÁTICAMENTE =========================
+    } catch (uploadError) {
+      console.warn('⚠️ PDF no se subió a la nube, pero se generó localmente:', uploadError);
+    }
 
-async function descargarPDFAutomaticamente(url, nombreArchivo) {
-  try {
-    console.log('📥 Descargando PDF automáticamente...', { url, nombreArchivo });
-
-    // Crear un enlace invisible y simular clic
+    // 6. Descargar PDF automáticamente
+    const blobUrl = URL.createObjectURL(pdfBlob);
     const link = document.createElement('a');
-    link.href = url;
+    link.href = blobUrl;
     link.download = nombreArchivo;
-    link.target = '_blank';
     link.style.display = 'none';
-    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    // También abrir en nueva pestaña para verificación
-    window.open(url, '_blank', 'noopener,noreferrer');
-
-    mostrarMensaje('✅ PDF generado y descargado automáticamente');
     
+    // Limpiar URL
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+    // 7. Actualizar UI
+    setTimeout(() => {
+      mostrarMensaje('✅ PDF generado y descargado exitosamente');
+      
+      // Actualizar tabla
+      if (!elementos.contenidoListar.classList.contains('hidden')) {
+        cargarMovimientosCompletos();
+      }
+      
+      // Cerrar modal de detalles si está abierto
+      cerrarModalDetalles();
+    }, 1500);
+
   } catch (error) {
-    console.error('❌ Error en descarga automática:', error);
-    
-    // Fallback: Solo abrir en nueva pestaña
-    window.open(url, '_blank', 'noopener,noreferrer');
-    mostrarMensaje('✅ PDF generado. Si no se descarga automáticamente, haga clic en el enlace para descargar.');
+    console.error('❌ ERROR generando PDF:', error);
+    mostrarMensaje(`❌ Error al generar PDF: ${error.message}`, true);
   }
 }
 
@@ -3263,3 +3122,6 @@ window.abrirCamaraSimple = abrirCamaraSimple;
 window.guardarFirmaSimple = guardarFirmaSimple;
 window.limpiarFirmaSimple = limpiarFirmaSimple;
 window.cerrarModalFirmaSimple = cerrarModalFirmaSimple;
+// Exportar función de procesar archivo forzada
+window.procesarArchivoForzada = procesarArchivoForzada;
+window.inicializarCanvasFirmaForzada = inicializarCanvasFirmaForzada;

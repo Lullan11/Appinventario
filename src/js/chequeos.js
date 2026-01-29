@@ -644,23 +644,18 @@ async function cargarHistorialDesdeBD() {
     }
 }
 
+// En la función guardarChequeoEnBD, modifica el objeto chequeoConSede
 async function guardarChequeoEnBD(chequeoData) {
     try {
         console.log('📤 Guardando chequeo en BD...', chequeoData);
         
-        // Agregar la sede al objeto de datos
-        const chequeoConSede = {
-            ...chequeoData,
-            sede_id: sedeSeleccionada.id,
-            sede_nombre: sedeSeleccionada.nombre
-        };
-        
+        // Enviar solo los campos que la API espera (no incluir sede_id, sede_nombre, etc.)
         const res = await fetch(`${API_BASE_URL}/chequeos`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(chequeoConSede)
+            body: JSON.stringify(chequeoData)
         });
 
         if (!res.ok) {
@@ -682,6 +677,85 @@ async function guardarChequeoEnBD(chequeoData) {
     } catch (error) {
         console.error('❌ Error guardando en BD:', error);
         throw error;
+    }
+}
+
+async function generarYSubirPDFConsultorio() {
+    if (!sedeSeleccionada) {
+        mostrarMensaje('❌ Primero selecciona una sede', true);
+        return;
+    }
+    
+    if (!consultorioSeleccionado) {
+        mostrarMensaje('❌ Selecciona un consultorio primero', true);
+        return;
+    }
+
+    // Verificar que los elementos existen
+    const responsableInput = document.getElementById('responsable-chequeo');
+    const validadoInput = document.getElementById('validado-por');
+    
+    if (!responsableInput || !validadoInput) {
+        mostrarMensaje('❌ Error: No se encontraron los campos del formulario', true);
+        return;
+    }
+
+    const responsable = responsableInput.value;
+    const validadoPor = validadoInput.value;
+
+    if (!responsable || !validadoPor) {
+        mostrarMensaje('❌ Completa todos los campos requeridos', true);
+        return;
+    }
+
+    try {
+        mostrarMensaje('📄 Generando PDF...', false);
+        
+        const equiposData = obtenerDatosEquiposCompletos('consultorio');
+        const pdfBlob = await generarPDFConsultorioBlob();
+        await subirPDFCompletado(pdfBlob, 'consultorio', equiposData);
+        
+    } catch (error) {
+        console.error('❌ Error:', error);
+        mostrarMensaje('❌ Error al procesar: ' + error.message, true);
+    }
+}
+
+// Nueva función para verificar si ya se hizo el chequeo de entrada
+async function verificarChequeoEntrada(tipo, idAreaConsultorio) {
+    if (!sedeSeleccionada) return false;
+    
+    const hoy = new Date().toISOString().split('T')[0];
+    
+    try {
+        const res = await fetch(`${API_BASE_URL}/chequeos/dia?fecha=${hoy}&sede_id=${sedeSeleccionada.id}&tipo=${tipo}&id_area=${idAreaConsultorio}`);
+        
+        if (res.ok) {
+            const chequeosHoy = await res.json();
+            
+            // Verificar si hay chequeo de entrada
+            const chequeoEntrada = chequeosHoy.find(c => c.tipo_chequeo === 'entrada');
+            
+            // Si es después de las 12 PM y no hay chequeo de entrada, no permitir salida
+            const ahora = new Date();
+            if (ahora.getHours() >= 12 && !chequeoEntrada) {
+                return { permitido: false, motivo: 'Primero debes realizar el chequeo de entrada' };
+            }
+            
+            // Verificar si ya se hizo el chequeo de salida
+            const chequeoSalida = chequeosHoy.find(c => c.tipo_chequeo === 'salida');
+            if (chequeoSalida) {
+                return { permitido: false, motivo: 'Ya se realizó el chequeo de salida hoy' };
+            }
+            
+            return { permitido: true, tieneEntrada: !!chequeoEntrada };
+        }
+        
+        return { permitido: true, tieneEntrada: false };
+        
+    } catch (error) {
+        console.error('Error verificando chequeos:', error);
+        return { permitido: true, tieneEntrada: false };
     }
 }
 
@@ -711,24 +785,48 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
         const cloudinaryData = await cloudinaryResponse.json();
         console.log('✅ PDF subido a Cloudinary:', cloudinaryData.secure_url);
 
-        // 2. Preparar datos para guardar en BD
-        const nombre = tipo === 'consultorio' ? 
-            `Consultorio ${consultorioSeleccionado} - ${sedeSeleccionada.nombre}` : 
-            `${obtenerNombreArea(areaEspecialSeleccionada)} - ${sedeSeleccionada.nombre}`;
+        // 2. Obtener elementos del DOM de manera segura
+        let responsable = '';
+        let validadoPor = '';
+        let observaciones = '';
 
-        const responsable = tipo === 'consultorio' ?
-            document.getElementById('responsable-chequeo').value :
-            document.getElementById('responsable-chequeo-area').value;
+        if (tipo === 'consultorio') {
+            const responsableInput = document.getElementById('responsable-chequeo');
+            const validadoInput = document.getElementById('validado-por');
+            const observacionesInput = document.getElementById('observaciones-generales');
+            
+            // Verificar que los elementos existen antes de acceder a .value
+            if (responsableInput) responsable = responsableInput.value;
+            if (validadoInput) validadoPor = validadoInput.value;
+            if (observacionesInput) observaciones = observacionesInput.value;
+        } else {
+            const responsableInput = document.getElementById('responsable-chequeo-area');
+            const validadoInput = document.getElementById('validado-por-area');
+            const observacionesInput = document.getElementById('observaciones-generales-area');
+            
+            if (responsableInput) responsable = responsableInput.value;
+            if (validadoInput) validadoPor = validadoInput.value;
+            if (observacionesInput) observaciones = observacionesInput.value;
+        }
 
-        const validadoPor = tipo === 'consultorio' ?
-            document.getElementById('validado-por').value :
-            document.getElementById('validado-por-area').value;
+        // 3. Validar campos obligatorios
+        if (!responsable || !validadoPor) {
+            throw new Error('Los campos Responsable y Validado por son obligatorios');
+        }
 
-        const observaciones = tipo === 'consultorio' ?
-            document.getElementById('observaciones-generales').value :
-            document.getElementById('observaciones-generales-area').value;
+        // 4. Preparar nombre según tipo
+        let nombre = '';
+        if (tipo === 'consultorio') {
+            const consultorioCard = document.querySelector(`.consultorio-card[data-consultorio="${consultorioSeleccionado}"]`);
+            const nombreConsultorio = consultorioCard?.dataset.consultorioNombre || `Consultorio ${consultorioSeleccionado}`;
+            nombre = `${nombreConsultorio} - ${sedeSeleccionada.nombre}`;
+        } else {
+            const areaCard = document.querySelector(`.area-card[data-area="${areaEspecialSeleccionada}"]`);
+            const nombreArea = areaCard?.dataset.areaNombre || obtenerNombreArea(areaEspecialSeleccionada);
+            nombre = `${nombreArea} - ${sedeSeleccionada.nombre}`;
+        }
 
-        // Estructura de datos con sede
+        // 5. Preparar datos para la API
         const chequeoData = {
             tipo: tipo,
             nombre: nombre,
@@ -741,23 +839,22 @@ async function subirPDFCompletado(pdfBlob, tipo, equiposData) {
             datos_equipos: JSON.stringify(equiposData),
             mes: new Date().getMonth() + 1,
             año: new Date().getFullYear(),
-            fecha: new Date().toISOString(),
-            sede_id: sedeSeleccionada.id,
-            sede_nombre: sedeSeleccionada.nombre
+            id_usuario: 1 // Aquí deberías usar el ID del usuario actual
         };
 
         console.log('💾 Datos para guardar en BD:', chequeoData);
 
-        // 3. Guardar en BD
+        // 6. Guardar en BD
         const chequeoBD = await guardarChequeoEnBD(chequeoData);
 
-        // 4. Actualizar interfaz
-        historialChequeos.unshift(chequeoBD);
-        cargarHistorialEnTabla();
-        resetearFormulario(tipo);
-
-        mostrarMensaje(`✅ Chequeo guardado correctamente en ${sedeSeleccionada.nombre}`, false);
-        return chequeoBD;
+        // 7. Actualizar interfaz
+        if (chequeoBD) {
+            historialChequeos.unshift(chequeoBD);
+            cargarHistorialEnTabla();
+            resetearFormulario(tipo);
+            mostrarMensaje(`✅ Chequeo guardado correctamente en ${sedeSeleccionada.nombre}`, false);
+            return chequeoBD;
+        }
 
     } catch (error) {
         console.error('❌ Error en subirPDFCompletado:', error);
@@ -797,6 +894,8 @@ function mostrarListaChequeoConsultorio() {
     const container = document.getElementById('lista-chequeo-consultorio');
     const titulo = document.getElementById('consultorio-seleccionado');
     const equiposContainer = document.getElementById('equipos-consultorio-container');
+
+    
     
     if (container && titulo && equiposContainer) {
         // Obtener nombre del consultorio
@@ -804,6 +903,19 @@ function mostrarListaChequeoConsultorio() {
         
         titulo.textContent = `${nombreConsultorio} - ${sedeSeleccionada.nombre}`;
         container.classList.remove('hidden');
+
+        // Actualizar texto del botón PDF según hora
+const ahora = new Date();
+const esEntrada = ahora.getHours() < 12;
+const tipoChequeo = esEntrada ? 'Entrada' : 'Salida';
+
+const btnPDF = document.getElementById('btn-generar-pdf');
+if (btnPDF) {
+    btnPDF.innerHTML = `
+        <i class="fas fa-file-pdf"></i>
+        Generar Chequeo de ${tipoChequeo} PDF
+    `;
+}
         
         // Cargar equipos para este consultorio y sede
         cargarEquiposConsultorio(consultorioSeleccionado, equiposContainer);
@@ -878,6 +990,19 @@ function mostrarListaChequeoArea() {
         titulo.textContent = `${nombreArea} - ${sedeSeleccionada.nombre}`;
         container.classList.remove('hidden');
         cargarEquiposAreaEspecial(areaEspecialSeleccionada, equiposContainer);
+
+        // Actualizar texto del botón PDF según hora
+const ahora = new Date();
+const esEntrada = ahora.getHours() < 12;
+const tipoChequeo = esEntrada ? 'Entrada' : 'Salida';
+
+const btnPDFArea = document.getElementById('btn-generar-pdf-area');
+if (btnPDFArea) {
+    btnPDFArea.innerHTML = `
+        <i class="fas fa-file-pdf"></i>
+        Generar Chequeo de ${tipoChequeo} PDF
+    `;
+}
     }
 }
 
@@ -1108,19 +1233,16 @@ function mostrarMensaje(texto, esError = false) {
 
 // ========================= FUNCIONES DE HISTORIAL =========================
 
+// En cargarHistorialEnTabla, modifica para agrupar por día
 function cargarHistorialEnTabla() {
     const tbody = document.getElementById('historial-chequeos-body');
     
-    if (!tbody) {
-        console.log('❌ No se encontró la tabla de historial');
-        return;
-    }
+    if (!tbody) return;
 
     if (!sedeSeleccionada) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                    <i class="fas fa-clipboard-list text-3xl mb-2 block"></i>
                     Selecciona una sede para ver el historial
                 </td>
             </tr>
@@ -1128,16 +1250,44 @@ function cargarHistorialEnTabla() {
         return;
     }
 
-    // Filtrar historial por sede actual
-    const historialFiltrado = historialChequeos.filter(chequeo => 
-        chequeo.sede_id === sedeSeleccionada.id
+    // Agrupar chequeos por día y área/consultorio
+    const historialAgrupado = {};
+    
+    historialChequeos.forEach(chequeo => {
+        if (chequeo.sede_id !== sedeSeleccionada.id) return;
+        
+        const fechaDia = chequeo.fecha_dia || chequeo.fecha.split('T')[0];
+        const clave = `${fechaDia}-${chequeo.nombre}`;
+        
+        if (!historialAgrupado[clave]) {
+            historialAgrupado[clave] = {
+                fecha: fechaDia,
+                nombre: chequeo.nombre,
+                tipo: chequeo.tipo,
+                entrada: null,
+                salida: null,
+                completo: false
+            };
+        }
+        
+        if (chequeo.tipo_chequeo === 'entrada') {
+            historialAgrupado[clave].entrada = chequeo;
+        } else if (chequeo.tipo_chequeo === 'salida') {
+            historialAgrupado[clave].salida = chequeo;
+        }
+        
+        historialAgrupado[clave].completo = historialAgrupado[clave].entrada && historialAgrupado[clave].salida;
+    });
+
+    // Convertir a array y ordenar por fecha
+    const historialArray = Object.values(historialAgrupado).sort((a, b) => 
+        new Date(b.fecha) - new Date(a.fecha)
     );
 
-    if (historialFiltrado.length === 0) {
+    if (historialArray.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                    <i class="fas fa-clipboard-list text-3xl mb-2 block"></i>
                     No hay chequeos registrados en esta sede
                 </td>
             </tr>
@@ -1145,40 +1295,47 @@ function cargarHistorialEnTabla() {
         return;
     }
 
-    tbody.innerHTML = historialFiltrado.map(chequeo => {
-        const fecha = new Date(chequeo.fecha).toLocaleDateString('es-ES');
-        const tipoIcon = chequeo.tipo === 'consultorio' ? 'fa-door-closed' : 'fa-microscope';
-        const tipoColor = chequeo.tipo === 'consultorio' ? 'blue' : 'green';
-
+    tbody.innerHTML = historialArray.map(item => {
+        const fechaFormateada = new Date(item.fecha).toLocaleDateString('es-ES');
+        const tipoIcon = item.tipo === 'consultorio' ? 'fa-door-closed' : 'fa-microscope';
+        const tipoColor = item.tipo === 'consultorio' ? 'blue' : 'green';
+        
         return `
             <tr class="border-b border-gray-200 hover:bg-gray-50">
-                <td class="px-4 py-3">${fecha}</td>
+                <td class="px-4 py-3">${fechaFormateada}</td>
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-2">
                         <i class="fas ${tipoIcon} text-${tipoColor}-500"></i>
-                        <span>${chequeo.nombre}</span>
+                        <span>${item.nombre}</span>
                     </div>
                 </td>
-                <td class="px-4 py-3">${chequeo.responsable}</td>
                 <td class="px-4 py-3">
-                    <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                        ${chequeo.equipos_chequeados} equipos
+                    <div class="flex flex-col gap-1">
+                        ${item.entrada ? 
+                            `<span class="text-xs text-green-600">✓ Entrada: ${item.entrada.responsable}</span>` : 
+                            `<span class="text-xs text-red-600">✗ Sin entrada</span>`}
+                        ${item.salida ? 
+                            `<span class="text-xs text-green-600">✓ Salida: ${item.salida.responsable}</span>` : 
+                            `<span class="text-xs text-red-600">✗ Sin salida</span>`}
+                    </div>
+                </td>
+                <td class="px-4 py-3">
+                    <span class="badge-estado ${item.completo ? 'badge-completado' : 'badge-pendiente'}">
+                        ${item.completo ? 'Completo' : 'Incompleto'}
                     </span>
                 </td>
                 <td class="px-4 py-3">
                     <div class="flex gap-2">
-                        <button onclick="previsualizarPDF('${chequeo.archivo_url}')" 
-                                class="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>
-                        <button onclick="descargarChequeo('${chequeo.archivo_url}', 'chequeo_${chequeo.tipo}_${chequeo.id}.pdf')" 
-                                class="text-green-600 hover:text-green-800 text-sm flex items-center gap-1 px-2 py-1 rounded border border-green-200 hover:bg-green-50">
-                            <i class="fas fa-download"></i> Descargar
-                        </button>
-                        <button onclick="eliminarChequeo(${chequeo.id})" 
-                                class="text-red-600 hover:text-red-800 text-sm flex items-center gap-1 px-2 py-1 rounded border border-red-200 hover:bg-red-50">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </button>
+                        ${item.entrada ? 
+                            `<button onclick="previsualizarPDF('${item.entrada.archivo_url}')" 
+                                    class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded border border-blue-200 hover:bg-blue-50">
+                                <i class="fas fa-eye"></i> Entrada
+                            </button>` : ''}
+                        ${item.salida ? 
+                            `<button onclick="previsualizarPDF('${item.salida.archivo_url}')" 
+                                    class="text-green-600 hover:text-green-800 text-sm px-2 py-1 rounded border border-green-200 hover:bg-green-50">
+                                <i class="fas fa-eye"></i> Salida
+                            </button>` : ''}
                     </div>
                 </td>
             </tr>
@@ -1449,6 +1606,13 @@ async function generarYSubirPDFConsultorio() {
         return;
     }
 
+    // Validar si se puede hacer el chequeo
+    const validacion = await verificarChequeoEntrada('consultorio', consultorioSeleccionado);
+    if (!validacion.permitido) {
+        mostrarMensaje(`❌ ${validacion.motivo}`, true);
+        return;
+    }
+
     const responsable = document.getElementById('responsable-chequeo').value;
     const validadoPor = document.getElementById('validado-por').value;
 
@@ -1463,6 +1627,45 @@ async function generarYSubirPDFConsultorio() {
         const equiposData = obtenerDatosEquiposCompletos('consultorio');
         const pdfBlob = await generarPDFConsultorioBlob();
         await subirPDFCompletado(pdfBlob, 'consultorio', equiposData);
+        
+    } catch (error) {
+        console.error('❌ Error:', error);
+        mostrarMensaje('❌ Error al procesar: ' + error.message, true);
+    }
+}
+
+async function generarYSubirPDFArea() {
+    if (!sedeSeleccionada) {
+        mostrarMensaje('❌ Primero selecciona una sede', true);
+        return;
+    }
+    
+    if (!areaEspecialSeleccionada) {
+        mostrarMensaje('❌ Selecciona un área primero', true);
+        return;
+    }
+
+    // Validar si se puede hacer el chequeo
+    const validacion = await verificarChequeoEntrada('area', areaEspecialSeleccionada);
+    if (!validacion.permitido) {
+        mostrarMensaje(`❌ ${validacion.motivo}`, true);
+        return;
+    }
+
+    const responsable = document.getElementById('responsable-chequeo-area').value;
+    const validadoPor = document.getElementById('validado-por-area').value;
+
+    if (!responsable || !validadoPor) {
+        mostrarMensaje('❌ Completa todos los campos requeridos', true);
+        return;
+    }
+
+    try {
+        mostrarMensaje('📄 Generando PDF...', false);
+        
+        const equiposData = obtenerDatosEquiposCompletos('area');
+        const pdfBlob = await generarPDFAreaBlob();
+        await subirPDFCompletado(pdfBlob, 'area', equiposData);
         
     } catch (error) {
         console.error('❌ Error:', error);
@@ -1534,7 +1737,12 @@ async function generarPDFConsultorioBlob() {
     const nombreConsultorio = document.querySelector(`.consultorio-card[data-consultorio="${consultorioSeleccionado}"]`)?.dataset.consultorioNombre || `Consultorio ${consultorioSeleccionado}`;
     doc.text(`${nombreConsultorio}`, pageWidth / 2, 22, { align: 'center' });
 
-    yPosition = 30;
+    // Agregar tipo de chequeo (entrada/salida)
+const ahora = new Date();
+const tipoChequeo = ahora.getHours() < 12 ? 'ENTRADA' : 'SALIDA';
+doc.text(`Tipo de Chequeo: ${tipoChequeo}`, pageWidth / 2, 27, { align: 'center' });
+
+    yPosition = 32;
 
     // Información adicional
     doc.setTextColor(0, 0, 0);
@@ -1649,7 +1857,11 @@ async function generarPDFAreaBlob() {
     const nombreArea = document.querySelector(`.area-card[data-area="${areaEspecialSeleccionada}"]`)?.dataset.areaNombre || obtenerNombreArea(areaEspecialSeleccionada);
     doc.text(`Área: ${nombreArea}`, pageWidth / 2, 22, { align: 'center' });
 
-    yPosition = 30;
+    const ahora = new Date();
+const tipoChequeo = ahora.getHours() < 12 ? 'ENTRADA' : 'SALIDA';
+doc.text(`Tipo de Chequeo: ${tipoChequeo}`, pageWidth / 2, 27, { align: 'center' });
+
+    yPosition = 32;
 
     // Información adicional
     doc.setTextColor(0, 0, 0);
@@ -1757,6 +1969,88 @@ function inicializarSelectsFechas() {
     llenarSelectAnios('select-anio-informe-completo');
 }
 
+
+
+// Agregar esta función para mostrar badges de estado
+async function actualizarEstadoChequeos() {
+    if (!sedeSeleccionada) return;
+    
+    const hoy = new Date().toISOString().split('T')[0];
+    
+    try {
+        // Actualizar estado de consultorios
+        const consultorios = document.querySelectorAll('.consultorio-card');
+        for (const card of consultorios) {
+            const consultorioId = card.dataset.consultorio;
+            const consultorioNombre = card.dataset.consultorioNombre;
+            
+            // Filtrar chequeos para este consultorio hoy
+            const chequeosHoy = historialChequeos.filter(chequeo => {
+                const fechaChequeo = chequeo.fecha_dia || chequeo.fecha.split('T')[0];
+                return fechaChequeo === hoy && 
+                       chequeo.sede_id === sedeSeleccionada.id &&
+                       chequeo.tipo === 'consultorio' &&
+                       chequeo.nombre.includes(consultorioNombre || consultorioId);
+            });
+            
+            // Buscar elemento para mostrar estado
+            let estadoElement = card.querySelector('.estado-chequeo');
+            if (!estadoElement) {
+                estadoElement = document.createElement('div');
+                estadoElement.className = 'estado-chequeo mt-2';
+                card.appendChild(estadoElement);
+            }
+            
+            if (chequeosHoy.length === 0) {
+                estadoElement.innerHTML = '<span class="badge-estado badge-pendiente">Pendiente</span>';
+            } else if (chequeosHoy.length === 1) {
+                const tipo = chequeosHoy[0].tipo_chequeo;
+                const badgeClass = tipo === 'entrada' ? 'badge-entrada' : 'badge-salida';
+                estadoElement.innerHTML = `<span class="badge-estado ${badgeClass}">${tipo}</span>`;
+            } else if (chequeosHoy.length === 2) {
+                estadoElement.innerHTML = '<span class="badge-estado badge-completado">Completo</span>';
+            }
+        }
+        
+        // Actualizar estado de áreas (similar)
+        const areas = document.querySelectorAll('.area-card');
+        for (const card of areas) {
+            const areaId = card.dataset.area;
+            const areaNombre = card.dataset.areaNombre;
+            
+            const chequeosHoy = historialChequeos.filter(chequeo => {
+                const fechaChequeo = chequeo.fecha_dia || chequeo.fecha.split('T')[0];
+                return fechaChequeo === hoy && 
+                       chequeo.sede_id === sedeSeleccionada.id &&
+                       chequeo.tipo === 'area' &&
+                       chequeo.nombre.includes(areaNombre || areaId);
+            });
+            
+            let estadoElement = card.querySelector('.estado-chequeo');
+            if (!estadoElement) {
+                estadoElement = document.createElement('div');
+                estadoElement.className = 'estado-chequeo mt-2';
+                card.appendChild(estadoElement);
+            }
+            
+            if (chequeosHoy.length === 0) {
+                estadoElement.innerHTML = '<span class="badge-estado badge-pendiente">Pendiente</span>';
+            } else if (chequeosHoy.length === 1) {
+                const tipo = chequeosHoy[0].tipo_chequeo;
+                const badgeClass = tipo === 'entrada' ? 'badge-entrada' : 'badge-salida';
+                estadoElement.innerHTML = `<span class="badge-estado ${badgeClass}">${tipo}</span>`;
+            } else if (chequeosHoy.length === 2) {
+                estadoElement.innerHTML = '<span class="badge-estado badge-completado">Completo</span>';
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error actualizando estado:', error);
+    }
+}
+
+// Llamar a esta función después de cargar datos y periódicamente
+setInterval(actualizarEstadoChequeos, 30000); // Cada 30 segundos
 function llenarSelectAnios(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return;

@@ -22,6 +22,422 @@ let tiposMantenimiento = [];
 let mantenimientosProgramados = [];
 let mantenimientosRealizados = [];
 
+// ✅ FUNCIÓN NUEVA: Crear y configurar modal de firma digital
+function mostrarModalFirmaDigital(mantenimientoData) {
+    // Guardar datos del mantenimiento para usar después
+    window.datosMantenimientoParaGuardar = mantenimientoData;
+    
+    // Crear modal para firma
+    const modalHTML = `
+        <div id="modal-firma" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold text-gray-900">Firma Digital del Técnico</h3>
+                    <p class="text-sm text-gray-600">Dibuje su firma en el área inferior</p>
+                </div>
+                
+                <div class="p-4">
+                    <div class="border-2 border-gray-300 rounded-lg bg-white mb-4">
+                        <canvas id="signature-pad" width="450" height="200" 
+                                class="w-full h-48 touch-none"></canvas>
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <button onclick="limpiarFirma()" 
+                                class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900">
+                            <i class="fas fa-eraser mr-1"></i> Limpiar
+                        </button>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="cerrarModalFirma()" 
+                                    class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 rounded">
+                                Cancelar
+                            </button>
+                            <button onclick="procesarFirmaYGuardar()" 
+                                    id="btn-confirmar-firma"
+                                    class="px-4 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded disabled:opacity-50"
+                                    disabled>
+                                <i class="fas fa-check mr-1"></i> Confirmar y Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Agregar modal al DOM
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer.firstElementChild);
+    
+    // Inicializar canvas de firma
+    setTimeout(() => {
+        const canvas = document.getElementById('signature-pad');
+        if (canvas) {
+            const signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)',
+                penColor: 'rgb(0, 0, 0)',
+                minWidth: 1,
+                maxWidth: 3
+            });
+            
+            // Habilitar/deshabilitar botón según si hay firma
+            signaturePad.addEventListener('endStroke', () => {
+                const btn = document.getElementById('btn-confirmar-firma');
+                if (btn) btn.disabled = signaturePad.isEmpty();
+            });
+            
+            // Guardar referencia global
+            window.signaturePad = signaturePad;
+        }
+    }, 100);
+}
+
+// ✅ FUNCIÓN NUEVA: Limpiar firma
+function limpiarFirma() {
+    if (window.signaturePad) {
+        window.signaturePad.clear();
+        const btn = document.getElementById('btn-confirmar-firma');
+        if (btn) btn.disabled = true;
+    }
+}
+
+// ✅ FUNCIÓN NUEVA: Cerrar modal de firma
+function cerrarModalFirma() {
+    const modal = document.getElementById('modal-firma');
+    if (modal) {
+        modal.remove();
+    }
+    if (window.signaturePad) {
+        delete window.signaturePad;
+    }
+    delete window.datosMantenimientoParaGuardar;
+}
+
+// ✅ FUNCIÓN NUEVA: Procesar firma y guardar mantenimiento
+async function procesarFirmaYGuardar() {
+    console.log('🔄 Iniciando proceso de guardado con firma...');
+    
+    if (!window.signaturePad || window.signaturePad.isEmpty()) {
+        mostrarMensaje('❌ Por favor, dibuje su firma primero', true);
+        return;
+    }
+    
+    try {
+        mostrarMensaje('🔄 Procesando firma y generando documento...');
+        
+        // Obtener firma como imagen base64
+        const firmaDataURL = window.signaturePad.toDataURL('image/png');
+        console.log('✅ Firma obtenida:', firmaDataURL.substring(0, 50) + '...');
+        
+        // Obtener datos del mantenimiento
+        const mantenimientoData = window.datosMantenimientoParaGuardar;
+        
+        if (!mantenimientoData) {
+            mostrarMensaje('❌ Error: No hay datos del mantenimiento', true);
+            cerrarModalFirma();
+            return;
+        }
+        
+        console.log('📝 Datos del mantenimiento:', mantenimientoData);
+        
+        // ✅ PASO 1: Generar PDF automáticamente
+        mostrarMensaje('📄 Generando documento PDF...');
+        
+        let pdfFile;
+        try {
+            pdfFile = await generarPDFMantenimiento(mantenimientoData, firmaDataURL);
+            console.log('✅ PDF generado:', pdfFile.name, 'tamaño:', pdfFile.size);
+        } catch (pdfError) {
+            console.error('Error generando PDF:', pdfError);
+            mostrarMensaje('⚠️ Error generando PDF. Guardando sin documento...', true);
+            // Continuar sin PDF
+        }
+        
+        // ✅ PASO 2: Subir PDF a Cloudinary si se generó
+        if (pdfFile) {
+            try {
+                mostrarMensaje('📤 Subiendo PDF a Cloudinary...');
+                const documentoSubido = await subirPDFCloudinary(pdfFile);
+                
+                // Agregar datos del documento al mantenimiento
+                mantenimientoData.documento_url = documentoSubido.url;
+                mantenimientoData.documento_public_id = documentoSubido.public_id;
+                mantenimientoData.documento_nombre = pdfFile.name;
+                mantenimientoData.documento_tamaño = documentoSubido.tamaño;
+                mantenimientoData.documento_tipo = 'cloudinary_raw';
+                mantenimientoData.firma_digital = firmaDataURL; // Guardar firma como referencia
+                
+                console.log('✅ PDF subido a Cloudinary:', documentoSubido.url);
+            } catch (uploadError) {
+                console.error('Error subiendo PDF:', uploadError);
+                mostrarMensaje('⚠️ Error subiendo PDF. Guardando sin documento...', true);
+                // Continuar sin documento subido
+            }
+        }
+        
+        // ✅ PASO 3: Guardar en la base de datos
+        mostrarMensaje('💾 Guardando mantenimiento en la base de datos...');
+        
+        // Preparar datos para enviar (sin propiedades innecesarias)
+        const datosParaEnviar = {
+            id_equipo: mantenimientoData.id_equipo,
+            id_tipo: mantenimientoData.id_tipo,
+            fecha_realizado: mantenimientoData.fecha_realizado,
+            descripcion: mantenimientoData.descripcion,
+            realizado_por: mantenimientoData.realizado_por,
+            observaciones: mantenimientoData.observaciones || '',
+            estado: 'realizado',
+            nombre_personalizado: mantenimientoData.nombre_personalizado || '',
+            documento_url: mantenimientoData.documento_url || null,
+            documento_public_id: mantenimientoData.documento_public_id || null,
+            documento_nombre: mantenimientoData.documento_nombre || null,
+            documento_tamaño: mantenimientoData.documento_tamaño || null,
+            documento_tipo: mantenimientoData.documento_tipo || null,
+            firma_digital: mantenimientoData.firma_digital || null
+        };
+        
+        // Agregar datos de mantenimiento programado si aplica
+        if (mantenimientoData.id_mantenimiento_programado) {
+            datosParaEnviar.id_mantenimiento_programado = mantenimientoData.id_mantenimiento_programado;
+            datosParaEnviar.fecha_programada = mantenimientoData.fecha_programada;
+        }
+        
+        console.log('📤 Enviando datos al servidor:', datosParaEnviar);
+        
+        const response = await fetch(API_MANTENIMIENTOS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datosParaEnviar)
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Error del servidor:', errorText);
+            throw new Error(errorText || 'Error al guardar mantenimiento');
+        }
+        
+        const result = await response.json();
+        console.log('✅ Mantenimiento guardado:', result);
+        
+        // ✅ PASO 4: Mensaje de éxito y limpieza
+        const esValidacion = mantenimientoData.tipo !== 'correctivo';
+        mostrarMensaje(esValidacion ? '✅ Mantenimiento validado correctamente' : '✅ Correctivo agregado correctamente');
+        
+        // ✅ PASO 5: Limpiar formulario y recargar datos
+        cerrarModalMantenimiento();
+        cerrarModalFirma();
+        
+        // Recargar datos
+        await cargarMantenimientosRealizados(currentEquipo.id);
+        if (mantenimientoData.tipo && mantenimientoData.tipo !== 'correctivo') {
+            await cargarMantenimientosProgramados(currentEquipo.id);
+        }
+        
+        // Limpiar variable temporal
+        delete window.datosMantenimientoParaGuardar;
+        
+    } catch (error) {
+        console.error('❌ Error procesando firma y guardando:', error);
+        mostrarMensaje('❌ Error: ' + error.message, true);
+        cerrarModalFirma();
+    }
+}
+
+// ✅ FUNCIÓN MEJORADA: Generar PDF con firma automáticamente
+async function generarPDFMantenimiento(mantenimientoData, firmaDataURL) {
+    return new Promise((resolve, reject) => {
+        try {
+            console.log('🎨 Generando PDF...');
+            
+            // Verificar si jsPDF está disponible
+            if (typeof jspdf === 'undefined') {
+                console.warn('jsPDF no está disponible, usando método alternativo');
+                // Crear un PDF simple como fallback
+                const contenido = `
+                    ACTA DE MANTENIMIENTO
+                    =====================
+                    
+                    INFORMACIÓN DEL EQUIPO:
+                    -----------------------
+                    Código: ${currentEquipo.codigo_interno || 'N/A'}
+                    Nombre: ${currentEquipo.nombre || 'N/A'}
+                    Ubicación: ${construirUbicacionCompleta(currentEquipo)}
+                    
+                    DETALLES DEL MANTENIMIENTO:
+                    ---------------------------
+                    Tipo: ${mantenimientoData.nombre_personalizado || 'Mantenimiento'}
+                    Fecha: ${mantenimientoData.fecha_realizado || 'N/A'}
+                    Realizado por: ${mantenimientoData.realizado_por || 'N/A'}
+                    
+                    Descripción:
+                    ${mantenimientoData.descripcion || 'Sin descripción'}
+                    
+                    ${mantenimientoData.observaciones ? 'Observaciones:\n' + mantenimientoData.observaciones : ''}
+                    
+                    FIRMA DEL TÉCNICO:
+                    ------------------
+                    [Documento firmado digitalmente]
+                    
+                    Generado el: ${new Date().toLocaleDateString('es-ES')}
+                    Sistema de Gestión de Inventarios - IPS Progresando
+                `;
+                
+                const blob = new Blob([contenido], { type: 'application/pdf' });
+                const fecha = new Date().toISOString().split('T')[0].replace(/-/g, '');
+                const codigo = currentEquipo.codigo_interno || 'equipo';
+                const nombreArchivo = `mantenimiento_${codigo}_${fecha}.pdf`;
+                
+                const pdfFile = new File([blob], nombreArchivo, {
+                    type: 'application/pdf',
+                    lastModified: Date.now()
+                });
+                
+                resolve(pdfFile);
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Configuración
+            const margin = 20;
+            let y = margin;
+            
+            // Título
+            doc.setFontSize(16);
+            doc.text('ACTA DE MANTENIMIENTO', 105, y, { align: 'center' });
+            y += 10;
+            
+            doc.setFontSize(10);
+            doc.text('Sistema de Gestión de Inventarios - IPS Progresando', 105, y, { align: 'center' });
+            y += 15;
+            
+            // Línea separadora
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, y, 190, y);
+            y += 10;
+            
+            // Información del equipo
+            doc.setFontSize(12);
+            doc.text('INFORMACIÓN DEL EQUIPO', margin, y);
+            y += 8;
+            
+            doc.setFontSize(10);
+            doc.text(`Código: ${currentEquipo.codigo_interno || '-'}`, margin, y);
+            doc.text(`Nombre: ${currentEquipo.nombre || '-'}`, 105, y);
+            y += 6;
+            
+            doc.text(`Ubicación: ${construirUbicacionCompleta(currentEquipo)}`, margin, y);
+            y += 10;
+            
+            // Detalles del mantenimiento
+            doc.setFontSize(12);
+            doc.text('DETALLES DEL MANTENIMIENTO', margin, y);
+            y += 8;
+            
+            doc.setFontSize(10);
+            doc.text(`Fecha: ${mantenimientoData.fecha_realizado || '-'}`, margin, y);
+            doc.text(`Tipo: ${mantenimientoData.nombre_personalizado || 'Mantenimiento'}`, 105, y);
+            y += 6;
+            
+            doc.text(`Realizado por: ${mantenimientoData.realizado_por || '-'}`, margin, y);
+            y += 10;
+            
+            // Descripción
+            doc.text('Descripción:', margin, y);
+            y += 6;
+            
+            const descripcion = mantenimientoData.descripcion || 'Sin descripción';
+            const splitDesc = doc.splitTextToSize(descripcion, 170);
+            splitDesc.forEach(line => {
+                if (y > 250) {
+                    doc.addPage();
+                    y = margin;
+                }
+                doc.text(line, margin, y);
+                y += 6;
+            });
+            
+            y += 6;
+            
+            // Observaciones
+            if (mantenimientoData.observaciones) {
+                doc.text('Observaciones:', margin, y);
+                y += 6;
+                
+                const observaciones = mantenimientoData.observaciones;
+                const splitObs = doc.splitTextToSize(observaciones, 170);
+                splitObs.forEach(line => {
+                    if (y > 250) {
+                        doc.addPage();
+                        y = margin;
+                    }
+                    doc.text(line, margin, y);
+                    y += 6;
+                });
+                
+                y += 6;
+            }
+            
+            // Firma
+            if (firmaDataURL && y < 200) {
+                doc.text('Firma del técnico responsable:', margin, y);
+                y += 10;
+                
+                try {
+                    // Agregar firma como imagen
+                    doc.addImage(firmaDataURL, 'PNG', margin, y, 60, 30);
+                    y += 35;
+                    
+                    // Línea para firma
+                    doc.setDrawColor(0, 0, 0);
+                    doc.line(margin, y, margin + 100, y);
+                    y += 8;
+                    
+                    // Nombre del técnico
+                    doc.setFontSize(9);
+                    doc.text(`Nombre: ${mantenimientoData.realizado_por || 'Técnico'}`, margin, y);
+                } catch (error) {
+                    console.warn('Error agregando firma al PDF:', error);
+                    doc.text('[Firma digital]', margin, y);
+                    y += 6;
+                }
+            }
+            
+            // Pie de página
+            const fechaGen = new Date().toLocaleDateString('es-ES');
+            const horaGen = new Date().toLocaleTimeString('es-ES');
+            
+            doc.setFontSize(8);
+            doc.text(`Generado el: ${fechaGen} ${horaGen}`, margin, 280);
+            doc.text('Sistema de Gestión de Inventarios - IPS Progresando', 105, 280, { align: 'center' });
+            
+            // Guardar PDF
+            const fecha = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            const codigo = currentEquipo.codigo_interno || 'equipo';
+            const tipo = mantenimientoData.nombre_personalizado ? 
+                mantenimientoData.nombre_personalizado.toLowerCase().replace(/\s+/g, '_') : 
+                'mantenimiento';
+            const nombreArchivo = `mantenimiento_${codigo}_${tipo}_${fecha}.pdf`;
+            
+            const pdfBlob = doc.output('blob');
+            const pdfFile = new File([pdfBlob], nombreArchivo, {
+                type: 'application/pdf',
+                lastModified: Date.now()
+            });
+            
+            console.log('✅ PDF creado exitosamente:', nombreArchivo);
+            resolve(pdfFile);
+            
+        } catch (error) {
+            console.error('Error generando PDF:', error);
+            reject(error);
+        }
+    });
+}
+
 // ✅ FUNCIÓN MEJORADA: Subir PDF a Cloudinary
 async function subirPDFCloudinary(archivo) {
   try {
@@ -74,7 +490,172 @@ async function subirPDFCloudinary(archivo) {
   }
 }
 
-// ✅ FUNCIÓN CORREGIDA: Descargar desde Cloudinary (SOLUCIÓN DEFINITIVA)
+// ✅ FUNCIÓN MODIFICADA: `guardarMantenimiento` - MÁS SIMPLE Y DIRECTO
+async function guardarMantenimiento() {
+    console.log('🔄 Iniciando guardado de mantenimiento...');
+    
+    // ✅ BLOQUEAR DOBLE EJECUCIÓN
+    if (window.guardandoMantenimiento) {
+        console.log('⚠️ Guardado en proceso, esperando...');
+        return;
+    }
+    
+    try {
+        window.guardandoMantenimiento = true;
+        
+        const tipo = document.getElementById('mantenimiento-tipo')?.value;
+        const id = document.getElementById('mantenimiento-id')?.value;
+        
+        // Si es edición, usar función de actualización
+        if (tipo === 'edicion' && id) {
+            await actualizarMantenimiento();
+            window.guardandoMantenimiento = false;
+            return;
+        }
+        
+        // Obtener datos del formulario
+        const idMantenimientoProgramado = document.getElementById('id-mantenimiento-programado')?.value;
+        const fechaRealizado = document.getElementById('fecha-realizado')?.value;
+        const descripcion = document.getElementById('descripcion-mantenimiento')?.value;
+        const realizadoPor = document.getElementById('realizado-por')?.value;
+        const observaciones = document.getElementById('observaciones-mantenimiento')?.value;
+        
+        console.log('📋 Datos del formulario:', {
+            tipo, idMantenimientoProgramado, fechaRealizado, descripcion, realizadoPor, observaciones
+        });
+        
+        // Validaciones
+        if (!fechaRealizado || !descripcion || !realizadoPor) {
+            mostrarMensaje('❌ Complete todos los campos requeridos', true);
+            window.guardandoMantenimiento = false;
+            return;
+        }
+        
+        // Buscar tipo de mantenimiento
+        const tipoMantenimiento = tiposMantenimiento.find(t => {
+            const nombreTipo = t.nombre.toLowerCase();
+            const tipoBuscado = tipo.toLowerCase();
+            
+            if (tipoBuscado === 'preventivo') return nombreTipo.includes('preventivo');
+            if (tipoBuscado === 'calibracion') return nombreTipo.includes('calibración') || nombreTipo.includes('calibracion');
+            if (tipoBuscado === 'correctivo') return nombreTipo.includes('correctivo');
+            return false;
+        });
+        
+        if (!tipoMantenimiento) {
+            mostrarMensaje(`❌ Tipo de mantenimiento no válido: "${tipo}"`, true);
+            window.guardandoMantenimiento = false;
+            return;
+        }
+        
+        console.log('✅ Tipo de mantenimiento encontrado:', tipoMantenimiento);
+        
+        // ✅ PREPARAR DATOS
+        let nombrePersonalizado = tipoMantenimiento.nombre;
+        
+        if (tipo !== 'correctivo' && idMantenimientoProgramado) {
+            const mantenimientoProgramado = mantenimientosProgramados.find(mp => mp.id == idMantenimientoProgramado);
+            if (mantenimientoProgramado?.nombre_personalizado) {
+                nombrePersonalizado = mantenimientoProgramado.nombre_personalizado;
+            }
+        }
+        
+        const mantenimientoData = {
+            id_equipo: currentEquipo.id,
+            id_tipo: tipoMantenimiento.id,
+            fecha_realizado: fechaRealizado,
+            descripcion: descripcion,
+            realizado_por: realizadoPor,
+            observaciones: observaciones,
+            estado: 'realizado',
+            nombre_personalizado: nombrePersonalizado,
+            tipo: tipo // Agregar tipo para saber si es validación
+        };
+        
+        // Agregar datos de mantenimiento programado si aplica
+        if (tipo !== 'correctivo' && idMantenimientoProgramado) {
+            mantenimientoData.fecha_programada = document.getElementById('fecha-programada')?.value || fechaRealizado;
+            mantenimientoData.id_mantenimiento_programado = parseInt(idMantenimientoProgramado);
+        }
+        
+        console.log('📝 Datos preparados para guardar:', mantenimientoData);
+        
+        // ✅ MOSTRAR MODAL DE FIRMA DIGITAL CON LOS DATOS
+        mostrarModalFirmaDigital(mantenimientoData);
+        
+    } catch (error) {
+        console.error('❌ Error preparando mantenimiento:', error);
+        mostrarMensaje('❌ Error: ' + error.message, true);
+        window.guardandoMantenimiento = false;
+    }
+}
+
+// ✅ FUNCIÓN SIMPLIFICADA: Cerrar modal mantenimiento
+function cerrarModalMantenimiento() {
+  const modal = document.getElementById('modal-mantenimiento');
+  const form = document.getElementById('form-mantenimiento');
+
+  if (form) {
+    form.reset();
+  }
+
+  // Limpiar campos específicos
+  const mantenimientoIdInput = document.getElementById('mantenimiento-id');
+  const mantenimientoTipoInput = document.getElementById('mantenimiento-tipo');
+  const idMantenimientoProgramadoInput = document.getElementById('id-mantenimiento-programado');
+
+  if (mantenimientoIdInput) mantenimientoIdInput.value = '';
+  if (mantenimientoTipoInput) mantenimientoTipoInput.value = '';
+  if (idMantenimientoProgramadoInput) idMantenimientoProgramadoInput.value = '';
+
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+  
+  // Liberar bloqueo
+  window.guardandoMantenimiento = false;
+}
+
+// ✅ FUNCIÓN ACTUALIZADA: Actualizar mantenimiento
+async function actualizarMantenimiento() {
+    const id = document.getElementById('mantenimiento-id')?.value;
+    const fechaRealizado = document.getElementById('fecha-realizado')?.value;
+    const descripcion = document.getElementById('descripcion-mantenimiento')?.value;
+    const realizadoPor = document.getElementById('realizado-por')?.value;
+    const observaciones = document.getElementById('observaciones-mantenimiento')?.value;
+    
+    if (!fechaRealizado || !descripcion || !realizadoPor) {
+        mostrarMensaje('❌ Complete todos los campos requeridos', true);
+        return;
+    }
+    
+    try {
+        const mantenimientoData = {
+            fecha_realizado: fechaRealizado,
+            descripcion: descripcion,
+            realizado_por: realizadoPor,
+            observaciones: observaciones
+        };
+        
+        const response = await fetch(`${API_MANTENIMIENTOS}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mantenimientoData)
+        });
+        
+        if (!response.ok) throw new Error('Error al actualizar mantenimiento');
+        
+        mostrarMensaje('✅ Mantenimiento actualizado correctamente');
+        cerrarModalMantenimiento();
+        await cargarMantenimientosRealizados(currentEquipo.id);
+        
+    } catch (error) {
+        console.error('Error actualizando mantenimiento:', error);
+        mostrarMensaje('❌ Error al actualizar mantenimiento', true);
+    }
+}
+
+// ✅ FUNCIÓN CORREGIDA: Descargar desde Cloudinary
 async function descargarDocumento(url, nombreArchivo) {
   if (!url) {
     mostrarMensaje('❌ No hay documento disponible', true);
@@ -147,240 +728,6 @@ async function descargarDocumento(url, nombreArchivo) {
   }
 }
 
-// ✅ FUNCIÓN CORREGIDA: Guardar mantenimiento (SIN DUPLICADOS)
-async function guardarMantenimiento() {
-  // ✅ BLOQUEAR DOBLE EJECUCIÓN
-  if (window.guardandoMantenimiento) {
-    console.log('⚠️ Guardado en proceso, esperando...');
-    return;
-  }
-
-  try {
-    window.guardandoMantenimiento = true;
-
-    const tipo = document.getElementById('mantenimiento-tipo')?.value;
-    const id = document.getElementById('mantenimiento-id')?.value;
-
-    if (tipo === 'edicion' && id) {
-      await actualizarMantenimiento();
-      return;
-    }
-
-    // Obtener datos del formulario
-    const idMantenimientoProgramado = document.getElementById('id-mantenimiento-programado')?.value;
-    const fechaRealizado = document.getElementById('fecha-realizado')?.value;
-    const descripcion = document.getElementById('descripcion-mantenimiento')?.value;
-    const realizadoPor = document.getElementById('realizado-por')?.value;
-    const observaciones = document.getElementById('observaciones-mantenimiento')?.value;
-
-    // Validaciones
-    if (!fechaRealizado || !descripcion || !realizadoPor) {
-      mostrarMensaje('❌ Complete todos los campos requeridos', true);
-      return;
-    }
-
-    // Buscar tipo de mantenimiento
-    const tipoMantenimiento = tiposMantenimiento.find(t => {
-      const nombreTipo = t.nombre.toLowerCase();
-      const tipoBuscado = tipo.toLowerCase();
-
-      if (tipoBuscado === 'preventivo') return nombreTipo.includes('preventivo');
-      if (tipoBuscado === 'calibracion') return nombreTipo.includes('calibración') || nombreTipo.includes('calibracion');
-      if (tipoBuscado === 'correctivo') return nombreTipo.includes('correctivo');
-      return false;
-    });
-
-    if (!tipoMantenimiento) {
-      mostrarMensaje(`❌ Tipo de mantenimiento no válido: "${tipo}"`, true);
-      return;
-    }
-
-    // ✅ PREPARAR DATOS CON NOMBRE PERSONALIZADO CORRECTO
-    let nombrePersonalizado = tipoMantenimiento.nombre;
-
-    if (tipo !== 'correctivo' && idMantenimientoProgramado) {
-      const mantenimientoProgramado = mantenimientosProgramados.find(mp => mp.id == idMantenimientoProgramado);
-      if (mantenimientoProgramado?.nombre_personalizado) {
-        nombrePersonalizado = mantenimientoProgramado.nombre_personalizado;
-      }
-    }
-
-    const mantenimientoData = {
-      id_equipo: currentEquipo.id,
-      id_tipo: tipoMantenimiento.id,
-      fecha_realizado: fechaRealizado,
-      descripcion: descripcion,
-      realizado_por: realizadoPor,
-      observaciones: observaciones,
-      estado: 'realizado',
-      nombre_personalizado: nombrePersonalizado
-    };
-
-    // Agregar datos de mantenimiento programado si aplica
-    if (tipo !== 'correctivo' && idMantenimientoProgramado) {
-      mantenimientoData.fecha_programada = document.getElementById('fecha-programada')?.value || fechaRealizado;
-      mantenimientoData.id_mantenimiento_programado = parseInt(idMantenimientoProgramado);
-    }
-
-    // ✅ SUBIR DOCUMENTO PDF SI EXISTE
-    const archivoDocumento = document.getElementById('documento-mantenimiento')?.files[0];
-    if (archivoDocumento) {
-      mostrarMensaje('📤 Subiendo PDF...');
-
-      const documentoSubido = await subirPDFCloudinary(archivoDocumento);
-
-      mantenimientoData.documento_url = documentoSubido.url;
-      mantenimientoData.documento_public_id = documentoSubido.public_id;
-      mantenimientoData.documento_nombre = documentoSubido.nombre_original;
-      mantenimientoData.documento_tamaño = documentoSubido.tamaño;
-      mantenimientoData.documento_tipo = 'cloudinary_raw';
-
-      mostrarMensaje('✅ PDF subido correctamente');
-    }
-
-    console.log('📤 Enviando datos al servidor:', mantenimientoData);
-
-    // ✅ GUARDAR EN LA BASE DE DATOS
-    const response = await fetch(API_MANTENIMIENTOS, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mantenimientoData)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || 'Error al guardar mantenimiento');
-    }
-
-    const result = await response.json();
-    console.log('✅ Mantenimiento guardado:', result);
-
-    // Mensaje de éxito
-    const esValidacion = tipo !== 'correctivo';
-    mostrarMensaje(esValidacion ? '✅ Mantenimiento validado correctamente' : '✅ Correctivo agregado correctamente');
-
-    // ✅ LIMPIAR FORMULARIO Y RECARGAR
-    cerrarModalMantenimiento();
-
-    // Recargar datos
-    await cargarMantenimientosRealizados(currentEquipo.id);
-    if (tipo !== 'correctivo') {
-      await cargarMantenimientosProgramados(currentEquipo.id);
-    }
-
-  } catch (error) {
-    console.error('❌ Error guardando mantenimiento:', error);
-    mostrarMensaje('❌ Error: ' + error.message, true);
-  } finally {
-    // ✅ LIBERAR BLOQUEO
-    window.guardandoMantenimiento = false;
-  }
-}
-
-// ✅ FUNCIÓN MEJORADA: Cerrar modal (LIMPIAR FORMULARIO)
-function cerrarModalMantenimiento() {
-  const modal = document.getElementById('modal-mantenimiento');
-  const form = document.getElementById('form-mantenimiento');
-
-  if (form) {
-    form.reset();
-  }
-
-  // Limpiar campos específicos
-  const mantenimientoIdInput = document.getElementById('mantenimiento-id');
-  const mantenimientoTipoInput = document.getElementById('mantenimiento-tipo');
-  const idMantenimientoProgramadoInput = document.getElementById('id-mantenimiento-programado');
-
-  if (mantenimientoIdInput) mantenimientoIdInput.value = '';
-  if (mantenimientoTipoInput) mantenimientoTipoInput.value = '';
-  if (idMantenimientoProgramadoInput) idMantenimientoProgramadoInput.value = '';
-
-  if (modal) {
-    modal.classList.add('hidden');
-  }
-}
-
-// ✅ FUNCIÓN ACTUALIZADA: Actualizar mantenimiento CON CLOUDINARY
-async function actualizarMantenimiento() {
-  const id = document.getElementById('mantenimiento-id')?.value;
-  const fechaRealizado = document.getElementById('fecha-realizado')?.value;
-  const descripcion = document.getElementById('descripcion-mantenimiento')?.value;
-  const realizadoPor = document.getElementById('realizado-por')?.value;
-  const observaciones = document.getElementById('observaciones-mantenimiento')?.value;
-  const archivoDocumento = document.getElementById('documento-mantenimiento')?.files[0];
-
-  if (!fechaRealizado || !descripcion || !realizadoPor) {
-    mostrarMensaje('❌ Complete todos los campos requeridos', true);
-    return;
-  }
-
-  try {
-    // Obtener el mantenimiento actual para preservar el documento existente
-    let mantenimientoActual = null;
-    try {
-      const response = await fetch(`${API_MANTENIMIENTOS}/${id}`);
-      if (response.ok) {
-        mantenimientoActual = await response.json();
-      }
-    } catch (error) {
-      console.warn('No se pudo obtener el mantenimiento actual:', error);
-    }
-
-    const mantenimientoData = {
-      fecha_realizado: fechaRealizado,
-      descripcion: descripcion,
-      realizado_por: realizadoPor,
-      observaciones: observaciones
-    };
-
-    // ✅ PRESERVAR DOCUMENTO EXISTENTE SI NO SE SUBE UNO NUEVO
-    if (mantenimientoActual && !archivoDocumento) {
-      mantenimientoData.documento_url = mantenimientoActual.documento_url;
-      mantenimientoData.documento_public_id = mantenimientoActual.documento_public_id;
-      mantenimientoData.documento_nombre = mantenimientoActual.documento_nombre;
-      mantenimientoData.documento_tamaño = mantenimientoActual.documento_tamaño;
-      mantenimientoData.documento_tipo = mantenimientoActual.documento_tipo;
-    }
-
-    if (archivoDocumento) {
-      mostrarMensaje('📤 Actualizando documento en Cloudinary...');
-
-      try {
-        // ✅ SUBIR NUEVO PDF A CLOUDINARY
-        const documentoSubido = await subirPDFCloudinary(archivoDocumento);
-
-        mantenimientoData.documento_url = documentoSubido.url;
-        mantenimientoData.documento_public_id = documentoSubido.public_id;
-        mantenimientoData.documento_nombre = archivoDocumento.name;
-        mantenimientoData.documento_tamaño = documentoSubido.tamaño;
-        mantenimientoData.documento_tipo = 'cloudinary_raw';
-
-        mostrarMensaje('✅ Documento actualizado en Cloudinary');
-      } catch (error) {
-        mostrarMensaje(`❌ Error al actualizar documento: ${error.message}`, true);
-        return;
-      }
-    }
-
-    const response = await fetch(`${API_MANTENIMIENTOS}/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mantenimientoData)
-    });
-
-    if (!response.ok) throw new Error('Error al actualizar mantenimiento');
-
-    mostrarMensaje('✅ Mantenimiento actualizado correctamente');
-    cerrarModalMantenimiento();
-
-    await cargarMantenimientosRealizados(currentEquipo.id);
-
-  } catch (error) {
-    console.error('Error actualizando mantenimiento:', error);
-    mostrarMensaje('❌ Error al actualizar mantenimiento', true);
-  }
-}
-
 // ✅ FUNCIÓN SIMPLIFICADA: Previsualizar PDF en nueva pestaña
 async function previsualizarPDF(url, nombreArchivo = 'documento.pdf') {
   if (!url) {
@@ -416,79 +763,7 @@ async function previsualizarPDF(url, nombreArchivo = 'documento.pdf') {
   }
 }
 
-// ✅ FUNCIÓN CORREGIDA: Descargar documento (VERSIÓN DEFINITIVA)
-async function descargarDocumento(url, nombreArchivo) {
-    if (!url) {
-        mostrarMensaje('❌ No hay documento disponible', true);
-        return false;
-    }
-
-    try {
-        console.log('📥 Iniciando descarga...', { url, nombreArchivo });
-
-        // ✅ ESTRATEGIA 1: Descarga directa usando fetch + blob
-        try {
-            console.log('🔄 Intentando descarga con fetch...');
-
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const blob = await response.blob();
-
-            if (blob.size === 0) {
-                throw new Error('El archivo está vacío');
-            }
-
-            const blobUrl = URL.createObjectURL(blob);
-
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = nombreArchivo || 'documento.pdf';
-            link.style.display = 'none';
-
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            // Limpiar después de descargar
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-
-            mostrarMensaje('✅ Descarga completada');
-            return true;
-
-        } catch (fetchError) {
-            console.log('❌ Fetch falló:', fetchError.message);
-
-            // ✅ ESTRATEGIA 2: Forzar descarga con atributo download
-            console.log('🔄 Forzando descarga con atributo download...');
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = nombreArchivo || 'documento.pdf';
-            link.style.display = 'none';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            mostrarMensaje('✅ Descarga iniciada');
-            return true;
-        }
-
-    } catch (error) {
-        console.error('❌ Error en descarga:', error);
-
-        // ✅ ESTRATEGIA 3: Último recurso - abrir en nueva pestaña
-        console.log('🔄 Abriendo en nueva pestaña como fallback...');
-        window.open(url, '_blank', 'noopener,noreferrer');
-        mostrarMensaje('📄 Documento abierto en nueva pestaña');
-        return true;
-    }
-}
-
-// ✅ FUNCIÓN MEJORADA: Renderizar mantenimientos con botones de previsualización
+// ✅ FUNCIÓN MEJORADA: Renderizar mantenimientos con indicador de firma
 function renderMantenimientosPorTipo(tipo, tablaId) {
   const tbody = document.getElementById(tablaId);
   if (!tbody) return;
@@ -508,7 +783,7 @@ function renderMantenimientosPorTipo(tipo, tablaId) {
   if (mantenimientosFiltrados.length === 0) {
     tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center py-4 text-gray-500">
+                <td colspan="7" class="text-center py-4 text-gray-500">
                     No hay mantenimientos ${tipo === 'preventivo' ? 'preventivos' : tipo === 'calibracion' ? 'de calibración' : 'correctivos'} registrados
                 </td>
             </tr>
@@ -519,6 +794,7 @@ function renderMantenimientosPorTipo(tipo, tablaId) {
   tbody.innerHTML = mantenimientosFiltrados.map(mant => {
     const fechaRealizado = mant.fecha_realizado ? formatDateToDDMMYYYY(mant.fecha_realizado) : '-';
     const tieneDocumento = !!mant.documento_url;
+    const tieneFirma = !!mant.firma_digital;
 
     let nombreMantenimiento = mant.nombre_personalizado;
 
@@ -537,22 +813,32 @@ function renderMantenimientosPorTipo(tipo, tablaId) {
     }
 
     const urlSegura = mant.documento_url ? mant.documento_url.replace(/'/g, "\\'") : '';
-    const nombreSeguro = nombreMantenimiento.replace(/'/g, "\\'");
     const nombreArchivo = mant.documento_nombre || `mantenimiento_${currentEquipo.codigo_interno}_${fechaRealizado.replace(/\//g, '-')}.pdf`;
 
-    // ✅ BOTONES SIMPLIFICADOS - SOLO DESCARGAR Y VER EN PESTAÑA
+    // ✅ BOTONES SIMPLIFICADOS CON INDICADOR DE FIRMA
+    const indicadorFirma = tieneFirma ? `
+        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full ml-2" title="Documento firmado digitalmente">
+            <i class="fas fa-signature mr-1"></i>Firmado
+        </span>
+    ` : '';
+    
     const botonesDocumento = tieneDocumento ? `
-    <div class="flex gap-2 justify-center">
-        <button onclick="previsualizarPDF('${urlSegura}', '${nombreArchivo}')" 
-                class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-all duration-200"
-                title="Abrir PDF en nueva pestaña">
-            <i class="fas fa-eye"></i> Ver
-        </button>
-        <button onclick="descargarDocumento('${urlSegura}', '${nombreArchivo}')" 
-                class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-all duration-200"
-                title="Descargar PDF">
-            <i class="fas fa-download"></i> PDF
-        </button>
+    <div class="flex gap-2 justify-center items-center">
+        <div class="flex flex-col items-center">
+            <div class="flex gap-2">
+                <button onclick="previsualizarPDF('${urlSegura}', '${nombreArchivo}')" 
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-all duration-200"
+                        title="Abrir PDF en nueva pestaña">
+                    <i class="fas fa-eye"></i> Ver
+                </button>
+                <button onclick="descargarDocumento('${urlSegura}', '${nombreArchivo}')" 
+                        class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-all duration-200"
+                        title="Descargar PDF">
+                    <i class="fas fa-download"></i> PDF
+                </button>
+            </div>
+            ${indicadorFirma}
+        </div>
     </div>
 ` : '<span class="text-gray-400 text-sm">Sin documento</span>';
 
@@ -580,7 +866,7 @@ function renderMantenimientosPorTipo(tipo, tablaId) {
   }).join('');
 }
 
-// ✅ ACTUALIZAR MODAL DE EDICIÓN PARA CLOUDINARY
+// ✅ ACTUALIZAR MODAL DE EDICIÓN PARA MOSTRAR ESTADO DE FIRMA
 async function mostrarModalEditarMantenimiento(mantenimiento) {
   const modal = document.getElementById('modal-mantenimiento');
   const form = document.getElementById('form-mantenimiento');
@@ -594,6 +880,7 @@ async function mostrarModalEditarMantenimiento(mantenimiento) {
 
   const tipoMantenimiento = tiposMantenimiento.find(t => t.id === mantenimiento.id_tipo);
   const tipoNombre = tipoMantenimiento?.nombre || 'Mantenimiento';
+  const tieneFirma = !!mantenimiento.firma_digital;
 
   const modalTitulo = document.getElementById('modal-titulo');
   const mantenimientoIdInput = document.getElementById('mantenimiento-id');
@@ -607,7 +894,13 @@ async function mostrarModalEditarMantenimiento(mantenimiento) {
   const fechaProgramadaInput = document.getElementById('fecha-programada');
   const documentoInfo = document.getElementById('documento-actual-info');
 
-  if (modalTitulo) modalTitulo.textContent = `Editar ${tipoNombre}`;
+  if (modalTitulo) {
+    modalTitulo.textContent = `Editar ${tipoNombre}`;
+    if (tieneFirma) {
+      modalTitulo.innerHTML += ` <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Firmado</span>`;
+    }
+  }
+  
   if (mantenimientoIdInput) mantenimientoIdInput.value = mantenimiento.id;
   if (mantenimientoTipoInput) mantenimientoTipoInput.value = 'edicion';
   if (textoBotonGuardar) textoBotonGuardar.textContent = 'Actualizar';
@@ -631,13 +924,22 @@ async function mostrarModalEditarMantenimiento(mantenimiento) {
     if (mantenimiento.documento_url) {
       documentoInfo.classList.remove('hidden');
       const nombreArchivo = mantenimiento.documento_nombre || `mantenimiento_${currentEquipo.codigo_interno}_${mantenimiento.id}.pdf`;
+      const firmaInfo = tieneFirma ? '<span class="ml-2 text-green-600"><i class="fas fa-signature"></i> Firmado</span>' : '';
+      
       documentoInfo.innerHTML = `
-                <div class="text-sm text-green-600">
-                    <i class="fas fa-file-pdf"></i> Documento actual (Cloudinary): 
-                    <button onclick="descargarDocumento('${mantenimiento.documento_url}', '${nombreArchivo}')" 
-                            class="underline hover:text-green-800 ml-1">
-                        Descargar documento
-                    </button>
+                <div class="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <i class="fas fa-file-pdf text-red-500"></i> 
+                            Documento actual: 
+                            <span class="font-medium">${nombreArchivo}</span>
+                            ${firmaInfo}
+                        </div>
+                        <button onclick="descargarDocumento('${mantenimiento.documento_url}', '${nombreArchivo}')" 
+                                class="text-blue-600 hover:text-blue-800 text-sm underline ml-2">
+                            Descargar
+                        </button>
+                    </div>
                 </div>
             `;
     } else {
@@ -657,7 +959,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   try {
-    console.log('🔄 Iniciando aplicación (SISTEMA CLOUDINARY RAW)...');
+    console.log('🔄 Iniciando aplicación con FIRMA DIGITAL...');
     mostrarMensaje('🔄 Cargando datos del equipo...');
 
     await cargarTiposMantenimiento();
@@ -671,7 +973,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     configurarEventos();
     configurarTabs();
 
-    console.log('✅ Aplicación cargada correctamente (CLOUDINARY RAW)');
+    console.log('✅ Aplicación cargada correctamente (CON FIRMA DIGITAL)');
     mostrarMensaje('✅ Sistema cargado correctamente');
 
   } catch (error) {
@@ -681,7 +983,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // ====================================================================
-// 🎯 FUNCIONES DE INTERFAZ Y UTILIDAD (MANTENIDAS)
+// 🎯 FUNCIONES EXISTENTES (MANTENIDAS)
 // ====================================================================
 
 // ✅ FUNCIÓN MEJORADA: Generar QR
@@ -740,7 +1042,6 @@ async function generarQR() {
 // ✅ FUNCIÓN: Obtener URL pública
 function obtenerUrlPublica() {
   try {
-    // Puedes cambiar esto por tu dominio real cuando lo tengas
     const baseUrl = window.location.origin;
     return `${baseUrl}/Appinventario/src/views/ver-equipo-publico.html?id=${currentEquipo.id}`;
   } catch (error) {
@@ -1430,8 +1731,7 @@ function configurarEventos() {
   if (btnGenerarQR) btnGenerarQR.addEventListener('click', generarQR);
 }
 
-// Generar hoja de vida PDF (con imagen más grande y ubicación recortada) - LETRA MÁS GRANDE
-// Generar hoja de vida PDF (con imagen más grande y ubicación recortada) - LETRA MÁS GRANDE
+// Generar hoja de vida PDF (mantenida igual)
 async function generarHojaVida() {
   try {
     mostrarMensaje('📄 Generando hoja de vida...');
@@ -1488,8 +1788,8 @@ async function generarHojaVida() {
                         padding: 0; 
                         background: white;
                         color: #1e293b;
-                        font-size: 13px; /* AUMENTADO DE 11px A 13px */
-                        line-height: 1.4; /* AUMENTADO DE 1.3 A 1.4 */
+                        font-size: 13px;
+                        line-height: 1.4;
                     }
                     
                     .page-container {
@@ -1501,7 +1801,6 @@ async function generarHojaVida() {
                         position: relative;
                     }
                     
-                    /* Header con gradiente verde */
                     .header {
                         background: #639A33 !important;
                         color: white;
@@ -1560,7 +1859,7 @@ async function generarHojaVida() {
                     }
                     
                     .title-container h1 {
-                        font-size: 22px; /* AUMENTADO DE 18px A 22px */
+                        font-size: 22px;
                         font-weight: 700;
                         margin-bottom: 3px;
                         color: white !important;
@@ -1570,7 +1869,7 @@ async function generarHojaVida() {
                     }
                     
                     .title-container .subtitle {
-                        font-size: 13px; /* AUMENTADO DE 11px A 13px */
+                        font-size: 13px;
                         font-weight: 400;
                         color: white !important;
                         opacity: 0.95;
@@ -1579,7 +1878,6 @@ async function generarHojaVida() {
                         line-height: 1.2;
                     }
                     
-                    /* NUEVO CONTENEDOR PRINCIPAL CON TRES COLUMNAS */
                     .main-content {
                         display: grid;
                         grid-template-columns: 1fr 1.2fr 1.3fr;
@@ -1588,21 +1886,18 @@ async function generarHojaVida() {
                         align-items: start;
                     }
                     
-                    /* Columna izquierda: Información general */
                     .left-column {
                         display: flex;
                         flex-direction: column;
                         gap: 10px;
                     }
                     
-                    /* Columna central: Ubicación y descripción - MÁS COMPACTA */
                     .center-column {
                         display: flex;
                         flex-direction: column;
                         gap: 10px;
                     }
                     
-                    /* Columna derecha: Imagen del equipo más grande */
                     .right-column {
                         display: flex;
                         flex-direction: column;
@@ -1611,7 +1906,6 @@ async function generarHojaVida() {
                         margin-top: -5px;
                     }
                     
-                    /* CONTENEDOR PARA IMAGEN DEL EQUIPO MÁS GRANDE */
                     .equipo-imagen-grande {
                         width: 100%;
                         max-width: 220px;
@@ -1644,7 +1938,7 @@ async function generarHojaVida() {
                     }
                     
                     .equipo-imagen-label {
-                        font-size: 12px; /* AUMENTADO DE 10px A 12px */
+                        font-size: 12px;
                         color: #1e293b;
                         background: linear-gradient(135deg, #f8fafc, #e2e8f0);
                         padding: 6px 12px;
@@ -1673,7 +1967,6 @@ async function generarHojaVida() {
                         font-size: 40px;
                     }
 
-                    /* Contenido principal */
                     .content {
                         padding: 0 20px 15px 20px;
                         min-height: 230mm;
@@ -1688,7 +1981,6 @@ async function generarHojaVida() {
                         border: 1px solid #e2e8f0;
                     }
                     
-                    /* SECCIÓN DE UBICACIÓN MÁS COMPACTA */
                     .section-compact .section-content {
                         padding: 8px 10px !important;
                     }
@@ -1700,10 +1992,10 @@ async function generarHojaVida() {
                     
                     .section-title {
                         background: #639A33 !important;
-                        padding: 8px 12px; /* AUMENTADO DE 6px 10px */
+                        padding: 8px 12px;
                         font-weight: 600;
                         color: white !important;
-                        font-size: 12px; /* AUMENTADO DE 10px A 12px */
+                        font-size: 12px;
                         display: flex;
                         align-items: center;
                         gap: 5px;
@@ -1737,7 +2029,7 @@ async function generarHojaVida() {
                     .label {
                         font-weight: 600;
                         color: #475569;
-                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
+                        font-size: 9px;
                         margin-bottom: 1px;
                         text-transform: uppercase;
                         letter-spacing: 0.2px;
@@ -1746,11 +2038,10 @@ async function generarHojaVida() {
                     .value {
                         font-weight: 500;
                         color: #1e293b;
-                        font-size: 10px; /* AUMENTADO DE 8px A 10px */
+                        font-size: 10px;
                         line-height: 1.2;
                     }
                     
-                    /* Estadísticas rápidas */
                     .stats-grid {
                         display: grid;
                         grid-template-columns: repeat(3, 1fr);
@@ -1767,25 +2058,24 @@ async function generarHojaVida() {
                     }
                     
                     .stat-number {
-                        font-size: 16px; /* AUMENTADO DE 14px A 16px */
+                        font-size: 16px;
                         font-weight: 700;
                         color: #639A33;
                         margin-bottom: 1px;
                     }
                     
                     .stat-label {
-                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
+                        font-size: 9px;
                         color: #64748b;
                         text-transform: uppercase;
                         font-weight: 600;
                     }
                     
-                    /* Tablas compactas */
                     table {
                         width: 100%;
                         border-collapse: collapse;
                         margin-top: 5px;
-                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
+                        font-size: 9px;
                         border: 1px solid #e2e8f0;
                     }
                     
@@ -1795,7 +2085,7 @@ async function generarHojaVida() {
                         padding: 4px 3px;
                         text-align: left;
                         font-weight: 600;
-                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
+                        font-size: 8px;
                         text-transform: uppercase;
                         border-right: 1px solid #4a7a27;
                         -webkit-print-color-adjust: exact !important;
@@ -1822,7 +2112,6 @@ async function generarHojaVida() {
                         background: #f8fafc;
                     }
                     
-                    /* Especificaciones técnicas - AHORA CON SCROLL SI ES NECESARIO */
                     .specs-container {
                         max-height: 300px;
                         overflow-y: auto;
@@ -1848,16 +2137,15 @@ async function generarHojaVida() {
                     .spec-label {
                         font-weight: 600;
                         color: #475569;
-                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
+                        font-size: 8px;
                         text-transform: uppercase;
                     }
                     
                     .spec-value {
-                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
+                        font-size: 9px;
                         color: #1e293b;
                     }
                     
-                    /* Footer */
                     .footer {
                         margin-top: 15px;
                         padding: 10px 20px;
@@ -1880,37 +2168,35 @@ async function generarHojaVida() {
                     }
                     
                     .footer-item .label {
-                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
+                        font-size: 8px;
                         color: #64748b;
                         margin-bottom: 1px;
                     }
                     
                     .footer-item .value {
-                        font-size: 9px; /* AUMENTADO DE 7px A 9px */
+                        font-size: 9px;
                         color: #1e293b;
                         font-weight: 600;
                     }
                     
                     .copyright {
-                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
+                        font-size: 8px;
                         color: #94a3b8;
                         margin-top: 6px;
                         padding-top: 6px;
                         border-top: 1px solid #e2e8f0;
                     }
                     
-                    /* Control para evitar saltos de página */
                     .no-break {
                         page-break-inside: avoid;
                         break-inside: avoid;
                     }
                     
-                    /* Badges de estado */
                     .badge {
                         display: inline-block;
                         padding: 1px 5px;
                         border-radius: 8px;
-                        font-size: 8px; /* AUMENTADO DE 6px A 8px */
+                        font-size: 8px;
                         font-weight: 600;
                         text-transform: uppercase;
                     }
@@ -1927,7 +2213,6 @@ async function generarHojaVida() {
                         border: 1px solid #fecaca;
                     }
                     
-                    /* ESTILOS CRÍTICOS PARA IMPRESIÓN */
                     @media print {
                         @page {
                             margin: 0;
@@ -1962,7 +2247,6 @@ async function generarHojaVida() {
                             print-color-adjust: exact !important;
                         }
                         
-                        /* En impresión, mostrar todas las especificaciones sin scroll */
                         .specs-container {
                             max-height: none !important;
                             overflow: visible !important;
@@ -2091,7 +2375,7 @@ async function generarHojaVida() {
                     
                     <!-- Contenido adicional (especificaciones y mantenimientos) -->
                     <div class="content">
-                        <!-- Especificaciones técnicas - AHORA MUESTRA TODAS SIN LIMITE -->
+                        <!-- Especificaciones técnicas -->
                         ${Object.keys(currentEquipo.campos_personalizados || {}).length > 0 ? `
                         <div class="section no-break">
                             <div class="section-title">
@@ -2206,7 +2490,6 @@ async function generarHojaVida() {
                 </div>
 
                 <script>
-                    // Forzar colores al cargar
                     document.addEventListener('DOMContentLoaded', function() {
                         const greenElements = document.querySelectorAll('.header, .section-title, th');
                         greenElements.forEach(el => {
@@ -2222,7 +2505,6 @@ async function generarHojaVida() {
     ventanaPDF.document.write(contenidoHTML);
     ventanaPDF.document.close();
 
-    // Esperar a que el PDF se cargue completamente antes de imprimir
     setTimeout(() => {
       if (ventanaPDF && !ventanaPDF.closed) {
         ventanaPDF.focus();
@@ -2281,3 +2563,7 @@ window.validarPreventivoEspecifico = validarPreventivoEspecifico;
 window.validarCalibracionEspecifica = validarCalibracionEspecifica;
 window.editarMantenimiento = editarMantenimiento;
 window.previsualizarPDF = previsualizarPDF;
+window.mostrarModalFirmaDigital = mostrarModalFirmaDigital;
+window.limpiarFirma = limpiarFirma;
+window.cerrarModalFirma = cerrarModalFirma;
+window.procesarFirmaYGuardar = procesarFirmaYGuardar;

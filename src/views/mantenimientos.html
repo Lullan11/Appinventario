@@ -112,19 +112,44 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
 
-        /* Modal de mantenimiento */
+        /* Modal de mantenimiento - VENTANA FLOTANTE */
         .modal-mantenimiento {
+            position: fixed;
+            inset: 0;
             background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
         }
 
         .modal-content-mantenimiento {
             background: white;
             border-radius: 12px;
-            max-width: 600px;
             width: 90%;
-            max-height: 90vh;
+            max-width: 500px;
+            max-height: 85vh;
             overflow-y: auto;
             border: 3px solid #0F172A;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { 
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to { 
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         /* Badge para estado de mantenimiento */
@@ -159,6 +184,33 @@
             background: #e5e7eb;
             color: #374151;
             border: 1px solid #d1d5db;
+        }
+
+        /* Estilos para el canvas de firma */
+        .signature-canvas {
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+        
+        /* Estilos para tabs en modal de detalle */
+        .tab-button-detalle {
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button-detalle:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .tab-active-detalle {
+            border-bottom: 3px solid currentColor !important;
+            font-weight: 600;
+        }
+        
+        /* Modal de firma */
+        .modal-firma {
+            z-index: 2000 !important;
         }
     </style>
 </head>
@@ -426,92 +478,80 @@
                 </section>
             </div>
 
-            <!-- Modal para agregar mantenimiento -->
-            <div id="modal-mantenimiento"
-                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-                <div class="modal-content-mantenimiento">
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-xl font-semibold text-[#0F172A]" id="modal-titulo">Registrar Mantenimiento
-                            </h3>
-                            <button onclick="cerrarModalMantenimiento()" class="text-gray-500 hover:text-gray-700">
-                                <i class="fas fa-times text-xl"></i>
-                            </button>
+            <!-- ✅ MODAL DE MANTENIMIENTO ACTUALIZADO - VENTANA FLOTANTE -->
+            <div id="modal-mantenimiento" class="modal-mantenimiento hidden">
+                <div class="modal-content-mantenimiento p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-semibold text-[#0F172A]" id="modal-titulo">Registrar Mantenimiento</h3>
+                        <button onclick="cerrarModalMantenimiento()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <form id="form-mantenimiento" class="space-y-4">
+                        <!-- Campos ocultos -->
+                        <input type="hidden" id="mantenimiento-id">
+                        <input type="hidden" id="mantenimiento-tipo">
+                        <input type="hidden" id="id-mantenimiento-programado">
+                        
+                        <!-- ✅ INFORMACIÓN DEL EQUIPO (SIEMPRE VISIBLE) -->
+                        <div class="bg-blue-50 p-4 rounded-lg mb-4" id="info-equipo-mantenimiento">
+                            <!-- Se llenará dinámicamente -->
                         </div>
 
-                        <form id="form-mantenimiento" class="space-y-4">
-                            <input type="hidden" id="equipo-id-mantenimiento">
-                            <input type="hidden" id="mantenimiento-tipo">
-                            <!-- ✅ CAMPO OCULTO AGREGADO -->
-                            <input type="hidden" id="id-mantenimiento-programado">
-                            <!-- ✅ FIN DEL CAMPO AGREGADO -->
+                        <!-- ✅ FECHA REALIZADO -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Realizado *</label>
+                            <input type="date" id="fecha-realizado" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                        </div>
 
-                            <div class="bg-blue-50 p-4 rounded-lg">
-                                <h4 class="font-semibold text-blue-800 mb-2">Información del Equipo</h4>
-                                <div id="info-equipo-mantenimiento" class="text-sm text-blue-700">
-                                    <!-- Se llenará dinámicamente -->
-                                </div>
-                            </div>
+                        <!-- ✅ TIPO DE MANTENIMIENTO -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Mantenimiento *</label>
+                            <input type="text" id="tipo-mantenimiento" class="w-full px-3 py-2 border border-gray-300 rounded-md" readonly>
+                        </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Tipo de Mantenimiento *</label>
-                                <select id="tipo-mantenimiento" class="w-full border rounded px-3 py-2 border-gray-300"
-                                    required>
-                                    <option value="">Seleccionar tipo...</option>
-                                    <option value="preventivo">Preventivo</option>
-                                    <option value="calibracion">Calibración</option>
-                                    <option value="correctivo">Correctivo</option>
-                                </select>
-                            </div>
+                        <!-- ✅ REALIZADO POR -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por *</label>
+                            <input type="text" id="realizado-por" class="w-full px-3 py-2 border border-gray-300 rounded-md" 
+                                   placeholder="Nombre del técnico" required>
+                        </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Fecha realizado *</label>
-                                <input type="date" id="fecha-realizado"
-                                    class="w-full border rounded px-3 py-2 border-gray-300" required>
-                            </div>
+                        <!-- ✅ DESCRIPCIÓN -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+                            <textarea id="descripcion-mantenimiento" rows="3" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                      placeholder="Describa el mantenimiento realizado..." required></textarea>
+                        </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Realizado por *</label>
-                                <input type="text" id="realizado-por"
-                                    class="w-full border rounded px-3 py-2 border-gray-300"
-                                    placeholder="Nombre del técnico" required>
-                            </div>
+                        <!-- ✅ OBSERVACIONES -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+                            <textarea id="observaciones-mantenimiento" rows="2" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                      placeholder="Observaciones adicionales..."></textarea>
+                        </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Descripción *</label>
-                                <textarea id="descripcion-mantenimiento" rows="3"
-                                    class="w-full border rounded px-3 py-2 border-gray-300"
-                                    placeholder="Describa el mantenimiento realizado..." required></textarea>
-                            </div>
+                        <!-- ✅ INFO DEL DOCUMENTO ACTUAL (SOLO PARA EDICIÓN) -->
+                        <div id="documento-actual-info" class="hidden">
+                            <!-- Se llenará dinámicamente si hay documento -->
+                        </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Observaciones</label>
-                                <textarea id="observaciones-mantenimiento" rows="2"
-                                    class="w-full border rounded px-3 py-2 border-gray-300"
-                                    placeholder="Observaciones adicionales..."></textarea>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Documento PDF (opcional)</label>
-                                <input type="file" id="documento-mantenimiento" accept=".pdf"
-                                    class="w-full border rounded px-3 py-2 border-gray-300">
-                                <p class="text-xs text-gray-500 mt-1">Suba un PDF con detalles del mantenimiento (máx.
-                                    10MB)</p>
-                            </div>
-
-                            <div class="flex justify-end gap-2 pt-4">
-                                <button type="button" onclick="cerrarModalMantenimiento()"
-                                    class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">
-                                    Cancelar
-                                </button>
-                                <button type="submit" id="texto-boton-guardar"
-                                    class="px-4 py-2 bg-[#639A33] text-white rounded hover:bg-green-600">
-                                    <i class="fas fa-save mr-2"></i>
-                                    Guardar Mantenimiento
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                        <!-- ✅ BOTONES -->
+                        <div class="flex justify-end gap-3 pt-4">
+                            <button type="button" onclick="cerrarModalMantenimiento()"
+                                    class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+                                Cancelar
+                            </button>
+                            <button type="submit" id="texto-boton-guardar"
+                                    class="px-4 py-2 bg-[#639A33] text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2">
+                                <i class="fas fa-save"></i>
+                                <span id="btn-text">Guardar Mantenimiento</span>
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -522,9 +562,13 @@
         </main>
     </div>
 
+    <!-- ✅ INCLUIR LIBRERÍAS NECESARIAS -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    
     <script src="../js/auth.js"></script>
     <script src="../js/roles.js"></script>
     <script src="../js/mantenimientos.js"></script>
 </body>
-
 </html>

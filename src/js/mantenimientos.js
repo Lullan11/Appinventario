@@ -1,19 +1,20 @@
-// src/js/mantenimientos.js - MÓDULO ESPECIAL PARA TÉCNICOS
-// Solo permite ver equipos y agregar mantenimientos (sin editar/eliminar)
-
-const API_EQUIPOS = "https://inventario-api-gw73.onrender.com/equipos";
-const API_TIPOS_EQUIPO = "https://inventario-api-gw73.onrender.com/tipos-equipo";
-const API_MANTENIMIENTOS = "https://inventario-api-gw73.onrender.com/mantenimientos";
-const API_TIPOS_MANTENIMIENTO = "https://inventario-api-gw73.onrender.com/tipos-mantenimiento/todos";
+// src/js/mantenimientos.js - MÓDULO ESPECIAL PARA TÉCNICOS CON FIRMA DIGITAL
 
 // ✅ CONFIGURACIÓN CLOUDINARY CORREGIDA - DEFINICIÓN GLOBAL
-window.CLOUDINARY_CONFIG = window.CLOUDINARY_CONFIG || {
+window.CLOUDINARY_CONFIG = {
     cloudName: 'dzkccjhn9',
     uploadPreset: 'inventario'
 };
 
-const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}`;
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${window.CLOUDINARY_CONFIG.cloudName}`;
 const CLOUDINARY_RAW_UPLOAD = `${CLOUDINARY_UPLOAD_URL}/raw/upload`;
+
+// ✅ CONFIGURACIÓN API
+const API_URL = "https://inventario-api-gw73.onrender.com";
+const API_EQUIPOS = `${API_URL}/equipos`;
+const API_MANTENIMIENTOS = `${API_URL}/mantenimientos`;
+const API_TIPOS_EQUIPO = `${API_URL}/tipos-equipo`;
+const API_TIPOS_MANTENIMIENTO = `${API_URL}/tipos-mantenimiento/todos`;
 
 // Variables globales
 let todosLosEquipos = [];
@@ -47,7 +48,128 @@ let elementosPaginacion = {
     selectItemsPorPagina: null
 };
 
+// Variable para controlar si se está guardando
+window.guardandoMantenimiento = false;
 
+// ========================= FUNCIONES AUXILIARES =========================
+
+// ✅ FUNCIÓN AUXILIAR: Construir ubicación completa
+function construirUbicacionCompleta(equipo) {
+    if (!equipo) return "-";
+
+    if (equipo.ubicacion === "puesto") {
+        const partes = [];
+        if (equipo.puesto_codigo) partes.push(`Puesto: ${equipo.puesto_codigo}`);
+        if (equipo.area_nombre) partes.push(`Área: ${equipo.area_nombre}`);
+        if (equipo.sede_nombre) partes.push(`Sede: ${equipo.sede_nombre}`);
+        return partes.length > 0 ? partes.join(' - ') : 'Puesto (sin detalles)';
+    } else if (equipo.ubicacion === "area") {
+        const partes = ['Área'];
+        if (equipo.area_nombre) partes.push(equipo.area_nombre);
+        if (equipo.sede_nombre) partes.push(`Sede: ${equipo.sede_nombre}`);
+        return partes.length > 1 ? partes.join(' - ') : 'Área (sin detalles)';
+    } else {
+        return equipo.ubicacion || "-";
+    }
+}
+
+// ✅ FUNCIÓN: Obtener fecha actual en formato YYYY-MM-DD
+function getCurrentDate() {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
+    const day = now.getUTCDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// ✅ FUNCIÓN: Formatear fecha DD/MM/YYYY
+function formatDateToDDMMYYYY(dateStr) {
+    if (!dateStr) return "-";
+    try {
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateStr.split('-');
+            return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+        }
+
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return "-";
+
+        const day = date.getUTCDate().toString().padStart(2, '0');
+        const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+        const year = date.getUTCFullYear();
+        return `${day}/${month}/${year}`;
+    } catch (e) {
+        console.error('Error formateando fecha:', e);
+        return "-";
+    }
+}
+
+// ✅ FUNCIÓN: Mostrar mensajes tipo toast
+function mostrarMensaje(texto, esError = false) {
+    let mensaje = document.getElementById("mensaje-mantenimientos");
+    if (!mensaje) {
+        mensaje = document.createElement("div");
+        mensaje.id = "mensaje-mantenimientos";
+        mensaje.className = "fixed top-4 right-4 px-4 py-3 rounded-lg shadow-xl z-50 animate-slide-in";
+        document.body.appendChild(mensaje);
+    }
+
+    const icono = esError ? '❌' : '✅';
+    mensaje.innerHTML = `
+        <div class="flex items-center gap-3">
+            <div class="text-xl">${icono}</div>
+            <div>
+                <p class="font-medium">${texto}</p>
+                <div class="h-1 w-full mt-2 ${esError ? 'bg-red-500' : 'bg-green-500'} rounded-full"></div>
+            </div>
+        </div>
+    `;
+
+    setTimeout(() => {
+        mensaje.style.opacity = '0';
+        mensaje.style.transform = 'translateX(100%)';
+        mensaje.style.transition = 'all 0.3s ease';
+        setTimeout(() => {
+            mensaje.remove();
+        }, 300);
+    }, 4000);
+}
+
+// ✅ FUNCIÓN: Mostrar/ocultar loading
+function mostrarLoadingMantenimientos(mostrar) {
+    if (mostrar) {
+        if (loadingTimeout) clearTimeout(loadingTimeout);
+        
+        loadingTimeout = setTimeout(() => {
+            if (!document.getElementById('mantenimientos-loading')) {
+                const loadingElement = document.createElement('div');
+                loadingElement.id = 'mantenimientos-loading';
+                loadingElement.className = 'fixed top-4 right-4 z-50 animate-slide-in loading-mantenimientos';
+                loadingElement.innerHTML = `
+                    <div class="bg-white rounded-lg p-4 shadow-xl border border-gray-200">
+                        <div class="flex items-center space-x-3">
+                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-[#639A33] border-t-transparent"></div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-800">Procesando...</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(loadingElement);
+            }
+        }, 300);
+    } else {
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+            loadingTimeout = null;
+        }
+        
+        const loadingElement = document.getElementById('mantenimientos-loading');
+        if (loadingElement) {
+            loadingElement.remove();
+        }
+    }
+}
 
 // ========================= INICIALIZACIÓN =========================
 
@@ -104,6 +226,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             console.log(`✅ Carga completada: ${todosLosEquipos.length} equipos cargados`);
         }
+        
+        // 8. Configurar el formulario de mantenimiento
+        configurarFormularioMantenimiento();
+        
     } catch (err) {
         console.error("❌ Error cargando datos:", err);
         mostrarSkeletonTabla(false);
@@ -114,21 +240,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // ========================= FUNCIONES PARA CARGAR DATOS =========================
 
-// Función para cargar mantenimientos de cada equipo
 async function cargarMantenimientosParaEquipos() {
     console.log("🔄 Cargando mantenimientos realizados...");
     
-    // Crear array para almacenar mantenimientos por equipo
     mantenimientosRealizados = [];
     
     try {
-        // Obtener todos los mantenimientos
         const response = await fetch(API_MANTENIMIENTOS);
         if (!response.ok) throw new Error("Error al obtener mantenimientos");
         
         const todosLosMantenimientos = await response.json();
         
-        // Organizar mantenimientos por equipo
         todosLosEquipos.forEach(equipo => {
             const mantEquipo = todosLosMantenimientos.filter(m => m.id_equipo === equipo.id);
             mantenimientosRealizados.push({
@@ -140,7 +262,6 @@ async function cargarMantenimientosParaEquipos() {
         console.log(`✅ Mantenimientos cargados: ${todosLosMantenimientos.length} registros`);
     } catch (error) {
         console.error("❌ Error al cargar mantenimientos:", error);
-        // Continuar sin mantenimientos
         mantenimientosRealizados = todosLosEquipos.map(equipo => ({
             equipoId: equipo.id,
             mantenimientos: []
@@ -148,100 +269,28 @@ async function cargarMantenimientosParaEquipos() {
     }
 }
 
-// Obtener mantenimientos de un equipo específico
 function obtenerMantenimientosEquipo(equipoId) {
     const encontrado = mantenimientosRealizados.find(m => m.equipoId === equipoId);
     return encontrado ? encontrado.mantenimientos : [];
 }
 
-// Obtener el último mantenimiento de un equipo
 function obtenerUltimoMantenimiento(equipoId) {
     const mantenimientos = obtenerMantenimientosEquipo(equipoId);
     if (mantenimientos.length === 0) return null;
     
-    // Ordenar por fecha descendente y tomar el primero
     return mantenimientos.sort((a, b) => 
         new Date(b.fecha_realizado) - new Date(a.fecha_realizado)
     )[0];
 }
 
-// ✅ FUNCIÓN MEJORADA: Formatear fecha exacta (DD/MM/YYYY)
-function formatearFechaExacta(fecha) {
-    if (!fecha) return "Nunca";
-    
-    try {
-        const fechaObj = new Date(fecha);
-        const dia = fechaObj.getUTCDate().toString().padStart(2, '0');
-        const mes = (fechaObj.getUTCMonth() + 1).toString().padStart(2, '0');
-        const año = fechaObj.getUTCFullYear();
-        return `${dia}/${mes}/${año}`;
-    } catch (error) {
-        console.error("Error formateando fecha:", error);
-        return "Fecha inválida";
-    }
-}
-
 // ========================= FUNCIONES DE INTERFAZ =========================
 
-// ✅ FUNCIÓN: Mostrar loading discreto en esquina
-function mostrarLoadingMantenimientos(mostrar) {
-    let loadingElement = document.getElementById('mantenimientos-loading');
-    
-    if (mostrar) {
-        // Limpiar timeout anterior si existe
-        if (loadingTimeout) {
-            clearTimeout(loadingTimeout);
-        }
-        
-        // Solo mostrar después de 500ms (si la carga es rápida, no se muestra)
-        loadingTimeout = setTimeout(() => {
-            if (!document.getElementById('mantenimientos-loading')) {
-                loadingElement = document.createElement('div');
-                loadingElement.id = 'mantenimientos-loading';
-                loadingElement.className = 'fixed top-4 right-4 z-50 animate-slide-in loading-mantenimientos';
-                loadingElement.innerHTML = `
-                    <div class="bg-white rounded-lg p-4 shadow-xl border border-gray-200">
-                        <div class="flex items-center space-x-3">
-                            <div class="animate-spin rounded-full h-5 w-5 border-2 border-[#639A33] border-t-transparent"></div>
-                            <div>
-                                <p class="text-sm font-medium text-gray-800">Procesando mantenimiento</p>
-                                <p class="text-xs text-gray-600">Guardando datos...</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(loadingElement);
-            }
-        }, 500);
-    } else {
-        // Limpiar timeout si aún no se mostró
-        if (loadingTimeout) {
-            clearTimeout(loadingTimeout);
-            loadingTimeout = null;
-        }
-        
-        // Ocultar loading con animación
-        if (loadingElement) {
-            loadingElement.style.opacity = '0';
-            loadingElement.style.transform = 'translateY(-10px)';
-            loadingElement.style.transition = 'all 0.3s ease';
-            setTimeout(() => {
-                if (loadingElement && loadingElement.parentNode) {
-                    loadingElement.remove();
-                }
-            }, 300);
-        }
-    }
-}
-
-// ✅ FUNCIÓN: Mostrar skeleton
 function mostrarSkeletonTabla(mostrar) {
     const tbody = document.getElementById("tablaEquipos");
     
     if (!tbody) return;
     
     if (mostrar) {
-        // Crear skeleton de filas
         let skeletonHTML = '';
         for (let i = 0; i < 10; i++) {
             skeletonHTML += `
@@ -276,51 +325,7 @@ function mostrarSkeletonTabla(mostrar) {
             `;
         }
         tbody.innerHTML = skeletonHTML;
-        
-        // Ocultar paginación mientras carga
-        const paginacion = document.querySelector('.paginacion-container');
-        if (paginacion) {
-            paginacion.style.opacity = '0.5';
-        }
-        
-    } else {
-        // Restaurar paginación
-        const paginacion = document.querySelector('.paginacion-container');
-        if (paginacion) {
-            paginacion.style.opacity = '1';
-        }
     }
-}
-
-// ✅ FUNCIÓN: Mostrar mensajes
-function mostrarMensaje(texto, esError = false) {
-    let mensaje = document.getElementById("mensaje-mantenimientos");
-    if (!mensaje) {
-        mensaje = document.createElement("div");
-        mensaje.id = "mensaje-mantenimientos";
-        mensaje.className = "fixed top-4 right-4 px-4 py-3 rounded-lg shadow-xl z-50 animate-slide-in";
-        document.body.appendChild(mensaje);
-    }
-
-    const icono = esError ? '❌' : '✅';
-    mensaje.innerHTML = `
-        <div class="flex items-center gap-3">
-            <div class="text-xl">${icono}</div>
-            <div>
-                <p class="font-medium">${texto}</p>
-                <div class="h-1 w-full mt-2 ${esError ? 'bg-red-500' : 'bg-green-500'} rounded-full animate-progress"></div>
-            </div>
-        </div>
-    `;
-
-    setTimeout(() => {
-        mensaje.style.opacity = '0';
-        mensaje.style.transform = 'translateX(100%)';
-        mensaje.style.transition = 'all 0.3s ease';
-        setTimeout(() => {
-            mensaje.remove();
-        }, 300);
-    }, 4000);
 }
 
 // ========================= SISTEMA DE PAGINACIÓN =========================
@@ -335,7 +340,6 @@ function inicializarElementosPaginacion() {
         selectItemsPorPagina: document.getElementById('items-por-pagina')
     };
     
-    // Configurar eventos de paginación
     if (elementosPaginacion.botonAnterior) {
         elementosPaginacion.botonAnterior.addEventListener('click', () => cambiarPagina(paginaActual - 1));
     }
@@ -386,12 +390,10 @@ function renderizarPaginaActual() {
         return;
     }
     
-    // Calcular índices para la página actual
     const inicio = (paginaActual - 1) * itemsPorPagina;
     const fin = inicio + itemsPorPagina;
     const equiposPagina = equiposFiltrados.slice(inicio, fin);
     
-    // Usar DocumentFragment para renderizado más rápido
     const fragment = document.createDocumentFragment();
     
     equiposPagina.forEach(eq => {
@@ -401,40 +403,19 @@ function renderizarPaginaActual() {
         fragment.appendChild(tr);
     });
     
-    // Limpiar y renderizar de una vez
     tbody.innerHTML = '';
     tbody.appendChild(fragment);
 }
 
 function crearFilaEquipo(equipo) {
-    // Determinar información de ubicación completa
-    let ubicacionCompleta = "";
-    if (equipo.ubicacion === "puesto") {
-        ubicacionCompleta = `
-            <div class="text-sm">
-                <div class="font-medium">💼 Puesto: ${equipo.puesto_codigo || "-"}</div>
-                <div class="text-gray-600">🏢 Área: ${equipo.area_nombre || "-"}</div>
-                <div class="text-gray-500">📍 Sede: ${equipo.sede_nombre || "-"}</div>
-            </div>
-        `;
-    } else {
-        ubicacionCompleta = `
-            <div class="text-sm">
-                <div class="font-medium">🏢 Área: ${equipo.area_nombre || "-"}</div>
-                <div class="text-gray-500">📍 Sede: ${equipo.sede_nombre || "-"}</div>
-            </div>
-        `;
-    }
-
-    // Determinar responsable
+    const ubicacionCompleta = construirUbicacionCompleta(equipo);
+    
     const responsable = equipo.ubicacion === "puesto" 
         ? (equipo.puesto_responsable || "-")
         : (equipo.responsable_nombre ? `${equipo.responsable_nombre} (${equipo.responsable_documento || "-"})` : "-");
 
-    // Determinar estado de mantenimiento REAL (usando la función del código de equipos)
     const estadoReal = determinarEstadoMantenimientoReal(equipo);
     
-    // Determinar el badge según el estado
     let estadoHTML = "";
     if (estadoReal === "VENCIDO") {
         estadoHTML = `<span class="badge-mantenimiento badge-vencido">VENCIDO</span>`;
@@ -446,11 +427,9 @@ function crearFilaEquipo(equipo) {
         estadoHTML = `<span class="badge-mantenimiento badge-sin-datos">SIN DATOS</span>`;
     }
 
-    // ✅ Obtener último mantenimiento con fecha exacta
     const ultimoMantenimiento = obtenerUltimoMantenimiento(equipo.id);
-    const ultimaFecha = ultimoMantenimiento ? formatearFechaExacta(ultimoMantenimiento.fecha_realizado) : "Nunca";
+    const ultimaFecha = ultimoMantenimiento ? formatDateToDDMMYYYY(ultimoMantenimiento.fecha_realizado) : "Nunca";
     
-    // ✅ Obtener tipo del último mantenimiento
     let ultimoTipo = "";
     if (ultimoMantenimiento) {
         const tipoMantenimiento = tiposMantenimiento.find(t => t.id === ultimoMantenimiento.id_tipo);
@@ -460,7 +439,9 @@ function crearFilaEquipo(equipo) {
     return `
         <td class="px-4 py-2 border border-[#0F172A] font-mono text-sm">${equipo.codigo_interno}</td>
         <td class="px-4 py-2 border border-[#0F172A] font-medium">${equipo.nombre}</td>
-        <td class="px-4 py-2 border border-[#0F172A]">${ubicacionCompleta}</td>
+        <td class="px-4 py-2 border border-[#0F172A]">
+            <div class="text-sm">${ubicacionCompleta}</div>
+        </td>
         <td class="px-4 py-2 border border-[#0F172A]">
             <div class="text-sm">
                 <div class="font-medium">${responsable.split(' (')[0]}</div>
@@ -494,19 +475,12 @@ function cambiarPagina(nuevaPagina) {
     actualizarControlesPaginacion();
     actualizarInfoPaginacion();
     
-    // Scroll suave hacia la parte superior de la tabla
-    const tablaContainer = document.querySelector('.overflow-x-auto');
-    if (tablaContainer) {
-        tablaContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    
     setTimeout(() => {
         mostrarLoadingMantenimientos(false);
     }, 200);
 }
 
 function actualizarControlesPaginacion() {
-    // Actualizar estado de botones
     if (elementosPaginacion.botonAnterior) {
         elementosPaginacion.botonAnterior.disabled = paginaActual === 1;
         elementosPaginacion.botonAnterior.classList.toggle('opacity-50', paginaActual === 1);
@@ -519,7 +493,6 @@ function actualizarControlesPaginacion() {
         elementosPaginacion.botonSiguiente.classList.toggle('cursor-not-allowed', paginaActual === totalPaginas);
     }
     
-    // Actualizar números de página
     if (elementosPaginacion.contenedorNumeros) {
         elementosPaginacion.contenedorNumeros.innerHTML = '';
         
@@ -531,7 +504,6 @@ function actualizarControlesPaginacion() {
             inicio = Math.max(1, fin - maxNumerosVisibles + 1);
         }
         
-        // Botón primera página
         if (inicio > 1) {
             const firstBtn = document.createElement('button');
             firstBtn.textContent = '1';
@@ -547,7 +519,6 @@ function actualizarControlesPaginacion() {
             }
         }
         
-        // Números de página
         for (let i = inicio; i <= fin; i++) {
             const pageBtn = document.createElement('button');
             pageBtn.textContent = i;
@@ -558,7 +529,6 @@ function actualizarControlesPaginacion() {
             elementosPaginacion.contenedorNumeros.appendChild(pageBtn);
         }
         
-        // Botón última página
         if (fin < totalPaginas) {
             if (fin < totalPaginas - 1) {
                 const dots = document.createElement('span');
@@ -600,7 +570,6 @@ function cargarTiposEquipoEnFiltro() {
 
     filtroTipo.innerHTML = '<option value="">Todos los tipos</option>';
     
-    // Ordenar alfabéticamente
     const tiposOrdenados = [...tiposEquipoDisponibles].sort((a, b) => {
         return a.nombre.localeCompare(b.nombre);
     });
@@ -740,7 +709,6 @@ function limpiarFiltros() {
     setTimeout(() => mostrarLoadingMantenimientos(false), 300);
 }
 
-// ========================= FUNCIÓN AUXILIAR: Determinar estado de mantenimiento =========================
 function determinarEstadoMantenimientoReal(equipo) {
     if (!equipo.mantenimientos_configurados || equipo.mantenimientos_configurados.length === 0) {
         return "SIN_DATOS";
@@ -776,7 +744,760 @@ function determinarEstadoMantenimientoReal(equipo) {
     return estado;
 }
 
-// ========================= NUEVAS FUNCIONES PARA VER DETALLES DEL EQUIPO =========================
+// ========================= FUNCIONES PARA EL FORMULARIO DE MANTENIMIENTO =========================
+
+function configurarFormularioMantenimiento() {
+    const form = document.getElementById('form-mantenimiento');
+    if (!form) return;
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        guardarMantenimiento();
+    });
+}
+
+// ✅ FUNCIÓN MEJORADA: Cerrar modal mantenimiento (SIMPLEMENTE CIERRA)
+function cerrarModalMantenimiento() {
+    const modal = document.getElementById('modal-mantenimiento');
+    
+    if (modal) {
+        // Solo ocultar, no resetear
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+    
+    // Liberar bloqueo
+    window.guardandoMantenimiento = false;
+}
+
+// ✅ FUNCIÓN: Mostrar modal de mantenimiento (ACTUALIZADA PARA VENTANA FLOTANTE)
+function mostrarModalMantenimiento(tipo, equipo = null, mantenimientoProgramado = null) {
+    const modal = document.getElementById('modal-mantenimiento');
+    const form = document.getElementById('form-mantenimiento');
+
+    if (!modal || !form) {
+        console.error('❌ No se encontró el modal o el formulario');
+        return;
+    }
+
+    form.reset();
+
+    const tipoNombre = tipo === 'preventivo' ? 'Preventivo' :
+        tipo === 'calibracion' ? 'Calibración' : 'Correctivo';
+
+    const esValidacion = tipo !== 'correctivo';
+
+    const modalTitulo = document.getElementById('modal-titulo');
+    const tipoMantenimientoInput = document.getElementById('tipo-mantenimiento');
+    const mantenimientoTipoInput = document.getElementById('mantenimiento-tipo');
+    const textoBotonGuardar = document.getElementById('texto-boton-guardar');
+    const fechaRealizadoInput = document.getElementById('fecha-realizado');
+    const realizadoPorInput = document.getElementById('realizado-por');
+    const descripcionTextarea = document.getElementById('descripcion-mantenimiento');
+    const infoEquipoContainer = document.getElementById('info-equipo-mantenimiento');
+
+    if (modalTitulo) modalTitulo.textContent = esValidacion ? `Validar ${tipoNombre}` : `Agregar ${tipoNombre}`;
+    if (tipoMantenimientoInput) tipoMantenimientoInput.value = tipoNombre;
+    if (mantenimientoTipoInput) mantenimientoTipoInput.value = tipo;
+    if (textoBotonGuardar) textoBotonGuardar.textContent = esValidacion ? 'Validar' : 'Agregar';
+
+    // ❌ ELIMINADA LA PARTE DE FECHA PROGRAMADA
+
+    if (fechaRealizadoInput) fechaRealizadoInput.value = getCurrentDate();
+    if (realizadoPorInput) realizadoPorInput.value = localStorage.getItem('usuario') || 'Técnico';
+
+    // Mostrar información del equipo
+    if (infoEquipoContainer && equipo) {
+        infoEquipoContainer.innerHTML = `
+            <div class="grid grid-cols-1 gap-2">
+                <div class="flex items-start">
+                    <i class="fas fa-barcode text-blue-600 mt-1 mr-2"></i>
+                    <div>
+                        <p class="text-xs text-blue-800 font-semibold">Código</p>
+                        <p class="text-sm">${equipo.codigo_interno || '-'}</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <i class="fas fa-tag text-blue-600 mt-1 mr-2"></i>
+                    <div>
+                        <p class="text-xs text-blue-800 font-semibold">Nombre</p>
+                        <p class="text-sm">${equipo.nombre || '-'}</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-map-marker-alt text-blue-600 mr-2"></i>
+                    <div>
+                        <p class="text-xs text-blue-800 font-semibold">Ubicación</p>
+                        <p class="text-sm truncate">${construirUbicacionCompleta(equipo)}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    if (descripcionTextarea) {
+        switch (tipo) {
+            case 'preventivo':
+                descripcionTextarea.value = mantenimientoProgramado 
+                    ? `Mantenimiento preventivo "${mantenimientoProgramado.nombre_personalizado || tipoNombre}" realizado según programa establecido. Verificación de funcionamiento, limpieza y ajustes necesarios.`
+                    : 'Mantenimiento preventivo realizado según programa establecido. Verificación de funcionamiento, limpieza y ajustes necesarios.';
+                break;
+            case 'calibracion':
+                descripcionTextarea.value = mantenimientoProgramado
+                    ? `Calibración "${mantenimientoProgramado.nombre_personalizado || tipoNombre}" realizada según especificaciones del fabricante. Verificación de parámetros y ajustes de precisión.`
+                    : 'Calibración realizada según especificaciones del fabricante. Verificación de parámetros y ajustes de precisión.';
+                break;
+            case 'correctivo':
+                descripcionTextarea.value = 'Reparación correctiva realizada. Identificación y solución de falla reportada.';
+                break;
+        }
+    }
+
+    // Si hay mantenimiento programado, guardar su ID
+    if (mantenimientoProgramado) {
+        const idMantenimientoProgramadoInput = document.getElementById('id-mantenimiento-programado');
+        if (idMantenimientoProgramadoInput) {
+            idMantenimientoProgramadoInput.value = mantenimientoProgramado.id;
+        }
+    }
+
+    // Mostrar como ventana flotante
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+}
+
+// ✅ FUNCIÓN MODIFICADA: `guardarMantenimiento` - Eliminar referencia a fecha programada
+async function guardarMantenimiento() {
+    console.log('🔄 Iniciando guardado de mantenimiento...');
+    
+    // ✅ BLOQUEAR DOBLE EJECUCIÓN
+    if (window.guardandoMantenimiento) {
+        console.log('⚠️ Guardado en proceso, esperando...');
+        return;
+    }
+    
+    try {
+        window.guardandoMantenimiento = true;
+        
+        const tipo = document.getElementById('mantenimiento-tipo')?.value;
+        const id = document.getElementById('mantenimiento-id')?.value;
+        
+        // Si es edición, usar función de actualización
+        if (tipo === 'edicion' && id) {
+            await actualizarMantenimiento();
+            window.guardandoMantenimiento = false;
+            return;
+        }
+        
+        // Obtener datos del formulario
+        const idMantenimientoProgramado = document.getElementById('id-mantenimiento-programado')?.value;
+        const fechaRealizado = document.getElementById('fecha-realizado')?.value;
+        const descripcion = document.getElementById('descripcion-mantenimiento')?.value;
+        const realizadoPor = document.getElementById('realizado-por')?.value;
+        const observaciones = document.getElementById('observaciones-mantenimiento')?.value;
+        
+        console.log('📋 Datos del formulario:', {
+            tipo, idMantenimientoProgramado, fechaRealizado, descripcion, realizadoPor, observaciones
+        });
+        
+        // Validaciones
+        if (!fechaRealizado || !descripcion || !realizadoPor) {
+            mostrarMensaje('❌ Complete todos los campos requeridos', true);
+            window.guardandoMantenimiento = false;
+            return;
+        }
+        
+        if (!equipoSeleccionado) {
+            mostrarMensaje('❌ No hay equipo seleccionado', true);
+            window.guardandoMantenimiento = false;
+            return;
+        }
+        
+        // Buscar tipo de mantenimiento
+        const tipoMantenimiento = tiposMantenimiento.find(t => {
+            const nombreTipo = t.nombre.toLowerCase();
+            const tipoBuscado = tipo.toLowerCase();
+            
+            if (tipoBuscado === 'preventivo') return nombreTipo.includes('preventivo');
+            if (tipoBuscado === 'calibracion') return nombreTipo.includes('calibración') || nombreTipo.includes('calibracion');
+            if (tipoBuscado === 'correctivo') return nombreTipo.includes('correctivo');
+            return false;
+        });
+        
+        if (!tipoMantenimiento) {
+            mostrarMensaje(`❌ Tipo de mantenimiento no válido: "${tipo}"`, true);
+            window.guardandoMantenimiento = false;
+            return;
+        }
+        
+        console.log('✅ Tipo de mantenimiento encontrado:', tipoMantenimiento);
+        
+        // ✅ PREPARAR DATOS (SIN FECHA PROGRAMADA)
+        let nombrePersonalizado = tipoMantenimiento.nombre;
+        
+        if (tipo !== 'correctivo' && idMantenimientoProgramado) {
+            const mantenimientoProgramado = mantenimientosProgramadosEquipoSeleccionado.find(mp => mp.id == idMantenimientoProgramado);
+            if (mantenimientoProgramado?.nombre_personalizado) {
+                nombrePersonalizado = mantenimientoProgramado.nombre_personalizado;
+            }
+        }
+        
+        const mantenimientoData = {
+            id_equipo: equipoSeleccionado.id,
+            id_tipo: tipoMantenimiento.id,
+            fecha_realizado: fechaRealizado,
+            descripcion: descripcion,
+            realizado_por: realizadoPor,
+            observaciones: observaciones,
+            estado: 'realizado',
+            nombre_personalizado: nombrePersonalizado,
+            tipo: tipo // Agregar tipo para saber si es validación
+        };
+        
+        // Agregar datos de mantenimiento programado si aplica (SIN FECHA PROGRAMADA)
+        if (tipo !== 'correctivo' && idMantenimientoProgramado) {
+            mantenimientoData.id_mantenimiento_programado = parseInt(idMantenimientoProgramado);
+        }
+        
+        console.log('📝 Datos preparados para guardar:', mantenimientoData);
+        
+        // ✅ MOSTRAR MODAL DE FIRMA DIGITAL CON LOS DATOS
+        mostrarModalFirmaDigital(mantenimientoData);
+        
+    } catch (error) {
+        console.error('❌ Error preparando mantenimiento:', error);
+        mostrarMensaje('❌ Error: ' + error.message, true);
+        window.guardandoMantenimiento = false;
+    }
+}
+
+// ✅ FUNCIÓN ACTUALIZADA: Actualizar mantenimiento
+async function actualizarMantenimiento() {
+    const id = document.getElementById('mantenimiento-id')?.value;
+    const fechaRealizado = document.getElementById('fecha-realizado')?.value;
+    const descripcion = document.getElementById('descripcion-mantenimiento')?.value;
+    const realizadoPor = document.getElementById('realizado-por')?.value;
+    const observaciones = document.getElementById('observaciones-mantenimiento')?.value;
+    
+    if (!fechaRealizado || !descripcion || !realizadoPor) {
+        mostrarMensaje('❌ Complete todos los campos requeridos', true);
+        return;
+    }
+    
+    try {
+        const mantenimientoData = {
+            fecha_realizado: fechaRealizado,
+            descripcion: descripcion,
+            realizado_por: realizadoPor,
+            observaciones: observaciones
+        };
+        
+        const response = await fetch(`${API_MANTENIMIENTOS}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mantenimientoData)
+        });
+        
+        if (!response.ok) throw new Error('Error al actualizar mantenimiento');
+        
+        mostrarMensaje('✅ Mantenimiento actualizado correctamente');
+        cerrarModalMantenimiento();
+        
+        // Recargar datos
+        if (equipoSeleccionado) {
+            await cargarMantenimientosParaEquipoSeleccionado(equipoSeleccionado.id);
+        }
+        
+    } catch (error) {
+        console.error('Error actualizando mantenimiento:', error);
+        mostrarMensaje('❌ Error al actualizar mantenimiento', true);
+    }
+}
+
+// ========================= FIRMA DIGITAL =========================
+
+// ✅ FUNCIÓN NUEVA: Crear y configurar modal de firma digital
+function mostrarModalFirmaDigital(mantenimientoData) {
+    // Guardar datos del mantenimiento para usar después
+    window.datosMantenimientoParaGuardar = mantenimientoData;
+    
+    // ✅ LIMPIAR MODAL EXISTENTE
+    const modalExistente = document.getElementById('modal-firma');
+    if (modalExistente) modalExistente.remove();
+    
+    // ✅ MODIFICAR SOLO ESTA LÍNEA EN EL HTML DEL MODAL:
+    // Cambia: class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-60"
+    // Por: style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 9999;"
+    
+    const modalHTML = `
+        <div id="modal-firma" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+            <!-- El resto del código IGUAL -->
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold text-gray-900">Firma Digital del Técnico</h3>
+                    <p class="text-sm text-gray-600">Dibuje su firma en el área inferior</p>
+                </div>
+                
+                <div class="p-4">
+                    <div class="border-2 border-gray-300 rounded-lg bg-white mb-4">
+                        <canvas id="signature-pad" width="450" height="200" 
+                                class="w-full h-48 touch-none"></canvas>
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <button onclick="limpiarFirma()" 
+                                class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900">
+                            <i class="fas fa-eraser mr-1"></i> Limpiar
+                        </button>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="cerrarModalFirma()" 
+                                    class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 rounded">
+                                Cancelar
+                            </button>
+                            <button onclick="procesarFirmaYGuardar()" 
+                                    id="btn-confirmar-firma"
+                                    class="px-4 py-2 text-sm bg-green-500 hover:bg-green-600 text-white rounded disabled:opacity-50"
+                                    disabled>
+                                <i class="fas fa-check mr-1"></i> Confirmar y Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // ✅ AGREGAR AL DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // ✅ INICIALIZAR FIRMA (mantén tu código actual)
+    setTimeout(() => {
+        const canvas = document.getElementById('signature-pad');
+        if (canvas) {
+            const signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)',
+                penColor: 'rgb(0, 0, 0)',
+                minWidth: 1,
+                maxWidth: 3
+            });
+            
+            signaturePad.addEventListener('endStroke', () => {
+                const btn = document.getElementById('btn-confirmar-firma');
+                if (btn) btn.disabled = signaturePad.isEmpty();
+            });
+            
+            window.signaturePad = signaturePad;
+        }
+    }, 100);
+}
+
+// ✅ FUNCIÓN NUEVA: Limpiar firma
+function limpiarFirma() {
+    if (window.signaturePad) {
+        window.signaturePad.clear();
+        const btn = document.getElementById('btn-confirmar-firma');
+        if (btn) btn.disabled = true;
+    }
+}
+
+// ✅ FUNCIÓN NUEVA: Cerrar modal de firma
+function cerrarModalFirma() {
+    const modal = document.getElementById('modal-firma');
+    if (modal) {
+        modal.remove();
+    }
+    if (window.signaturePad) {
+        delete window.signaturePad;
+    }
+    delete window.datosMantenimientoParaGuardar;
+}
+
+// ✅ FUNCIÓN NUEVA: Procesar firma y guardar mantenimiento (SIMPLIFICADO)
+async function procesarFirmaYGuardar() {
+    console.log('🔄 Iniciando proceso de guardado con firma...');
+    
+    if (!window.signaturePad || window.signaturePad.isEmpty()) {
+        mostrarMensaje('❌ Por favor, dibuje su firma primero', true);
+        return;
+    }
+    
+    try {
+        mostrarLoadingMantenimientos(true);
+        mostrarMensaje('🔄 Procesando firma y generando documento...');
+        
+        // Obtener firma como imagen base64
+        const firmaDataURL = window.signaturePad.toDataURL('image/png');
+        console.log('✅ Firma obtenida:', firmaDataURL.substring(0, 50) + '...');
+        
+        // Obtener datos del mantenimiento
+        const mantenimientoData = window.datosMantenimientoParaGuardar;
+        
+        if (!mantenimientoData) {
+            mostrarMensaje('❌ Error: No hay datos del mantenimiento', true);
+            cerrarModalFirma();
+            mostrarLoadingMantenimientos(false);
+            return;
+        }
+        
+        console.log('📝 Datos del mantenimiento:', mantenimientoData);
+        
+        // ✅ PASO 1: Generar PDF automáticamente
+        mostrarMensaje('📄 Generando documento PDF...');
+        
+        let pdfFile;
+        try {
+            pdfFile = await generarPDFMantenimiento(mantenimientoData, firmaDataURL);
+            console.log('✅ PDF generado:', pdfFile.name, 'tamaño:', pdfFile.size);
+        } catch (pdfError) {
+            console.error('Error generando PDF:', pdfError);
+            mostrarMensaje('⚠️ Error generando PDF. Guardando sin documento...', true);
+            // Continuar sin PDF
+        }
+        
+        // ✅ PASO 2: Subir PDF a Cloudinary si se generó
+        if (pdfFile) {
+            try {
+                mostrarMensaje('📤 Subiendo PDF a Cloudinary...');
+                const documentoSubido = await subirPDFCloudinary(pdfFile);
+                
+                // Agregar datos del documento al mantenimiento
+                mantenimientoData.documento_url = documentoSubido.url;
+                mantenimientoData.documento_public_id = documentoSubido.public_id;
+                mantenimientoData.documento_nombre = pdfFile.name;
+                mantenimientoData.documento_tamaño = documentoSubido.tamaño;
+                mantenimientoData.documento_tipo = 'cloudinary_raw';
+                mantenimientoData.firma_digital = firmaDataURL; // Guardar firma como referencia
+                
+                console.log('✅ PDF subido a Cloudinary:', documentoSubido.url);
+            } catch (uploadError) {
+                console.error('Error subiendo PDF:', uploadError);
+                mostrarMensaje('⚠️ Error subiendo PDF. Guardando sin documento...', true);
+                // Continuar sin documento subido
+            }
+        }
+        
+        // ✅ PASO 3: Guardar en la base de datos
+        mostrarMensaje('💾 Guardando mantenimiento en la base de datos...');
+        
+        // Preparar datos para enviar (sin propiedades innecesarias)
+        const datosParaEnviar = {
+            id_equipo: mantenimientoData.id_equipo,
+            id_tipo: mantenimientoData.id_tipo,
+            fecha_realizado: mantenimientoData.fecha_realizado,
+            descripcion: mantenimientoData.descripcion,
+            realizado_por: mantenimientoData.realizado_por,
+            observaciones: mantenimientoData.observaciones || '',
+            estado: 'realizado',
+            nombre_personalizado: mantenimientoData.nombre_personalizado || '',
+            documento_url: mantenimientoData.documento_url || null,
+            documento_public_id: mantenimientoData.documento_public_id || null,
+            documento_nombre: mantenimientoData.documento_nombre || null,
+            documento_tamaño: mantenimientoData.documento_tamaño || null,
+            documento_tipo: mantenimientoData.documento_tipo || null,
+            firma_digital: mantenimientoData.firma_digital || null
+        };
+        
+        // Agregar datos de mantenimiento programado si aplica
+        if (mantenimientoData.id_mantenimiento_programado) {
+            datosParaEnviar.id_mantenimiento_programado = mantenimientoData.id_mantenimiento_programado;
+        }
+        
+        console.log('📤 Enviando datos al servidor:', datosParaEnviar);
+        
+        const response = await fetch(API_MANTENIMIENTOS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datosParaEnviar)
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Error del servidor:', errorText);
+            throw new Error(errorText || 'Error al guardar mantenimiento');
+        }
+        
+        const result = await response.json();
+        console.log('✅ Mantenimiento guardado:', result);
+        
+        // ✅ PASO 4: Mensaje de éxito y limpieza
+        const esValidacion = mantenimientoData.tipo !== 'correctivo';
+        mostrarMensaje(esValidacion ? '✅ Mantenimiento validado correctamente' : '✅ Correctivo agregado correctamente');
+        
+        // ✅ PASO 5: Limpiar formulario y recargar datos
+        cerrarModalMantenimiento();
+        cerrarModalFirma();
+        
+        // Recargar datos del equipo seleccionado
+        if (equipoSeleccionado) {
+            await cargarMantenimientosParaEquipoSeleccionado(equipoSeleccionado.id);
+        }
+        
+        // Recargar datos generales
+        await cargarMantenimientosParaEquipos();
+        renderizarPaginaActual();
+        actualizarControlesPaginacion();
+        
+        // Limpiar variable temporal
+        delete window.datosMantenimientoParaGuardar;
+        mostrarLoadingMantenimientos(false);
+        window.guardandoMantenimiento = false;
+        
+    } catch (error) {
+        console.error('❌ Error procesando firma y guardando:', error);
+        mostrarMensaje('❌ Error: ' + error.message, true);
+        cerrarModalFirma();
+        mostrarLoadingMantenimientos(false);
+        window.guardandoMantenimiento = false;
+    }
+}
+
+// ✅ FUNCIÓN: Generar PDF con firma automáticamente
+async function generarPDFMantenimiento(mantenimientoData, firmaDataURL) {
+    return new Promise((resolve, reject) => {
+        try {
+            console.log('🎨 Generando PDF...');
+            
+            // Verificar si jsPDF está disponible
+            if (typeof jspdf === 'undefined') {
+                console.warn('jsPDF no está disponible, usando método alternativo');
+                // Crear un PDF simple como fallback
+                const contenido = `
+                    ACTA DE MANTENIMIENTO
+                    =====================
+                    
+                    INFORMACIÓN DEL EQUIPO:
+                    -----------------------
+                    Código: ${equipoSeleccionado.codigo_interno || 'N/A'}
+                    Nombre: ${equipoSeleccionado.nombre || 'N/A'}
+                    Ubicación: ${construirUbicacionCompleta(equipoSeleccionado)}
+                    
+                    DETALLES DEL MANTENIMIENTO:
+                    ---------------------------
+                    Tipo: ${mantenimientoData.nombre_personalizado || 'Mantenimiento'}
+                    Fecha: ${mantenimientoData.fecha_realizado || 'N/A'}
+                    Realizado por: ${mantenimientoData.realizado_por || 'N/A'}
+                    
+                    Descripción:
+                    ${mantenimientoData.descripcion || 'Sin descripción'}
+                    
+                    ${mantenimientoData.observaciones ? 'Observaciones:\n' + mantenimientoData.observaciones : ''}
+                    
+                    FIRMA DEL TÉCNICO:
+                    ------------------
+                    [Documento firmado digitalmente]
+                    
+                    Generado el: ${new Date().toLocaleDateString('es-ES')}
+                    Sistema de Gestión de Inventarios - IPS Progresando
+                `;
+                
+                const blob = new Blob([contenido], { type: 'application/pdf' });
+                const fecha = new Date().toISOString().split('T')[0].replace(/-/g, '');
+                const codigo = equipoSeleccionado.codigo_interno || 'equipo';
+                const nombreArchivo = `mantenimiento_${codigo}_${fecha}.pdf`;
+                
+                const pdfFile = new File([blob], nombreArchivo, {
+                    type: 'application/pdf',
+                    lastModified: Date.now()
+                });
+                
+                resolve(pdfFile);
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Configuración
+            const margin = 20;
+            let y = margin;
+            
+            // Título
+            doc.setFontSize(16);
+            doc.text('ACTA DE MANTENIMIENTO', 105, y, { align: 'center' });
+            y += 10;
+            
+            doc.setFontSize(10);
+            doc.text('Sistema de Gestión de Inventarios - IPS Progresando', 105, y, { align: 'center' });
+            y += 15;
+            
+            // Línea separadora
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, y, 190, y);
+            y += 10;
+            
+            // Información del equipo
+            doc.setFontSize(12);
+            doc.text('INFORMACIÓN DEL EQUIPO', margin, y);
+            y += 8;
+            
+            doc.setFontSize(10);
+            doc.text(`Código: ${equipoSeleccionado.codigo_interno || '-'}`, margin, y);
+            doc.text(`Nombre: ${equipoSeleccionado.nombre || '-'}`, 105, y);
+            y += 6;
+            
+            doc.text(`Ubicación: ${construirUbicacionCompleta(equipoSeleccionado)}`, margin, y);
+            y += 10;
+            
+            // Detalles del mantenimiento
+            doc.setFontSize(12);
+            doc.text('DETALLES DEL MANTENIMIENTO', margin, y);
+            y += 8;
+            
+            doc.setFontSize(10);
+            doc.text(`Fecha: ${mantenimientoData.fecha_realizado || '-'}`, margin, y);
+            doc.text(`Tipo: ${mantenimientoData.nombre_personalizado || 'Mantenimiento'}`, 105, y);
+            y += 6;
+            
+            doc.text(`Realizado por: ${mantenimientoData.realizado_por || '-'}`, margin, y);
+            y += 10;
+            
+            // Descripción
+            doc.text('Descripción:', margin, y);
+            y += 6;
+            
+            const descripcion = mantenimientoData.descripcion || 'Sin descripción';
+            const splitDesc = doc.splitTextToSize(descripcion, 170);
+            splitDesc.forEach(line => {
+                if (y > 250) {
+                    doc.addPage();
+                    y = margin;
+                }
+                doc.text(line, margin, y);
+                y += 6;
+            });
+            
+            y += 6;
+            
+            // Observaciones
+            if (mantenimientoData.observaciones) {
+                doc.text('Observaciones:', margin, y);
+                y += 6;
+                
+                const observaciones = mantenimientoData.observaciones;
+                const splitObs = doc.splitTextToSize(observaciones, 170);
+                splitObs.forEach(line => {
+                    if (y > 250) {
+                        doc.addPage();
+                        y = margin;
+                    }
+                    doc.text(line, margin, y);
+                    y += 6;
+                });
+                
+                y += 6;
+            }
+            
+            // Firma
+            if (firmaDataURL && y < 200) {
+                doc.text('Firma del técnico responsable:', margin, y);
+                y += 10;
+                
+                try {
+                    // Agregar firma como imagen
+                    doc.addImage(firmaDataURL, 'PNG', margin, y, 60, 30);
+                    y += 35;
+                    
+                    // Línea para firma
+                    doc.setDrawColor(0, 0, 0);
+                    doc.line(margin, y, margin + 100, y);
+                    y += 8;
+                    
+                    // Nombre del técnico
+                    doc.setFontSize(9);
+                    doc.text(`Nombre: ${mantenimientoData.realizado_por || 'Técnico'}`, margin, y);
+                } catch (error) {
+                    console.warn('Error agregando firma al PDF:', error);
+                    doc.text('[Firma digital]', margin, y);
+                    y += 6;
+                }
+            }
+            
+            // Pie de página
+            const fechaGen = new Date().toLocaleDateString('es-ES');
+            const horaGen = new Date().toLocaleTimeString('es-ES');
+            
+            doc.setFontSize(8);
+            doc.text(`Generado el: ${fechaGen} ${horaGen}`, margin, 280);
+            doc.text('Sistema de Gestión de Inventarios - IPS Progresando', 105, 280, { align: 'center' });
+            
+            // Guardar PDF
+            const fecha = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            const codigo = equipoSeleccionado.codigo_interno || 'equipo';
+            const tipo = mantenimientoData.nombre_personalizado ? 
+                mantenimientoData.nombre_personalizado.toLowerCase().replace(/\s+/g, '_') : 
+                'mantenimiento';
+            const nombreArchivo = `mantenimiento_${codigo}_${tipo}_${fecha}.pdf`;
+            
+            const pdfBlob = doc.output('blob');
+            const pdfFile = new File([pdfBlob], nombreArchivo, {
+                type: 'application/pdf',
+                lastModified: Date.now()
+            });
+            
+            console.log('✅ PDF creado exitosamente:', nombreArchivo);
+            resolve(pdfFile);
+            
+        } catch (error) {
+            console.error('Error generando PDF:', error);
+            reject(error);
+        }
+    });
+}
+
+// ✅ FUNCIÓN MEJORADA: Subir PDF a Cloudinary
+async function subirPDFCloudinary(archivo) {
+    try {
+        console.log(`📤 Subiendo: ${archivo.name} (${(archivo.size / 1024).toFixed(2)}KB)`);
+
+        // Validaciones básicas
+        if (archivo.type !== 'application/pdf') {
+            throw new Error('Solo se permiten archivos PDF');
+        }
+
+        if (archivo.size > 10 * 1024 * 1024) {
+            throw new Error('El PDF es demasiado grande. Máximo: 10MB');
+        }
+
+        // ✅ FORM DATA SIMPLIFICADO
+        const formData = new FormData();
+        formData.append('file', archivo);
+        formData.append('upload_preset', window.CLOUDINARY_CONFIG.uploadPreset);
+        formData.append('resource_type', 'raw');
+
+        // ✅ SUBIR
+        const response = await fetch(CLOUDINARY_RAW_UPLOAD, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || `Error ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        console.log('✅ Upload exitoso:', {
+            url: data.secure_url,
+            public_id: data.public_id,
+            nombre: data.original_filename
+        });
+
+        return {
+            url: data.secure_url,
+            public_id: data.public_id,
+            nombre_original: data.original_filename,
+            tamaño: data.bytes
+        };
+
+    } catch (error) {
+        console.error('❌ Error subiendo PDF:', error);
+        throw error;
+    }
+}
+
+// ========================= FUNCIONES PARA MOSTRAR DETALLE DEL EQUIPO =========================
 
 // ✅ FUNCIÓN: Mostrar modal con detalles completos del equipo
 async function mostrarDetalleEquipo(equipoId) {
@@ -818,7 +1539,7 @@ async function mostrarDetalleEquipo(equipoId) {
     }
 }
 
-// ✅ FUNCIÓN: Crear modal con detalles del equipo (similar al de verEquipo.js)
+// ✅ FUNCIÓN: Crear modal con detalles del equipo
 function crearModalDetalleEquipo() {
     // Verificar si ya existe un modal y eliminarlo
     const modalExistente = document.getElementById('modal-detalle-equipo');
@@ -857,12 +1578,6 @@ function crearModalDetalleEquipo() {
         return tipoNombre?.includes('calibración') || tipoNombre?.includes('calibracion');
     });
     
-    // ✅ FUNCIÓN: Formatear fecha para los mantenimientos programados
-    function formatearFechaProgramada(fecha) {
-        if (!fecha) return "-";
-        return formatearFechaExacta(fecha);
-    }
-    
     // ✅ FUNCIÓN: Obtener estado de mantenimiento
     function getEstadoMantenimiento(fechaProgramada) {
         if (!fechaProgramada) return { estado: 'sin-fecha', texto: '', clase: '' };
@@ -893,26 +1608,6 @@ function crearModalDetalleEquipo() {
         }
     }
     
-    // ✅ FUNCIÓN: Construir ubicación completa
-    function construirUbicacionCompleta(equipo) {
-        if (!equipo) return "-";
-
-        if (equipo.ubicacion === "puesto") {
-            const partes = [];
-            if (equipo.puesto_codigo) partes.push(`Puesto: ${equipo.puesto_codigo}`);
-            if (equipo.area_nombre) partes.push(`Área: ${equipo.area_nombre}`);
-            if (equipo.sede_nombre) partes.push(`Sede: ${equipo.sede_nombre}`);
-            return partes.length > 0 ? partes.join(' - ') : 'Puesto (sin detalles)';
-        } else if (equipo.ubicacion === "area") {
-            const partes = ['Área'];
-            if (equipo.area_nombre) partes.push(equipo.area_nombre);
-            if (equipo.sede_nombre) partes.push(`Sede: ${equipo.sede_nombre}`);
-            return partes.length > 1 ? partes.join(' - ') : 'Área (sin detalles)';
-        } else {
-            return equipo.ubicacion || "-";
-        }
-    }
-    
     // ✅ FUNCIÓN: Renderizar mantenimientos por tipo CON BOTONES DE PDF
     function renderMantenimientosPorTipo(tipo, mantenimientos) {
         const mantenimientosFiltrados = mantenimientos.filter(m => {
@@ -938,8 +1633,9 @@ function crearModalDetalleEquipo() {
         }
 
         return mantenimientosFiltrados.map(mant => {
-            const fechaRealizado = mant.fecha_realizado ? formatearFechaExacta(mant.fecha_realizado) : '-';
+            const fechaRealizado = mant.fecha_realizado ? formatDateToDDMMYYYY(mant.fecha_realizado) : '-';
             const tieneDocumento = !!mant.documento_url;
+            const tieneFirma = !!mant.firma_digital;
             
             let nombreMantenimiento = mant.nombre_personalizado;
 
@@ -960,19 +1656,30 @@ function crearModalDetalleEquipo() {
             const urlSegura = mant.documento_url ? mant.documento_url.replace(/'/g, "\\'") : '';
             const nombreArchivo = mant.documento_nombre || `mantenimiento_${equipoSeleccionado.codigo_interno}_${fechaRealizado.replace(/\//g, '-')}.pdf`;
 
-            // ✅ BOTONES PARA VER Y DESCARGAR PDF (COMO EN EL CÓDIGO DE GUÍA)
+            // ✅ BOTONES PARA VER Y DESCARGAR PDF CON INDICADOR DE FIRMA
+            const indicadorFirma = tieneFirma ? `
+                <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full ml-2" title="Documento firmado digitalmente">
+                    <i class="fas fa-signature mr-1"></i>Firmado
+                </span>
+            ` : '';
+            
             const botonesDocumento = tieneDocumento ? `
-                <div class="flex gap-2 justify-center">
-                    <button onclick="previsualizarPDF('${urlSegura}', '${nombreArchivo}')" 
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-all duration-200"
-                            title="Abrir PDF en nueva pestaña">
-                        <i class="fas fa-eye"></i> Ver
-                    </button>
-                    <button onclick="descargarDocumento('${urlSegura}', '${nombreArchivo}')" 
-                            class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-all duration-200"
-                            title="Descargar PDF">
-                        <i class="fas fa-download"></i> PDF
-                    </button>
+                <div class="flex gap-2 justify-center items-center">
+                    <div class="flex flex-col items-center">
+                        <div class="flex gap-2">
+                            <button onclick="previsualizarPDF('${urlSegura}', '${nombreArchivo}')" 
+                                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-all duration-200"
+                                    title="Abrir PDF en nueva pestaña">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
+                            <button onclick="descargarDocumento('${urlSegura}', '${nombreArchivo}')" 
+                                    class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-all duration-200"
+                                    title="Descargar PDF">
+                                <i class="fas fa-download"></i> PDF
+                            </button>
+                        </div>
+                        ${indicadorFirma}
+                    </div>
                 </div>
             ` : '<span class="text-gray-400 text-sm">Sin documento</span>';
 
@@ -1075,7 +1782,7 @@ function crearModalDetalleEquipo() {
                                                 <div>
                                                     <strong>${preventivo.nombre_personalizado || 'Preventivo'}</strong>
                                                     <div class="text-sm text-gray-600">
-                                                        Próximo: ${formatearFechaProgramada(preventivo.proxima_fecha)} ${estadoInfo.texto}
+                                                        Próximo: ${formatDateToDDMMYYYY(preventivo.proxima_fecha)} ${estadoInfo.texto}
                                                     </div>
                                                     ${preventivo.intervalo_dias ? `<div class="text-xs text-gray-500">Cada ${preventivo.intervalo_dias} días</div>` : ''}
                                                 </div>
@@ -1101,7 +1808,7 @@ function crearModalDetalleEquipo() {
                                                 <div>
                                                     <strong>${calibracion.nombre_personalizado || 'Calibración'}</strong>
                                                     <div class="text-sm text-gray-600">
-                                                        Próxima: ${formatearFechaProgramada(calibracion.proxima_fecha)} ${estadoInfo.texto}
+                                                        Próxima: ${formatDateToDDMMYYYY(calibracion.proxima_fecha)} ${estadoInfo.texto}
                                                     </div>
                                                     ${calibracion.intervalo_dias ? `<div class="text-xs text-gray-500">Cada ${calibracion.intervalo_dias} días</div>` : ''}
                                                 </div>
@@ -1210,7 +1917,11 @@ function crearModalDetalleEquipo() {
                         <i class="fas fa-info-circle mr-2"></i>Total mantenimientos: ${totalMantenimientos}
                     </div>
                     <div class="flex gap-2">
-                        <!-- BOTÓN REMOVIDO: Solo se usarán los botones "Validar" de cada mantenimiento programado -->
+                        <!-- Botón para agregar correctivo manual -->
+                        <button onclick="mostrarModalAgregarCorrectivo(${equipoSeleccionado.id})"
+                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-wrench mr-2"></i>Agregar Correctivo
+                        </button>
                         <button onclick="cerrarModalDetalleEquipo()"
                             class="border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50">
                             Cerrar
@@ -1226,14 +1937,6 @@ function crearModalDetalleEquipo() {
     
     // Configurar eventos de los tabs
     configurarTabsDetalle();
-}
-
-// ✅ FUNCIÓN: Cerrar modal de detalle
-function cerrarModalDetalleEquipo() {
-    const modal = document.getElementById('modal-detalle-equipo');
-    if (modal) {
-        modal.remove();
-    }
 }
 
 // ✅ FUNCIÓN: Configurar tabs del modal de detalle
@@ -1254,79 +1957,74 @@ function configurarTabsDetalle() {
     });
 }
 
+// ✅ FUNCIÓN: Cerrar modal de detalle
+function cerrarModalDetalleEquipo() {
+    const modal = document.getElementById('modal-detalle-equipo');
+    if (modal) {
+        modal.remove();
+    }
+}
+
 // ✅ FUNCIÓN: Validar mantenimiento específico
 async function validarMantenimientoEspecifico(idMantenimientoProgramado, tipo) {
-    try {
-        const mantenimientoProgramado = mantenimientosProgramadosEquipoSeleccionado.find(m => m.id === idMantenimientoProgramado);
-        if (!mantenimientoProgramado) {
-            mostrarMensaje('❌ No se encontró el mantenimiento programado', true);
-            return;
-        }
+    const mantenimientoProgramado = mantenimientosProgramadosEquipoSeleccionado.find(m => m.id === idMantenimientoProgramado);
+    if (!mantenimientoProgramado) {
+        mostrarMensaje('❌ No se encontró el mantenimiento programado', true);
+        return;
+    }
 
-        // Mostrar el modal para agregar mantenimiento (con z-index mayor)
-        await mostrarModalMantenimientoEspecifico(tipo, mantenimientoProgramado);
-        
-    } catch (error) {
-        console.error("Error validando mantenimiento:", error);
-        mostrarMensaje("❌ Error al validar mantenimiento", true);
+    await mostrarModalMantenimientoEspecifico(tipo, mantenimientoProgramado);
+}
+
+// ✅ FUNCIÓN: Mostrar modal para mantenimiento específico
+async function mostrarModalMantenimientoEspecifico(tipo, mantenimientoProgramado) {
+    // Cerrar primero el modal de detalle
+    cerrarModalDetalleEquipo();
+    
+    // Mostrar modal de mantenimiento con los datos
+    mostrarModalMantenimiento(tipo, equipoSeleccionado, mantenimientoProgramado);
+}
+
+// ✅ FUNCIÓN NUEVA: Mostrar modal para agregar correctivo
+function mostrarModalAgregarCorrectivo(equipoId) {
+    // Cerrar primero el modal de detalle
+    cerrarModalDetalleEquipo();
+    
+    // Obtener usuario actual
+    const usuario = obtenerUsuarioActual();
+    
+    // Buscar el equipo en la lista
+    const equipo = todosLosEquipos.find(e => e.id === equipoId);
+    if (!equipo) {
+        mostrarMensaje('❌ No se encontró el equipo', true);
+        return;
+    }
+    
+    // Mostrar modal de mantenimiento para correctivo
+    mostrarModalMantenimiento('correctivo', equipo, null);
+    
+    // Establecer el técnico actual
+    const realizadoPorInput = document.getElementById('realizado-por');
+    if (realizadoPorInput && usuario?.nombre) {
+        realizadoPorInput.value = usuario.nombre;
     }
 }
 
-// ========================= FUNCIONES DE CLOUDINARY (DEL CÓDIGO DE GUÍA) =========================
-
-// ✅ FUNCIÓN MEJORADA: Subir PDF a Cloudinary
-async function subirPDFCloudinary(archivo) {
+// ✅ FUNCIÓN: Cargar mantenimientos para equipo seleccionado
+async function cargarMantenimientosParaEquipoSeleccionado(equipoId) {
     try {
-        console.log(`📤 Subiendo: ${archivo.name} (${(archivo.size / 1024).toFixed(2)}KB)`);
-
-        // Validaciones básicas
-        if (archivo.type !== 'application/pdf') {
-            throw new Error('Solo se permiten archivos PDF');
+        const response = await fetch(`${API_MANTENIMIENTOS}/equipo/${equipoId}`);
+        if (response.ok) {
+            mantenimientosEquipoSeleccionado = await response.json();
         }
-
-        if (archivo.size > 10 * 1024 * 1024) {
-            throw new Error('El PDF es demasiado grande. Máximo: 10MB');
-        }
-
-        // ✅ FORM DATA SIMPLIFICADO
-        const formData = new FormData();
-        formData.append('file', archivo);
-        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-        formData.append('resource_type', 'raw');
-
-        // ✅ SUBIR
-        const response = await fetch(CLOUDINARY_RAW_UPLOAD, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || `Error ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        console.log('✅ Upload exitoso:', {
-            url: data.secure_url,
-            public_id: data.public_id,
-            nombre: data.original_filename
-        });
-
-        return {
-            url: data.secure_url,
-            public_id: data.public_id,
-            nombre_original: data.original_filename,
-            tamaño: data.bytes
-        };
-
     } catch (error) {
-        console.error('❌ Error subiendo PDF:', error);
-        throw error;
+        console.error("Error cargando mantenimientos del equipo:", error);
     }
 }
 
-// ✅ FUNCIÓN CORREGIDA: Descargar documento (VERSIÓN DEFINITIVA)
+// ========================= FUNCIONES DE CLOUDINARY =========================
+
+// ✅ FUNCIÓN CORREGIDA: Descargar documento
 async function descargarDocumento(url, nombreArchivo) {
     if (!url) {
         mostrarMensaje('❌ No hay documento disponible', true);
@@ -1336,10 +2034,7 @@ async function descargarDocumento(url, nombreArchivo) {
     try {
         console.log('📥 Iniciando descarga...', { url, nombreArchivo });
 
-        // ✅ ESTRATEGIA 1: Descarga directa usando fetch + blob
         try {
-            console.log('🔄 Intentando descarga con fetch...');
-
             const response = await fetch(url);
 
             if (!response.ok) {
@@ -1363,7 +2058,6 @@ async function descargarDocumento(url, nombreArchivo) {
             link.click();
             document.body.removeChild(link);
 
-            // Limpiar después de descargar
             setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
             mostrarMensaje('✅ Descarga completada');
@@ -1372,33 +2066,30 @@ async function descargarDocumento(url, nombreArchivo) {
         } catch (fetchError) {
             console.log('❌ Fetch falló:', fetchError.message);
 
-            // ✅ ESTRATEGIA 2: Forzar descarga con atributo download
-            console.log('🔄 Forzando descarga con atributo download...');
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = nombreArchivo || 'documento.pdf';
-            link.style.display = 'none';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            mostrarMensaje('✅ Descarga iniciada');
+            window.open(url, '_blank', 'noopener,noreferrer');
+            mostrarMensaje('📄 Documento abierto en nueva pestaña');
             return true;
         }
 
     } catch (error) {
         console.error('❌ Error en descarga:', error);
 
-        // ✅ ESTRATEGIA 3: Último recurso - abrir en nueva pestaña
-        console.log('🔄 Abriendo en nueva pestaña como fallback...');
-        window.open(url, '_blank', 'noopener,noreferrer');
-        mostrarMensaje('📄 Documento abierto en nueva pestaña');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nombreArchivo || 'documento.pdf';
+        link.target = '_blank';
+        link.style.display = 'none';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        mostrarMensaje('⚠️ Intentando descarga...');
         return true;
     }
 }
 
-// ✅ FUNCIÓN SIMPLIFICADA: Previsualizar PDF en nueva pestaña
+// ✅ FUNCIÓN SIMPLIFICADA: Previsualizar PDF
 async function previsualizarPDF(url, nombreArchivo = 'documento.pdf') {
     if (!url) {
         mostrarMensaje('❌ No hay documento disponible para previsualizar', true);
@@ -1408,7 +2099,6 @@ async function previsualizarPDF(url, nombreArchivo = 'documento.pdf') {
     try {
         console.log('👀 Abriendo PDF en nueva pestaña...', { url, nombreArchivo });
 
-        // ✅ ESTRATEGIA SIMPLE: Abrir en nueva pestaña (EVITA ERRORES DE PERMISOS)
         window.open(url, '_blank', 'noopener,noreferrer');
 
         mostrarMensaje('📄 Documento abierto en nueva pestaña');
@@ -1417,7 +2107,6 @@ async function previsualizarPDF(url, nombreArchivo = 'documento.pdf') {
     } catch (error) {
         console.error('❌ Error abriendo PDF:', error);
 
-        // ✅ FALLBACK: Descarga directa
         mostrarMensaje('⚠️ Abriendo documento...');
         const link = document.createElement('a');
         link.href = url;
@@ -1433,332 +2122,6 @@ async function previsualizarPDF(url, nombreArchivo = 'documento.pdf') {
     }
 }
 
-// ========================= FUNCIONES PARA AGREGAR MANTENIMIENTOS =========================
-
-// ✅ FUNCIÓN MEJORADA: Mostrar modal para validar mantenimiento específico
-async function mostrarModalMantenimientoEspecifico(tipo, mantenimientoProgramado) {
-    const modal = document.getElementById('modal-mantenimiento');
-    const form = document.getElementById('form-mantenimiento');
-
-    if (!modal || !form) {
-        console.error('❌ No se encontró el modal o el formulario');
-        return;
-    }
-
-    form.reset();
-
-    const tipoNombre = tipo === 'preventivo' ? 'Preventivo' : 'Calibración';
-    const nombreMantenimiento = mantenimientoProgramado.nombre_personalizado || tipoNombre;
-
-    const modalTitulo = document.getElementById('modal-titulo');
-    const tipoMantenimientoInput = document.getElementById('tipo-mantenimiento');
-    const mantenimientoTipoInput = document.getElementById('mantenimiento-tipo');
-    const idMantenimientoProgramadoInput = document.getElementById('id-mantenimiento-programado');
-    const textoBotonGuardar = document.getElementById('texto-boton-guardar');
-    const fechaRealizadoInput = document.getElementById('fecha-realizado');
-    const realizadoPorInput = document.getElementById('realizado-por');
-    const descripcionTextarea = document.getElementById('descripcion-mantenimiento');
-
-    if (modalTitulo) modalTitulo.textContent = `Validar ${nombreMantenimiento}`;
-    
-    // ✅ EL TIPO DE MANTENIMIENTO DEBE ESTAR PRECARGADO SEGÚN EL TIPO
-    if (tipoMantenimientoInput) {
-        tipoMantenimientoInput.value = tipo === 'preventivo' ? 'preventivo' : 'calibracion';
-        tipoMantenimientoInput.disabled = true; // Hacerlo de solo lectura
-    }
-    
-    if (mantenimientoTipoInput) mantenimientoTipoInput.value = tipo;
-    if (idMantenimientoProgramadoInput) idMantenimientoProgramadoInput.value = mantenimientoProgramado.id;
-    if (textoBotonGuardar) textoBotonGuardar.textContent = 'Validar';
-
-    if (fechaRealizadoInput) {
-        fechaRealizadoInput.value = mantenimientoProgramado.proxima_fecha ? mantenimientoProgramado.proxima_fecha.split('T')[0] : new Date().toISOString().split('T')[0];
-        fechaRealizadoInput.readOnly = false;
-    }
-
-    // Obtener usuario actual para "Realizado por"
-    const usuario = obtenerUsuarioActual();
-    if (realizadoPorInput && usuario) {
-        realizadoPorInput.value = usuario.nombre || 'Técnico';
-    }
-
-    if (descripcionTextarea) {
-        if (tipo === 'preventivo') {
-            descripcionTextarea.value = `Mantenimiento preventivo "${nombreMantenimiento}" realizado según programa establecido. Verificación de funcionamiento, limpieza y ajustes necesarios.`;
-        } else {
-            descripcionTextarea.value = `Calibración "${nombreMantenimiento}" realizada según especificaciones del fabricante. Verificación de parámetros y ajustes de precisión.`;
-        }
-    }
-
-    // ✅ CONFIGURAR Z-INDEX MÁS ALTO PARA QUE APAREZCA POR ENCIMA
-    modal.style.zIndex = '2000';
-    modal.classList.remove('hidden');
-}
-
-// ✅ FUNCIÓN MEJORADA: Mostrar modal para agregar mantenimiento GENÉRICO (para correctivos)
-async function mostrarModalAgregarMantenimiento(equipoId, tipo = 'correctivo') {
-    try {
-        // ✅ MOSTRAR LOADING
-        mostrarLoadingMantenimientos(true);
-        
-        const res = await fetch(`${API_EQUIPOS}/${equipoId}/completo`);
-        if (!res.ok) throw new Error("Error al obtener datos del equipo");
-        
-        const equipo = await res.json();
-        
-        // Configurar información en el modal
-        document.getElementById('equipo-id-mantenimiento').value = equipoId;
-        document.getElementById('mantenimiento-tipo').value = tipo;
-        
-        const infoEquipo = document.getElementById('info-equipo-mantenimiento');
-        if (infoEquipo) {
-            infoEquipo.innerHTML = `
-                <p><strong>Nombre:</strong> ${equipo.nombre}</p>
-                <p><strong>Código:</strong> ${equipo.codigo_interno}</p>
-                <p><strong>Tipo:</strong> ${equipo.tipo_nombre || equipo.tipo_equipo_nombre || '-'}</p>
-                <p><strong>Ubicación:</strong> ${equipo.ubicacion === 'puesto' ? 
-                    `Puesto: ${equipo.puesto_codigo || '-'}` : 
-                    `Área: ${equipo.area_nombre || '-'}`}</p>
-                <p><strong>Responsable:</strong> ${equipo.responsable_nombre || '-'}</p>
-            `;
-        }
-        
-        // Establecer fecha actual por defecto
-        const fechaRealizado = document.getElementById('fecha-realizado');
-        if (fechaRealizado) {
-            const hoy = new Date().toISOString().split('T')[0];
-            fechaRealizado.value = hoy;
-            fechaRealizado.readOnly = false;
-        }
-        
-        // Establecer tipo de mantenimiento
-        const tipoMantenimientoInput = document.getElementById('tipo-mantenimiento');
-        const textoBotonGuardar = document.getElementById('texto-boton-guardar');
-        
-        if (tipoMantenimientoInput) {
-            tipoMantenimientoInput.value = tipo;
-            tipoMantenimientoInput.disabled = false; // Permitir cambio solo para correctivos
-        }
-        
-        if (textoBotonGuardar) {
-            textoBotonGuardar.textContent = tipo === 'correctivo' ? 'Agregar Correctivo' : 'Validar';
-        }
-        
-        // Obtener usuario actual para "Realizado por"
-        const usuario = obtenerUsuarioActual();
-        const realizadoPorInput = document.getElementById('realizado-por');
-        if (realizadoPorInput && usuario) {
-            realizadoPorInput.value = usuario.nombre || 'Técnico';
-        }
-        
-        // Limpiar descripción para que el usuario la escriba
-        const descripcionTextarea = document.getElementById('descripcion-mantenimiento');
-        if (descripcionTextarea) {
-            descripcionTextarea.value = '';
-            descripcionTextarea.placeholder = tipo === 'correctivo' 
-                ? 'Describa la reparación correctiva realizada...' 
-                : 'Describa el mantenimiento realizado...';
-        }
-        
-        // Mostrar modal
-        const modal = document.getElementById('modal-mantenimiento');
-        modal.style.zIndex = '2000'; // Asegurar que esté por encima
-        modal.classList.remove('hidden');
-        
-        console.log('✅ Modal mostrado para equipo:', equipo.nombre);
-        
-        // ✅ OCULTAR LOADING
-        mostrarLoadingMantenimientos(false);
-        
-    } catch (err) {
-        console.error("❌ Error al cargar datos para mantenimiento:", err);
-        mostrarLoadingMantenimientos(false);
-        mostrarMensaje("❌ Error: " + err.message, true);
-    }
-}
-
-// ✅ FUNCIÓN MEJORADA: Guardar mantenimiento (USANDO CLOUDINARY)
-async function guardarMantenimiento() {
-    // ✅ BLOQUEAR DOBLE EJECUCIÓN
-    if (window.guardandoMantenimiento) {
-        console.log('⚠️ Guardado en proceso, esperando...');
-        return;
-    }
-
-    try {
-        window.guardandoMantenimiento = true;
-
-        // Obtener datos del formulario
-        const equipoId = document.getElementById('equipo-id-mantenimiento').value;
-        const tipoSeleccionado = document.getElementById('tipo-mantenimiento').value;
-        const idMantenimientoProgramado = document.getElementById('id-mantenimiento-programado')?.value;
-        const fechaRealizado = document.getElementById('fecha-realizado').value;
-        const descripcion = document.getElementById('descripcion-mantenimiento').value;
-        const realizadoPor = document.getElementById('realizado-por').value;
-        const observaciones = document.getElementById('observaciones-mantenimiento').value;
-        const archivoDocumento = document.getElementById('documento-mantenimiento').files[0];
-
-        // Validaciones
-        if (!fechaRealizado || !descripcion || !realizadoPor) {
-            mostrarMensaje('❌ Complete todos los campos requeridos', true);
-            return;
-        }
-
-        // Buscar tipo de mantenimiento en base de datos
-        let tipoMantenimiento = null;
-        
-        if (tipoSeleccionado === 'preventivo' || tipoSeleccionado === 'calibracion' || tipoSeleccionado === 'correctivo') {
-            tipoMantenimiento = tiposMantenimiento.find(t => {
-                const nombreTipo = t.nombre.toLowerCase();
-                
-                if (tipoSeleccionado === 'preventivo') return nombreTipo.includes('preventivo');
-                if (tipoSeleccionado === 'calibracion') return nombreTipo.includes('calibración') || nombreTipo.includes('calibracion');
-                if (tipoSeleccionado === 'correctivo') return nombreTipo.includes('correctivo');
-                return false;
-            });
-        }
-
-        if (!tipoMantenimiento) {
-            // Si no se encuentra, crear uno básico
-            tipoMantenimiento = {
-                id: tipoSeleccionado === 'preventivo' ? 1 : 
-                    tipoSeleccionado === 'calibracion' ? 3 : 2,
-                nombre: tipoSeleccionado === 'preventivo' ? 'Preventivo' : 
-                       tipoSeleccionado === 'calibracion' ? 'Calibración' : 'Correctivo'
-            };
-        }
-
-        // ✅ PREPARAR DATOS CON NOMBRE PERSONALIZADO CORRECTO
-        let nombrePersonalizado = tipoMantenimiento.nombre;
-
-        if (tipoSeleccionado !== 'correctivo' && idMantenimientoProgramado) {
-            const mantenimientoProgramado = mantenimientosProgramadosEquipoSeleccionado.find(mp => mp.id == idMantenimientoProgramado);
-            if (mantenimientoProgramado?.nombre_personalizado) {
-                nombrePersonalizado = mantenimientoProgramado.nombre_personalizado;
-            }
-        }
-
-        const mantenimientoData = {
-            id_equipo: equipoId,
-            id_tipo: tipoMantenimiento.id,
-            fecha_realizado: fechaRealizado,
-            descripcion: descripcion,
-            realizado_por: realizadoPor,
-            observaciones: observaciones,
-            estado: 'realizado',
-            nombre_personalizado: nombrePersonalizado
-        };
-
-        // Agregar datos de mantenimiento programado si aplica
-        if (tipoSeleccionado !== 'correctivo' && idMantenimientoProgramado) {
-            mantenimientoData.fecha_programada = fechaRealizado;
-            mantenimientoData.id_mantenimiento_programado = parseInt(idMantenimientoProgramado);
-        }
-
-        // ✅ SUBIR DOCUMENTO PDF SI EXISTE (CLOUDINARY)
-        if (archivoDocumento) {
-            mostrarMensaje('📤 Subiendo PDF...');
-
-            try {
-                const documentoSubido = await subirPDFCloudinary(archivoDocumento);
-
-                mantenimientoData.documento_url = documentoSubido.url;
-                mantenimientoData.documento_public_id = documentoSubido.public_id;
-                mantenimientoData.documento_nombre = documentoSubido.nombre_original;
-                mantenimientoData.documento_tamaño = documentoSubido.tamaño;
-                mantenimientoData.documento_tipo = 'cloudinary_raw';
-
-                mostrarMensaje('✅ PDF subido correctamente');
-            } catch (error) {
-                mostrarMensaje(`❌ Error al subir PDF: ${error.message}`, true);
-                return;
-            }
-        }
-
-        console.log('📤 Enviando datos al servidor:', mantenimientoData);
-
-        // ✅ GUARDAR EN LA BASE DE DATOS
-        const response = await fetch(API_MANTENIMIENTOS, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mantenimientoData)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || 'Error al guardar mantenimiento');
-        }
-
-        const result = await response.json();
-        console.log('✅ Mantenimiento guardado:', result);
-
-        // Mensaje de éxito
-        const esValidacion = tipoSeleccionado !== 'correctivo';
-        mostrarMensaje(esValidacion ? '✅ Mantenimiento validado correctamente' : '✅ Correctivo agregado correctamente');
-
-        // ✅ LIMPIAR FORMULARIO Y RECARGAR
-        cerrarModalMantenimiento();
-
-        // Recargar datos
-        if (equipoSeleccionado && equipoSeleccionado.id == equipoId) {
-            await cargarMantenimientosParaEquipoSeleccionado(equipoId);
-        }
-        
-        // Actualizar la tabla principal
-        await cargarMantenimientosParaEquipos();
-        renderizarPaginaActual();
-
-    } catch (error) {
-        console.error('❌ Error guardando mantenimiento:', error);
-        mostrarMensaje('❌ Error: ' + error.message, true);
-    } finally {
-        // ✅ LIBERAR BLOQUEO
-        window.guardandoMantenimiento = false;
-    }
-}
-
-// ✅ FUNCIÓN AUXILIAR: Cargar mantenimientos para equipo seleccionado
-async function cargarMantenimientosParaEquipoSeleccionado(equipoId) {
-    try {
-        const resMantenimientos = await fetch(`${API_MANTENIMIENTOS}/equipo/${equipoId}`);
-        if (resMantenimientos.ok) {
-            mantenimientosEquipoSeleccionado = await resMantenimientos.json();
-        }
-    } catch (error) {
-        console.warn("Error recargando mantenimientos:", error);
-    }
-}
-
-// ✅ FUNCIÓN MEJORADA: Cerrar modal (LIMPIAR FORMULARIO)
-function cerrarModalMantenimiento() {
-    const modal = document.getElementById('modal-mantenimiento');
-    const form = document.getElementById('form-mantenimiento');
-
-    if (form) {
-        form.reset();
-        
-        // Restaurar el campo de tipo a editable
-        const tipoMantenimientoInput = document.getElementById('tipo-mantenimiento');
-        if (tipoMantenimientoInput) {
-            tipoMantenimientoInput.disabled = false;
-        }
-    }
-
-    // Limpiar campos específicos
-    const mantenimientoIdInput = document.getElementById('mantenimiento-id');
-    const mantenimientoTipoInput = document.getElementById('mantenimiento-tipo');
-    const idMantenimientoProgramadoInput = document.getElementById('id-mantenimiento-programado');
-
-    if (mantenimientoIdInput) mantenimientoIdInput.value = '';
-    if (mantenimientoTipoInput) mantenimientoTipoInput.value = '';
-    if (idMantenimientoProgramadoInput) idMantenimientoProgramadoInput.value = '';
-
-    if (modal) {
-        modal.style.zIndex = ''; // Restaurar z-index
-        modal.classList.add('hidden');
-    }
-}
-
 // ========================= FUNCIÓN PARA OBTENER USUARIO ACTUAL =========================
 
 function obtenerUsuarioActual() {
@@ -1771,27 +2134,19 @@ function obtenerUsuarioActual() {
     }
 }
 
-// ========================= CONFIGURAR EVENTO DEL FORMULARIO =========================
-
-// Configurar evento del formulario
-document.addEventListener('DOMContentLoaded', function() {
-    const formMantenimiento = document.getElementById('form-mantenimiento');
-    if (formMantenimiento) {
-        formMantenimiento.addEventListener('submit', function(e) {
-            e.preventDefault();
-            guardarMantenimiento();
-        });
-    }
-});
-
 // ========================= Hacer funciones disponibles globalmente =========================
 
-window.mostrarModalAgregarMantenimiento = mostrarModalAgregarMantenimiento;
-window.cerrarModalMantenimiento = cerrarModalMantenimiento;
+window.mostrarModalFirmaDigital = mostrarModalFirmaDigital;
+window.limpiarFirma = limpiarFirma;
+window.cerrarModalFirma = cerrarModalFirma;
+window.procesarFirmaYGuardar = procesarFirmaYGuardar;
+window.validarMantenimientoEspecifico = validarMantenimientoEspecifico;
+window.mostrarModalAgregarCorrectivo = mostrarModalAgregarCorrectivo;
 window.aplicarFiltros = aplicarFiltros;
 window.limpiarFiltros = limpiarFiltros;
 window.mostrarDetalleEquipo = mostrarDetalleEquipo;
 window.cerrarModalDetalleEquipo = cerrarModalDetalleEquipo;
-window.validarMantenimientoEspecifico = validarMantenimientoEspecifico;
 window.previsualizarPDF = previsualizarPDF;
 window.descargarDocumento = descargarDocumento;
+window.cerrarModalMantenimiento = cerrarModalMantenimiento;
+window.guardarMantenimiento = guardarMantenimiento;
