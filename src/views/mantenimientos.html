@@ -137,16 +137,22 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         @keyframes slideUp {
-            from { 
+            from {
                 transform: translateY(30px);
                 opacity: 0;
             }
-            to { 
+
+            to {
                 transform: translateY(0);
                 opacity: 1;
             }
@@ -192,25 +198,97 @@
             border-radius: 8px;
             cursor: crosshair;
         }
-        
+
         /* Estilos para tabs en modal de detalle */
         .tab-button-detalle {
             transition: all 0.3s ease;
         }
-        
+
         .tab-button-detalle:hover {
             transform: translateY(-1px);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-        
+
         .tab-active-detalle {
             border-bottom: 3px solid currentColor !important;
             font-weight: 600;
         }
-        
+
         /* Modal de firma */
         .modal-firma {
             z-index: 2000 !important;
+        }
+
+        /* Estilos para documentos en tabla */
+        .truncate-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        /* Mejorar visualización de botones de documentos */
+        .documento-container {
+            min-width: 220px;
+        }
+
+        /* Estilos para modales */
+        .modal-imagen-backdrop {
+            backdrop-filter: blur(4px);
+        }
+
+        /* Animación para modales */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-animated {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Estilos para documentos en tabla */
+        .documentos-columna {
+            min-width: 280px !important;
+        }
+
+        /* Estilos para botones de documentos */
+        .btn-documento {
+            transition: all 0.2s ease;
+            font-size: 0.75rem !important;
+        }
+
+        .btn-documento:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Separador entre documentos */
+        .separador-documentos {
+            border-top: 1px dashed #e5e7eb;
+        }
+
+        /* Títulos de documentos */
+        .titulo-documento {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* Nombre de archivo truncado */
+        .nombre-archivo {
+            max-width: 120px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.65rem;
         }
     </style>
 </head>
@@ -493,7 +571,7 @@
                         <input type="hidden" id="mantenimiento-id">
                         <input type="hidden" id="mantenimiento-tipo">
                         <input type="hidden" id="id-mantenimiento-programado">
-                        
+
                         <!-- ✅ INFORMACIÓN DEL EQUIPO (SIEMPRE VISIBLE) -->
                         <div class="bg-blue-50 p-4 rounded-lg mb-4" id="info-equipo-mantenimiento">
                             <!-- Se llenará dinámicamente -->
@@ -502,36 +580,49 @@
                         <!-- ✅ FECHA REALIZADO -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Realizado *</label>
-                            <input type="date" id="fecha-realizado" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                            <input type="date" id="fecha-realizado"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
                         </div>
 
                         <!-- ✅ TIPO DE MANTENIMIENTO -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Mantenimiento *</label>
-                            <input type="text" id="tipo-mantenimiento" class="w-full px-3 py-2 border border-gray-300 rounded-md" readonly>
+                            <input type="text" id="tipo-mantenimiento"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md" readonly>
                         </div>
 
                         <!-- ✅ REALIZADO POR -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Realizado por *</label>
-                            <input type="text" id="realizado-por" class="w-full px-3 py-2 border border-gray-300 rounded-md" 
-                                   placeholder="Nombre del técnico" required>
+                            <input type="text" id="realizado-por"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                placeholder="Nombre del técnico" required>
                         </div>
 
                         <!-- ✅ DESCRIPCIÓN -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
-                            <textarea id="descripcion-mantenimiento" rows="3" 
-                                      class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                      placeholder="Describa el mantenimiento realizado..." required></textarea>
+                            <textarea id="descripcion-mantenimiento" rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                placeholder="Describa el mantenimiento realizado..." required></textarea>
                         </div>
 
                         <!-- ✅ OBSERVACIONES -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                            <textarea id="observaciones-mantenimiento" rows="2" 
-                                      class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                      placeholder="Observaciones adicionales..."></textarea>
+                            <textarea id="observaciones-mantenimiento" rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                placeholder="Observaciones adicionales..."></textarea>
+                        </div>
+
+                        <!-- ✅ DOCUMENTO DE SOPORTE (PDF/IMAGEN/WORD) -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Documento de Soporte
+                                (Opcional)</label>
+                            <input type="file" id="documento-soporte" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                class="w-full border-2 border-[#0F172A] rounded px-3 py-2 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-[#0F172A] file:text-white hover:file:bg-[#1e293b]">
+                            <p class="text-xs text-gray-500 mt-1">Formatos: PDF, imágenes (JPG, PNG) o documentos Word.
+                                Máximo: 10MB</p>
                         </div>
 
                         <!-- ✅ INFO DEL DOCUMENTO ACTUAL (SOLO PARA EDICIÓN) -->
@@ -542,11 +633,11 @@
                         <!-- ✅ BOTONES -->
                         <div class="flex justify-end gap-3 pt-4">
                             <button type="button" onclick="cerrarModalMantenimiento()"
-                                    class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+                                class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
                                 Cancelar
                             </button>
                             <button type="submit" id="texto-boton-guardar"
-                                    class="px-4 py-2 bg-[#639A33] text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2">
+                                class="px-4 py-2 bg-[#639A33] text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2">
                                 <i class="fas fa-save"></i>
                                 <span id="btn-text">Guardar Mantenimiento</span>
                             </button>
@@ -566,9 +657,10 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    
+
     <script src="../js/auth.js"></script>
     <script src="../js/roles.js"></script>
     <script src="../js/mantenimientos.js"></script>
 </body>
+
 </html>
